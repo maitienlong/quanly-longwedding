@@ -1,0 +1,97 @@
+.App {
+
+}
+
+.containers {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  /* Đảm bảo footer luôn ở cuối trang */
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  /* Chia đều khoảng cách giữa logo và liên hệ */
+  align-items: center;
+  /* Canh giữa theo chiều dọc */
+  padding: 0 3rem;
+  background-color: #f0f0f0;
+  /* Màu nền xám nhạt */
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+}
+
+.logo img {
+  width: 40px;
+  /* Kích thước logo */
+  margin-right: 10px;
+}
+
+.contact {
+  display: flex;
+  align-items: center;
+}
+
+.contact img {
+  width: 20px;
+  /* Kích thước icon */
+  margin-left: 10px;
+}
+
+.navigation {
+  display: flex;
+  background-color: #008000;
+  /* Màu nền xanh lá cây */
+}
+
+.navigation a {
+  color: white;
+  text-decoration: none;
+  margin-right: 20px;
+}
+
+.menu {
+  list-style: none; /* Loại bỏ dấu chấm mặc định của list */
+  margin: 0;
+  padding: 0;
+  background-color: #008000; /* Màu nền của thanh menu */
+  overflow: hidden; /* Để ngăn chặn li tràn ra khỏi ul */
+  padding-left: 3rem; /* Lề bên trái 3rem */
+}
+
+.menu li {
+  float: left; /* Các li nằm ngang nhau */
+}
+
+.menu li a {
+  display: block; /* Để toàn bộ diện tích của li có thể click được */
+  color: white; /* Màu chữ trắng */
+  text-align: center;
+  padding: 14px 16px;
+  text-decoration: none; /* Loại bỏ gạch chân mặc định của link */
+  transition: 0.5s;
+}
+
+.menu li a:hover {
+  transition: 0.5s;
+  background-color: #006400; /* Màu nền đậm hơn khi hover */
+}
+
+
+
+.content {
+  flex: 1;
+  /* Cho phép nội dung chính chiếm không gian còn lại */
+  padding: 20px;
+}
+
+.footer {
+  text-align: center;
+  padding: 10px;
+  background-color: #f0f0f0;
+  /* Màu nền xám nhạt */
+}
