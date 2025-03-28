@@ -26,6 +26,69 @@ import ThongBao from './screens/ThongBao';
 
 
 function App() {
+
+  var menu = [
+    {
+      name: "Hợp Đồng",
+      to: "/hop-dong",
+      index: 1
+    },
+    {
+      name: "Thuê Đồ",
+      to: "/thue-do",
+      index: 2
+    }, {
+      name: "Báo Cáo",
+      to: "/bao-cao",
+      index: 3
+    },
+    {
+      name: "Sale",
+      to: "/sale",
+      index: 4
+    },
+    {
+      name: "Kế Toán",
+      to: "/ke-toan",
+      index: 5
+    },
+    {
+      name: "Công Việc",
+      to: "/cong-vi",
+      index: 6
+    },
+    {
+      name: "Nhân Viên",
+      to: "/nhan-vien",
+      index: 7
+    },
+    {
+      name: "Sản Phẩm",
+      to: "/san-pham",
+      index: 8
+    },
+    {
+      name: "Đào Tạo",
+      to: "/dao-tao",
+      index: 9
+    },
+    {
+      name: "Bài Viết",
+      to: "/bai-viet",
+      index: 10
+    },
+    {
+      name: "Khách Hàng",
+      to: "/khach-hang",
+      index: 11
+    },
+    {
+      name: "Khai Báo",
+      to: "/khai-bao",
+      index: 12
+    }
+  ]
+
   return (
     <div className="App">
       <div className="containers">
@@ -42,27 +105,13 @@ function App() {
         </div>
         <div className="navigation">
           <ul className='menu'>
-            <li>
-              <Link to="/hop-dong"><GavelIcon /> <span>Hợp Đồng</span></Link >
-            </li>
-            <li>
-              <Link to="/cong-viec"><CalendarMonthIcon /> <span>Công Việc</span></Link >
-            </li>
-            <li>
-              <Link to="/bao-cao"><BarChartIcon /> <span>Báo Cáo</span></Link >
-            </li>
-            <li>
-              <Link to="/ke-toan"><AttachMoneyIcon /> <span>Kế Toán</span></Link >
-            </li>
-            <li>
-              <Link to="/nhan-vien"><PeopleAltIcon /> <span>Nhân Viên</span></Link >
-            </li>
-            <li>
-              <Link to="/san-pham"><WarehouseIcon /> <span>Sản Phẩm</span></Link >
-            </li>
-            <li>
-              <Link to="/thong-bao"><CampaignIcon /> <span>Thông Báo</span></Link >
-            </li>
+            {
+              menu.map((item, i) => (
+                <li>
+                  <Link to={item.to}><GavelIcon /> <span><i class="fa fa-home" aria-hidden="true"></i>{item.name}</span></Link >
+                </li>
+              ))
+            }
           </ul>
         </div>
         <div className="content">
