@@ -86,7 +86,8 @@
 .content {
   flex: 1;
   /* Cho phép nội dung chính chiếm không gian còn lại */
-  padding: 20px;
+  padding: 1rem 5rem; 
+  background-color: #ECF0F5 ;
 }
 
 .footer {

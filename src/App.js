@@ -5,24 +5,17 @@ import './App.css';
 import HopDong from './screens/HopDong';
 
 import Avatar from '@mui/material/Avatar';
-import Stack from '@mui/material/Stack';
+import { Stack } from '@mui/material';
 import { deepOrange, deepPurple } from '@mui/material/colors';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
-
-import GavelIcon from '@mui/icons-material/Gavel';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
-import WarehouseIcon from '@mui/icons-material/Warehouse';
-import CampaignIcon from '@mui/icons-material/Campaign';
 import CongViec from './screens/CongViec';
 import BaoCao from './screens/BaoCao';
 import KeToan from './screens/KeToan';
 import NhanVien from './screens/NhanVien';
 import SanPham from './screens/SanPham';
 import ThongBao from './screens/ThongBao';
+import HomePage from './screens/HomPage';
 
 
 function App() {
@@ -31,60 +24,72 @@ function App() {
     {
       name: "Hợp Đồng",
       to: "/hop-dong",
+      icon: "fa fa-shopping-cart text-aqua",
       index: 1
     },
     {
       name: "Thuê Đồ",
       to: "/thue-do",
+      icon: "fa fa fa-address-book",
       index: 2
     }, {
       name: "Báo Cáo",
       to: "/bao-cao",
+      icon: "fa fa-shopping-bag text-aqua",
       index: 3
     },
     {
       name: "Sale",
       to: "/sale",
+      icon: "fa fa-shopping-basket",
       index: 4
     },
     {
       name: "Kế Toán",
       to: "/ke-toan",
+       icon: "fa fa-money",
       index: 5
     },
     {
       name: "Công Việc",
       to: "/cong-vi",
+      icon: "fa fa-calendar text-aqua",
       index: 6
     },
     {
       name: "Nhân Viên",
       to: "/nhan-vien",
+      icon: "fa fa-user text-aqua",
       index: 7
     },
     {
       name: "Sản Phẩm",
       to: "/san-pham",
+      icon: "fa fa-cube  text-aqua",  
       index: 8
     },
     {
       name: "Đào Tạo",
       to: "/dao-tao",
+      icon: "fa fa-shopping-bag  text-aqua",
       index: 9
     },
     {
       name: "Bài Viết",
       to: "/bai-viet",
+      icon: "fa fa-newspaper  text-aqua",
       index: 10
     },
     {
       name: "Khách Hàng",
       to: "/khach-hang",
+      icon: "fa fa-face-smile  text-aqua",
       index: 11
     },
     {
       name: "Khai Báo",
       to: "/khai-bao",
+      icon: "fa fa-list-ol  text-purple",
       index: 12
     }
   ]
@@ -108,7 +113,7 @@ function App() {
             {
               menu.map((item, i) => (
                 <li>
-                  <Link to={item.to}><GavelIcon /> <span><i class="fa fa-home" aria-hidden="true"></i>{item.name}</span></Link >
+                  <Link to={item.to}><span><i class={item.icon} aria-hidden="true"></i>{"    "+item.name}</span></Link >
                 </li>
               ))
             }
@@ -116,7 +121,7 @@ function App() {
         </div>
         <div className="content">
           <Routes>
-            <Route path="/" element={<HopDong />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/hop-dong" element={<HopDong />} />
             <Route path="/cong-viec" element={<CongViec />} />
             <Route path="/bao-cao" element={<BaoCao />} />
