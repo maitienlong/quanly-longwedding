@@ -16,11 +16,19 @@ import NhanVien from './screens/NhanVien';
 import SanPham from './screens/SanPham';
 import ThongBao from './screens/ThongBao';
 import HomePage from './screens/HomPage';
+import ThueDo from './screens/ThueDo/ThueDo';
+import MainV2 from './UI/MainV2';
 
 
 function App() {
 
   var menu = [
+    {
+      name: "Trang Chủ",
+      to: "/",
+      icon: "fa fa-shopping-cart text-aqua",
+      index: 0
+    },
     {
       name: "Hợp Đồng",
       to: "/hop-dong",
@@ -96,7 +104,7 @@ function App() {
 
   return (
     <div className="App">
-      <div className="containers">
+      {/* <div className="containers">
         <div className="header">
           <div className="logo">
             <img src={logo} alt="Logo" />
@@ -123,6 +131,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/hop-dong" element={<HopDong />} />
+            <Route path="/thue-do" element={<ThueDo />} />
             <Route path="/cong-viec" element={<CongViec />} />
             <Route path="/bao-cao" element={<BaoCao />} />
             <Route path="/ke-toan" element={<KeToan />} />
@@ -134,7 +143,9 @@ function App() {
         <div className="footer">
           <span>Copyright 2025. Thiết kế bởi LONG TECHNOLOGY</span>
         </div>
-      </div>
+      </div> */}
+
+      <MainV2 />
     </div>
   );
 }
