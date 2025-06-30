@@ -3,10 +3,8 @@ import logo from '../assets/logo/BETA-1 VANG@4x.png';
 import './css/mainv2.css';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { LunarDate, SolarDate } from "lunar-date-vn";
-
 import HopDongKhachHang from '../screens/HopDong/HopDongKhachHang';
 
-import CongViec from '../screens/CongViec';
 import LichCuaHang from "../screens/LichCuaHang/LichCuaHang";
 
 function MainV2() {
@@ -47,7 +45,7 @@ function MainV2() {
                         </div>
                         <nav class="sidebar-nav">
                             <ul>
-                                <li><Link to="/hop-dong-khach-hang" class="active"><i class="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
+                                <li><Link to="/hop-dong-khach-hang" ><i class="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
                                 <li><Link to="/lich-cua-hang"><i class="fa-solid fa-calendar-days"></i> LỊCH CỬA HÀNG</Link></li>
                                 <li><Link to="#"><i class="fa-solid fa-cash-register"></i> QUẢN LÝ THU CHI</Link></li>
                                 <li><Link to="#"><i class="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>

@@ -2,21 +2,11 @@ import * as React from 'react';
 import logo from './assets/logo/BETA-1 XANH@4x.png';
 import './App.css';
 
-import HopDong from './screens/HopDong';
-
 import Avatar from '@mui/material/Avatar';
 import { Stack } from '@mui/material';
 import { deepOrange, deepPurple } from '@mui/material/colors';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
-import CongViec from './screens/CongViec';
-import BaoCao from './screens/BaoCao';
-import KeToan from './screens/KeToan';
-import NhanVien from './screens/NhanVien';
-import SanPham from './screens/SanPham';
-import ThongBao from './screens/ThongBao';
-import HomePage from './screens/HomPage';
-import ThueDo from './screens/ThueDo/ThueDo';
 import MainV2 from './UI/MainV2';
 
 

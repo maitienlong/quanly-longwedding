@@ -25,12 +25,12 @@ function LichCuaHang() {
                             <th>MÃ SỐ HĐ</th>
                             <th>TÊN KHÁCH HÀNG</th>
                             <th>SĐT</th>
-                            <th>TRẠNG THÁI</th>
+                            <th>ĐỊA ĐIỂM CHỤP</th>
+                            <th>EKIP</th>
                             <th>DỊCH VỤ</th>
-                            <th>NGÀY HĐ</th>
                             <th>NGÀY CHỤP</th>
-                            <th>NGÀY XEM</th>
-                            <th>NGÀY TRẢ</th>
+                            <th>THỜI GIAN CHỤP</th>
+                            <th>CHỐT LỊCH</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -39,38 +39,24 @@ function LichCuaHang() {
                             <td>W123456</td>
                             <td>TIẾN LONG<br />THANH THỦY</td>
                             <td>0862180802<br />0862620802</td>
-                            <td><span class="status-chip">CHỈNH SỬA ẢNH</span></td>
-                            <td>CHỤP CƯỚI</td>
-                            <td>01/01<br />2000</td>
-                            <td>02/02<br />2000</td>
-                            <td>03/03<br />2000</td>
-                            <td>04/04<br />2000</td>
+                            <td>Ngoại cảnh + Studio</td>
+                            <td>Long + Thuý</td>
+                            <td>PreWedding</td>
+                            <td>29/06/2025</td>
+                            <td>9h30p</td>
+                            <td>Đã gọi điện xác nhận</td>
                         </tr>
-
                         <tr>
-                            <td>1</td>
+                            <td>2</td>
                             <td>W123456</td>
                             <td>TIẾN LONG<br />THANH THỦY</td>
                             <td>0862180802<br />0862620802</td>
-                            <td><span class="status-chip">CHỈNH SỬA ẢNH</span></td>
-                            <td>CHỤP CƯỚI</td>
-                            <td>01/01<br />2000</td>
-                            <td>02/02<br />2000</td>
-                            <td>03/03<br />2000</td>
-                            <td>04/04<br />2000</td>
-                        </tr>
-
-                        <tr>
-                            <td>1</td>
-                            <td>W123456</td>
-                            <td>TIẾN LONG<br />THANH THỦY</td>
-                            <td>0862180802<br />0862620802</td>
-                            <td><span class="status-chip">CHỈNH SỬA ẢNH</span></td>
-                            <td>CHỤP CƯỚI</td>
-                            <td>01/01<br />2000</td>
-                            <td>02/02<br />2000</td>
-                            <td>03/03<br />2000</td>
-                            <td>04/04<br />2000</td>
+                            <td>Ngoại cảnh + Studio</td>
+                            <td>Long + Thuý</td>
+                            <td>PSC</td>
+                            <td>29/06/2025</td>
+                            <td>9h30p</td>
+                            <td>Đã gọi điện xác nhận</td>
                         </tr>
                     </tbody>
                 </table>
