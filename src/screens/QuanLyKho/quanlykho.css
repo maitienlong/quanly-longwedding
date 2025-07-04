@@ -1,0 +1,287 @@
+/* Container chính của trang, để không bị dính sát vào viền */
+.content-wrapper-react {
+    background-color: #ffffff;
+    border-radius: 10px;
+    padding: 25px;
+    height: 100%;
+}
+
+/* ==== QUẢN LÝ KHO ==== */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.page-header h2 {
+    color: #0d1b3f;
+    font-size: 24px;
+}
+
+.actions-container {
+    position: relative;
+}
+
+.main-add-btn {
+    background-color: #007BFF;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 25px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.3s ease;
+}
+
+.main-add-btn:hover {
+    background-color: #0056b3;
+}
+
+.secondary-actions {
+    /* Đã bỏ display: none, React sẽ quản lý việc render */
+    position: absolute;
+    top: 110%;
+    right: 0;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    z-index: 10;
+    overflow: hidden;
+    width: 200px;
+    border: 1px solid #e0e0e0;
+}
+
+.secondary-add-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 15px;
+    background-color: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    transition: background-color 0.2s ease;
+}
+
+.secondary-add-btn:hover {
+    background-color: #f4f7fa;
+}
+
+.secondary-add-btn .svg-inline--fa { /* Target icon của FontAwesome */
+    color: #007BFF;
+}
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+}
+
+.inventory-column {
+    background-color: #ffffff;
+    padding: 25px;
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+}
+
+.inventory-column h3 {
+    font-size: 18px;
+    color: #0d1b3f;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.item-list-container {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.inventory-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.inventory-table th, .inventory-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.inventory-table thead th {
+    font-size: 14px;
+    color: #007BFF;
+    background-color: #e3f2fd;
+    position: sticky;
+    top: 0;
+}
+
+.inventory-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ================================== */
+/* ==== CSS BỔ SUNG CHO DIALOG ==== */
+/* ================================== */
+
+/* Lớp phủ phía sau dialog */
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* Khung chứa của dialog */
+.dialog-container {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 500px; /* Giới hạn độ rộng tối đa */
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Header của dialog */
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.dialog-header h3 {
+    margin: 0;
+    font-size: 20px;
+    color: #0d1b3f;
+}
+
+/* Nút đóng dialog */
+.dialog-close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #888;
+    padding: 5px;
+    line-height: 1;
+}
+.dialog-close-btn:hover {
+    color: #333;
+}
+
+/* Thân dialog, chứa form */
+.dialog-body {
+    padding-top: 10px;
+}
+
+/* ==== Kiểu cho Form bên trong Dialog ==== */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #007BFF;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 30px;
+}
+
+.form-actions button {
+    padding: 12px 25px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-cancel {
+    background-color: #f0f0f0;
+    color: #555;
+}
+.btn-cancel:hover {
+    background-color: #e0e0e0;
+}
+
+.btn-submit {
+    background-color: #007BFF;
+    color: white;
+}
+.btn-submit:hover {
+    background-color: #0056b3;
+}
+
+/* Hiệu ứng hiển thị */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+
+/* Kiểu cho textarea trong form */
+.form-group textarea {
+    width: 100%;
+    padding: 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.5;
+    resize: vertical; /* Cho phép người dùng thay đổi chiều cao */
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007BFF;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+

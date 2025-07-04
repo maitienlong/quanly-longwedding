@@ -4,6 +4,10 @@ function HopDongKhachHang() {
             <div class="content-header">
                 <h2>HỢP ĐỒNG KHÁCH HÀNG</h2>
                 <div class="filters">
+                    <button class="add-new-btn">
+                        <i class="fa-solid fa-plus"></i>
+                        THÊM HỢP ĐỒNG MỚI
+                    </button>
                     <div class="select-wrapper">
                         <i class="fa-solid fa-calendar-alt"></i>
                         <select>
@@ -39,7 +43,7 @@ function HopDongKhachHang() {
                             <td>W123456</td>
                             <td>TIẾN LONG<br />THANH THỦY</td>
                             <td>0862180802<br />0862620802</td>
-                            <td><span class="status-chip">CHỈNH SỬA ẢNH</span></td>
+                            <td><span class="status-chip">TẠO MỚI</span></td>
                             <td>CHỤP CƯỚI</td>
                             <td>01/01<br />2000</td>
                             <td>02/02<br />2000</td>

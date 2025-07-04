@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Roboto', sans-serif;
+    
+    background: linear-gradient(-45deg, #0d1b3f, #007BFF, #1a2980, #26d0ce);
+    background-size: 400% 400%;
+    animation: animateGradient 15s ease infinite;
+}
+
+/* ================================================== */
+/* ==== PHẦN CẬP NHẬT CHÍNH CHO HIỆU ỨNG KÍNH ==== */
+/* ================================================== */
+.login-box {
+    /* 1. Nền trong mờ */
+    background: rgba(255, 255, 255, 0.1);
+
+    /* 2. Hiệu ứng làm nhòe nền phía sau (quan trọng nhất) */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); /* Hỗ trợ trình duyệt Safari cũ */
+
+    /* 3. Thêm đường viền mờ để tạo cảm giác cạnh kính */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    
+    padding: 40px 50px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Cập nhật màu chữ để dễ đọc hơn trên nền kính */
+.login-header .logo-icon {
+    font-size: 48px;
+    color: #ffffff; /* Đổi thành màu trắng */
+}
+
+.login-header h1 {
+    font-size: 28px;
+    color: #ffffff; /* Đổi thành màu trắng */
+    margin: 10px 0 5px;
+}
+
+.login-header p {
+    color: rgba(255, 255, 255, 0.8); /* Trắng mờ */
+    font-size: 16px;
+    margin-bottom: 30px;
+}
+
+.input-group {
+    position: relative;
+    margin-bottom: 25px;
+}
+
+.input-group .input-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #ddd; /* Đổi màu icon */
+}
+
+.input-group input {
+    width: 100%;
+    padding: 15px 15px 15px 50px;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+
+    /* Cập nhật nền và viền cho input */
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ffffff; /* Màu chữ khi nhập */
+}
+
+.input-group input::placeholder {
+    color: rgba(255, 255, 255, 0.7); /* Màu chữ gợi ý */
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+}
+
+.password-toggle-icon {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #ddd;
+    cursor: pointer;
+}
+
+.error-message {
+    background-color: rgba(220, 53, 69, 0.8);
+    color: #ffffff;
+    font-size: 14px;
+    margin-bottom: 15px;
+    text-align: center;
+    padding: 8px;
+    border-radius: 5px;
+}
+
+.login-btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    background-color: #ffffff;
+    color: #0d1b3f; /* Đổi màu chữ */
+    font-size: 18px;
+    font-weight: 700; /* In đậm chữ */
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.login-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.login-btn:active {
+    transform: scale(0.98);
+}
+
+.login-footer {
+    margin-top: 25px;
+}
+
+.login-footer a {
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
+
+/* --- ĐỊNH NGHĨA CHUYỂN ĐỘNG (GIỮ NGUYÊN) --- */
+@keyframes animateGradient {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+.logo-login {
+    width: 6rem;
+}

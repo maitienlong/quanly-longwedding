@@ -51,13 +51,13 @@ body {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    font-size: 24px;
+    font-size: 50px;
     font-weight: 700;
     margin-bottom: 20px;
 }
 
 .sidebar-header .logo .fa-crown {
-    font-size: 32px;
+    font-size: 60px;
 }
 
 .time-display #clock {
@@ -254,4 +254,52 @@ tbody tr:hover {
     padding-top: 20px;
     font-size: 12px;
     color: #999;
+}
+
+
+/* ==== Bố cục cho nhóm hành động (bộ lọc và nút) ==== */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* Nhóm các hành động lại với nhau */
+.actions-group {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Khoảng cách giữa bộ lọc và nút "Thêm" */
+}
+
+/* Giữ nguyên bố cục cho bộ lọc */
+.filters {
+    display: flex;
+    gap: 15px;
+}
+
+
+/* ==== Kiểu dáng cho nút "Thêm chi tiêu" ==== */
+.add-new-btn {
+    background-color: var(--primary-blue);
+    color: var(--white-color);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.3s ease;
+}
+
+.add-new-btn:hover {
+    background-color: #1eb300; /* Màu xanh đậm hơn khi di chuột qua */
+}
+
+.add-new-btn .fa-solid {
+    font-size: 16px;
 }

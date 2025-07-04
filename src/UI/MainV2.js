@@ -3,18 +3,21 @@ import logo from '../assets/logo/BETA-1 VANG@4x.png';
 import './css/mainv2.css';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { LunarDate, SolarDate } from "lunar-date-vn";
-import HopDongKhachHang from '../screens/HopDong/HopDongKhachHang';
+import { AuthProvider } from '../screens/Login/AuthContext/AuthContext';
 
+import HopDongKhachHang from '../screens/HopDong/HopDongKhachHang';
 import LichCuaHang from "../screens/LichCuaHang/LichCuaHang";
+import QuanLyChiTieu from "../screens/QuanLyChiTieu/QuanLyChiTieu";
+import LichSoanDo from "../screens/LichSoanDo/LichSoanDo";
+import DoanhThu from "../screens/DoanhThu/DoanhThu";
+import QuanLyKho from "../screens/QuanLyKho/QuanLyKho";
+import ProtectedRoute from "../screens/Login/AuthContext/ProtectedRoute";
+import LoginPage from "../screens/Login/LoginPage";
 
 function MainV2() {
-
     let time = new Date().toLocaleTimeString()
     let vdate = new Date().toLocaleTimeString()
-
     const solar_date = new SolarDate(new Date());
-    console.log(solar_date.toLunarDate());
-
 
     const [ctime, setTime] = useState(time)
     const [cdate, setDate] = useState(vdate)
@@ -33,10 +36,9 @@ function MainV2() {
                 <div class="container">
                     <aside class="sidebar">
                         <div class="sidebar-header">
-                            <div class="logo">
-                                <img class="fa-solid fa-crown" src={logo}></img>
-                                <span>LONG WEDDING</span>
-                            </div>
+                            
+                                <img class="logo-login" src={logo}></img>
+                       
                             <div class="time-display">
                                 <h2 id="clock">{ctime}</h2>
                                 <p id="date">{dayNames[new Date().getDay()]}, {cdate}</p>
@@ -45,11 +47,12 @@ function MainV2() {
                         </div>
                         <nav class="sidebar-nav">
                             <ul>
-                                <li><Link to="/hop-dong-khach-hang" ><i class="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
+                                <li><Link to="/hop-dong-khach-hang"><i class="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
                                 <li><Link to="/lich-cua-hang"><i class="fa-solid fa-calendar-days"></i> LỊCH CỬA HÀNG</Link></li>
-                                <li><Link to="#"><i class="fa-solid fa-cash-register"></i> QUẢN LÝ THU CHI</Link></li>
-                                <li><Link to="#"><i class="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
-                                <li><Link to="#"><i class="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
+                                <li><Link to="/lich-soan-do"><i class="fa-solid fa-shirt"></i>LỊCH SOẠN ĐỒ</Link></li>
+                                <li><Link to="/quan-ly-chi-tieu"><i class="fa-solid fa-cash-register"></i> QUẢN LÝ CHI TIÊU</Link></li>
+                                <li><Link to="/bao-cao-doanh-thu"><i class="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
+                                <li><Link to="/quan-ly-kho"><i class="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
                             </ul>
                         </nav>
                         <div class="user-profile">
@@ -70,7 +73,10 @@ function MainV2() {
                             <Routes>
                                 <Route path="/hop-dong-khach-hang" element={<HopDongKhachHang />} />
                                 <Route path="/lich-cua-hang" element={<LichCuaHang />} />
-                   
+                                <Route path="/quan-ly-chi-tieu" element={<QuanLyChiTieu />} />
+                                <Route path="/lich-soan-do" element={<LichSoanDo />} />
+                                <Route path="/bao-cao-doanh-thu" element={<DoanhThu />} />
+                                <Route path="/quan-ly-kho" element={<QuanLyKho />} />
                             </Routes>
                         </div>
 

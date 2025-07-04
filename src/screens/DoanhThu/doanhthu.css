@@ -1,0 +1,170 @@
+/* ==== BÁO CÁO DOANH THU & KPI ==== */
+
+/* Header của dashboard */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.dashboard-header h2 {
+    color: var(--dark-blue);
+    font-size: 24px;
+}
+
+/* Bộ lọc thời gian */
+.time-filters {
+    display: flex;
+    background-color: var(--light-grey);
+    border-radius: 8px;
+    padding: 5px;
+}
+
+.filter-btn {
+    border: none;
+    background-color: transparent;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #555;
+    transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+    background-color: #ddd;
+}
+
+.filter-btn.active {
+    background-color: var(--primary-blue);
+    color: var(--white-color);
+    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.3);
+}
+
+/* Thẻ thông tin tổng quan */
+.summary-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+    margin-bottom: 25px;
+}
+
+.card {
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 25px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.card-icon {
+    font-size: 24px;
+    padding: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.revenue-card .card-icon {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+}
+
+.expense-card .card-icon {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--red-accent);
+}
+
+.card h3 {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.card p {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--dark-blue);
+}
+
+/* Bố cục chính cho biểu đồ và KPI */
+.main-dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* Biểu đồ chiếm 2 phần, KPI chiếm 1 phần */
+    gap: 25px;
+}
+
+.chart-container, .kpi-container {
+    background-color: var(--white-color);
+    padding: 25px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+}
+
+.chart-container h3, .kpi-container h3 {
+    font-size: 18px;
+    color: var(--dark-blue);
+    margin-bottom: 20px;
+}
+
+/* Bảng KPI */
+.kpi-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.kpi-table th, .kpi-table td {
+    padding: 15px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.kpi-table thead th {
+    font-size: 14px;
+    color: var(--primary-blue);
+    background-color: var(--table-header-bg);
+}
+
+.kpi-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.kpi-table .rank {
+    font-weight: 700;
+    font-size: 16px;
+    text-align: center;
+}
+
+.kpi-table .kpi-revenue {
+    font-weight: 500;
+}
+
+.kpi-table .fa-medal {
+    margin-right: 5px;
+}
+.gold { color: #ffd700; }
+.silver { color: #c0c0c0; }
+.bronze { color: #cd7f32; }
+
+
+/* Biểu tượng feedback */
+.feedback-icon {
+    position: fixed;
+    right: 20px;
+    bottom: 90px;
+    background-color: #e3f2fd;
+    color: var(--primary-blue);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
