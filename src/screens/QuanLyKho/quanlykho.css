@@ -1,4 +1,4 @@
-/* Container chính của trang, để không bị dính sát vào viền */
+/* ================= CONTAINER ================= */
 .content-wrapper-react {
     background-color: #ffffff;
     border-radius: 10px;
@@ -6,7 +6,7 @@
     height: 100%;
 }
 
-/* ==== QUẢN LÝ KHO ==== */
+/* ================= HEADER ================= */
 .page-header {
     display: flex;
     justify-content: space-between;
@@ -19,6 +19,7 @@
     font-size: 24px;
 }
 
+/* ================= ACTION BUTTON ================= */
 .actions-container {
     position: relative;
 }
@@ -29,7 +30,6 @@
     border: none;
     border-radius: 8px;
     padding: 12px 25px;
-    font-family: 'Roboto', sans-serif;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -43,49 +43,7 @@
     background-color: #0056b3;
 }
 
-.secondary-actions {
-    /* Đã bỏ display: none, React sẽ quản lý việc render */
-    position: absolute;
-    top: 110%;
-    right: 0;
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    z-index: 10;
-    overflow: hidden;
-    width: 200px;
-    border: 1px solid #e0e0e0;
-}
-
-.secondary-add-btn {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    padding: 15px;
-    background-color: transparent;
-    border: none;
-    text-align: left;
-    cursor: pointer;
-    font-size: 14px;
-    color: #333;
-    transition: background-color 0.2s ease;
-}
-
-.secondary-add-btn:hover {
-    background-color: #f4f7fa;
-}
-
-.secondary-add-btn .svg-inline--fa { /* Target icon của FontAwesome */
-    color: #007BFF;
-}
-
-.inventory-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 25px;
-}
-
+/* ================= INVENTORY ================= */
 .inventory-column {
     background-color: #ffffff;
     padding: 25px;
@@ -114,7 +72,8 @@
     border-collapse: collapse;
 }
 
-.inventory-table th, .inventory-table td {
+.inventory-table th,
+.inventory-table td {
     padding: 15px;
     text-align: left;
     border-bottom: 1px solid #e0e0e0;
@@ -128,21 +87,43 @@
     top: 0;
 }
 
-.inventory-table tbody tr:last-child td {
-    border-bottom: none;
+.inventory-table tr:hover {
+    background-color: #f7f7f7;
 }
 
-/* ================================== */
-/* ==== CSS BỔ SUNG CHO DIALOG ==== */
-/* ================================== */
+.inventory-table td img {
+    transition: transform 0.2s ease;
+}
 
-/* Lớp phủ phía sau dialog */
+.inventory-table td img:hover {
+    transform: scale(1.1);
+}
+
+/* ================= SCROLL ================= */
+.scrollable-table {
+    max-height: calc(9 * 60px + 40px);
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.scrollable-table::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scrollable-table::-webkit-scrollbar-thumb {
+    background-color: #bcbcbc;
+    border-radius: 4px;
+}
+
+.scrollable-table::-webkit-scrollbar-thumb:hover {
+    background-color: #888;
+}
+
+/* ================= DIALOG ================= */
 .dialog-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
     background-color: rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center;
@@ -150,18 +131,16 @@
     z-index: 1000;
 }
 
-/* Khung chứa của dialog */
 .dialog-container {
     background: white;
     padding: 30px;
     border-radius: 12px;
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
     width: 100%;
-    max-width: 500px; /* Giới hạn độ rộng tối đa */
+    max-width: 900px; /* +20% */
     animation: fadeIn 0.3s ease-out;
 }
 
-/* Header của dialog */
 .dialog-header {
     display: flex;
     justify-content: space-between;
@@ -177,26 +156,23 @@
     color: #0d1b3f;
 }
 
-/* Nút đóng dialog */
 .dialog-close-btn {
     background: none;
     border: none;
     font-size: 24px;
     cursor: pointer;
     color: #888;
-    padding: 5px;
-    line-height: 1;
 }
+
 .dialog-close-btn:hover {
     color: #333;
 }
 
-/* Thân dialog, chứa form */
 .dialog-body {
     padding-top: 10px;
 }
 
-/* ==== Kiểu cho Form bên trong Dialog ==== */
+/* ================= FORM ================= */
 .form-group {
     margin-bottom: 20px;
 }
@@ -208,7 +184,8 @@
     color: #333;
 }
 
-.form-group input {
+.form-group input,
+.form-group textarea {
     width: 100%;
     padding: 12px;
     border: 1px solid #ccc;
@@ -216,7 +193,8 @@
     font-size: 14px;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group textarea:focus {
     outline: none;
     border-color: #007BFF;
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
@@ -229,19 +207,11 @@
     margin-top: 30px;
 }
 
-.form-actions button {
-    padding: 12px 25px;
-    border-radius: 8px;
-    border: none;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
 .btn-cancel {
     background-color: #f0f0f0;
     color: #555;
 }
+
 .btn-cancel:hover {
     background-color: #e0e0e0;
 }
@@ -250,11 +220,12 @@
     background-color: #007BFF;
     color: white;
 }
+
 .btn-submit:hover {
     background-color: #0056b3;
 }
 
-/* Hiệu ứng hiển thị */
+/* ================= ANIMATION ================= */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -264,24 +235,120 @@
         opacity: 1;
         transform: scale(1);
     }
+
+    
 }
 
+/* ================= FORM GRID (DESKTOP) ================= */
+.dialog-body form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
 
-/* Kiểu cho textarea trong form */
-.form-group textarea {
+/* textarea chiếm toàn bộ chiều ngang */
+.dialog-body form .form-group textarea {
+    grid-column: 1 / -1;
+}
+
+/* upload ảnh chiếm toàn bộ chiều ngang */
+.dialog-body form .form-group input[type="file"] {
+    grid-column: 1 / -1;
+}
+
+/* action buttons nằm full width */
+.dialog-body form .form-actions {
+    grid-column: 1 / -1;
+}
+
+/* ================= RESPONSIVE < 768px ================= */
+@media (max-width: 768px) {
+
+    .dialog-container {
+        max-width: 95%;
+        padding: 20px;
+        margin: 0 10px;
+    }
+
+    .dialog-body {
+        max-height: 80vh;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .dialog-body form {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .form-actions button {
+        width: 100%;
+    }
+}
+
+/* ================= SERVICE FORM GRID ================= */
+.service-form-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 24px;
+    align-items: start;
+}
+
+.service-form-left {
+    display: flex;
+    flex-direction: column;
+}
+
+.service-form-right {
+    position: sticky;
+    top: 20px;
+}
+
+/* ================= IMAGE PREVIEW ================= */
+.service-image-preview {
     width: 100%;
-    padding: 14px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
+    max-height: 360px;
+    object-fit: cover;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.service-image-placeholder {
+    width: 100%;
+    height: 300px;
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
     font-size: 14px;
-    font-family: 'Roboto', sans-serif;
-    line-height: 1.5;
-    resize: vertical; /* Cho phép người dùng thay đổi chiều cao */
+    text-align: center;
+    background-color: #fafafa;
 }
 
-.form-group textarea:focus {
-    outline: none;
-    border-color: #007BFF;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+/* ================= ACTION FIX ================= */
+.service-form-actions {
+    grid-column: 1 / -1;
 }
 
+/* ================= RESPONSIVE ================= */
+@media (max-width: 768px) {
+    .service-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .service-form-right {
+        position: static;
+        order: -1;
+    }
+
+    .service-image-preview,
+    .service-image-placeholder {
+        max-height: 240px;
+    }
+}

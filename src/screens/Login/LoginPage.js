@@ -1,33 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useNavigate } from 'react-router-dom';
 import { faUser, faLock, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import './login.css'; // File CSS chúng ta sẽ tạo ở bước 2
-import logo from '../../assets/logo/BETA-1 VANG.png'
+import logo from '../../assets/logo/BETA-1 VANG.png';
+import { toast } from 'sonner';
+import { useAuth } from './AuthContext/AuthContext';
+
+import authService from '../../API/services/authService';
+
+
 const LoginPage = ({ onLoginSuccess }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
+    const navigate = useNavigate();
+    const { login, isLoggedIn } = useAuth();
+
+    useEffect(() => {
+        if (isLoggedIn) navigate('/');
+    }, [isLoggedIn, navigate]);
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        setError(''); // Xóa lỗi cũ
-
         // Kiểm tra input
         if (!email || !password) {
-            setError('Vui lòng nhập đầy đủ email và mật khẩu.');
             return;
         }
+        // Gọi API đăng nhập
+        authService.login({ username: email, password: password })
+            .then((response) => {
 
-        // --- Logic đăng nhập ---
-        // Trong ứng dụng thực tế, bạn sẽ gọi API ở đây.
-        // Ở đây, chúng ta chỉ giả lập việc kiểm tra tài khoản.
-        if (email === 'admin@longwedding.vn' && password === 'password123') {
-            console.log('Đăng nhập thành công!');
-            onLoginSuccess(); // Gọi hàm được truyền từ App.js để báo hiệu đăng nhập thành công
-        } else {
-            setError('Email hoặc mật khẩu không chính xác.');
-        }
+                if (response.status === 'success') {
+                    login(response.data);
+                    toast.success("Đăng nhập thành công!");
+                    navigate('/'); // Chuyển hướng về trang chính
+                } else {
+                    toast.error(response.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại.");
+                }
+
+            })
+            .catch((error) => {
+                console.error('Login failed:', error);
+                toast.error("Đăng nhập thất bại. Vui lòng kiểm tra lại.");
+            });
     };
 
     return (
@@ -42,12 +58,13 @@ const LoginPage = ({ onLoginSuccess }) => {
                     <div className="input-group">
                         <FontAwesomeIcon icon={faUser} className="input-icon" />
                         <input
-                            type="email"
-                            placeholder="Tên đăng nhập hoặc Email"
+                            type="text"
+                            placeholder="Nhập tài khoản"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
                         />
+                        
                     </div>
                     <div className="input-group">
                         <FontAwesomeIcon icon={faLock} className="input-icon" />
@@ -64,8 +81,6 @@ const LoginPage = ({ onLoginSuccess }) => {
                             onClick={() => setShowPassword(!showPassword)}
                         />
                     </div>
-                    
-                    {error && <p className="error-message">{error}</p>}
 
                     <button type="submit" className="login-btn">Đăng nhập</button>
                 </form>

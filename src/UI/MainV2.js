@@ -1,93 +1,132 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import logo from '../assets/logo/BETA-1 VANG@4x.png';
 import './css/mainv2.css';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { LunarDate, SolarDate } from "lunar-date-vn";
-import { AuthProvider } from '../screens/Login/AuthContext/AuthContext';
-
+import { SolarDate } from "lunar-date-vn";
 import HopDongKhachHang from '../screens/HopDong/HopDongKhachHang';
 import LichCuaHang from "../screens/LichCuaHang/LichCuaHang";
 import QuanLyChiTieu from "../screens/QuanLyChiTieu/QuanLyChiTieu";
 import LichSoanDo from "../screens/LichSoanDo/LichSoanDo";
 import DoanhThu from "../screens/DoanhThu/DoanhThu";
 import QuanLyKho from "../screens/QuanLyKho/QuanLyKho";
-import ProtectedRoute from "../screens/Login/AuthContext/ProtectedRoute";
-import LoginPage from "../screens/Login/LoginPage";
+import { Routes, Route, Link } from 'react-router-dom';
+import { useAuth } from '../screens/Login/AuthContext/AuthContext';
+import { toast } from 'sonner';
 
 function MainV2() {
-    let time = new Date().toLocaleTimeString()
-    let vdate = new Date().toLocaleTimeString()
-    const solar_date = new SolarDate(new Date());
+    const navigate = useNavigate();
+    const [showDialog, setShowDialog] = useState(false);
+    const [user, setUser] = useState(
+        localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null
+    );
+    const { logout } = useAuth();
 
-    const [ctime, setTime] = useState(time)
-    const [cdate, setDate] = useState(vdate)
+    const [ctime, setTime] = useState(new Date().toLocaleTimeString());
+    const [cdate, setDate] = useState(new Date().toLocaleDateString());
+    const solar_date = new SolarDate(new Date());
     const dayNames = ["Chủ nhật", "Thứ hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
-    const UpdateTime = () => {
-        time = new Date().getHours() + ":" + new Date().getMinutes() + ":" + new Date().getSeconds()
-        vdate = " Ngày " + new Date().getDate() + " tháng " + new Date().getMonth() + " năm " + new Date().getFullYear()
-        setTime(time)
-        setDate(vdate)
-    }
-    setInterval(UpdateTime)
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTime(new Date().toLocaleTimeString());
+            setDate(new Date().toLocaleDateString());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const handleLogout = () => {
+        logout();
+        toast.success("Đăng xuất thành công!");
+        navigate('/login');
+    };
 
     return (
         <div className="AppV2">
-            <body>
-                <div class="container">
-                    <aside class="sidebar">
-                        <div class="sidebar-header">
-                            
-                                <img class="logo-login" src={logo}></img>
-                       
-                            <div class="time-display">
-                                <h2 id="clock">{ctime}</h2>
-                                <p id="date">{dayNames[new Date().getDay()]}, {cdate}</p>
-                                <p id="date">{"Ngày " + solar_date.toLunarDate().day + " tháng " + solar_date.toLunarDate().month + " năm " + solar_date.toLunarDate().year} </p>
-                            </div>
+            <div className="container">
+                <aside className="sidebar">
+                    <div className="sidebar-header">
+                        <img className="logo-login" src={logo} alt="logo" />
+                        <div className="time-display">
+                            <h2 id="clock">{ctime}</h2>
+                            <p id="date">{dayNames[new Date().getDay()]}, {cdate}</p>
+                            <p id="date">
+                                {"Ngày " +
+                                    solar_date.toLunarDate().day +
+                                    " tháng " +
+                                    solar_date.toLunarDate().month +
+                                    " năm " +
+                                    solar_date.toLunarDate().year}
+                            </p>
                         </div>
-                        <nav class="sidebar-nav">
-                            <ul>
-                                <li><Link to="/hop-dong-khach-hang"><i class="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
-                                <li><Link to="/lich-cua-hang"><i class="fa-solid fa-calendar-days"></i> LỊCH CỬA HÀNG</Link></li>
-                                <li><Link to="/lich-soan-do"><i class="fa-solid fa-shirt"></i>LỊCH SOẠN ĐỒ</Link></li>
-                                <li><Link to="/quan-ly-chi-tieu"><i class="fa-solid fa-cash-register"></i> QUẢN LÝ CHI TIÊU</Link></li>
-                                <li><Link to="/bao-cao-doanh-thu"><i class="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
-                                <li><Link to="/quan-ly-kho"><i class="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
-                            </ul>
-                        </nav>
-                        <div class="user-profile">
-                            <i class="fa-solid fa-user-circle"></i>
-                            <div class="user-info">
-                                <p class="user-name">MAI TIẾN LONG</p>
-                                <p class="user-role">Nhân viên</p>
-                            </div>
+                    </div>
+
+                    <nav className="sidebar-nav">
+                        <ul>
+                            <li><Link to="/hop-dong-khach-hang"><i className="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
+                            <li><Link to="/lich-cua-hang"><i className="fa-solid fa-calendar-days"></i> LỊCH CỬA HÀNG</Link></li>
+                            <li><Link to="/lich-soan-do"><i className="fa-solid fa-shirt"></i> LỊCH SOẠN ĐỒ</Link></li>
+                            <li><Link to="/quan-ly-chi-tieu"><i className="fa-solid fa-cash-register"></i> QUẢN LÝ CHI TIÊU</Link></li>
+                            <li><Link to="/bao-cao-doanh-thu"><i className="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
+                            <li><Link to="/quan-ly-kho"><i className="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
+                        </ul>
+                    </nav>
+
+                    {/* ✅ Khi click vào đây sẽ mở dialog */}
+                    <div className="user-profile" onClick={() => setShowDialog(true)}>
+                        <i className="fa-solid fa-user-circle"></i>
+                        <div className="user-info">
+                            <p className="user-name">{user?.fullname || "Người dùng"}</p>
+                            <p className="user-role">{user?.positon || "Chức vụ"}</p>
                         </div>
-                    </aside>
+                    </div>
+                </aside>
 
-                    <main class="main-content">
-                        <header class="main-header">
-                            <h1>HỆ THỐNG QUẢN LÝ CỬA HÀNG LONG WEDDING</h1>
-                        </header>
+                <main className="main-content">
+                    <header className="main-header">
+                        <h1>HỆ THỐNG QUẢN LÝ CỬA HÀNG LONG WEDDING</h1>
+                    </header>
 
-                        <div class="content-wrapper">
-                            <Routes>
-                                <Route path="/hop-dong-khach-hang" element={<HopDongKhachHang />} />
-                                <Route path="/lich-cua-hang" element={<LichCuaHang />} />
-                                <Route path="/quan-ly-chi-tieu" element={<QuanLyChiTieu />} />
-                                <Route path="/lich-soan-do" element={<LichSoanDo />} />
-                                <Route path="/bao-cao-doanh-thu" element={<DoanhThu />} />
-                                <Route path="/quan-ly-kho" element={<QuanLyKho />} />
-                            </Routes>
-                        </div>
+                    <div className="content-wrapper">
+                        <Routes>
+                            <Route path="/hop-dong-khach-hang" element={<HopDongKhachHang />} />
+                            <Route path="/lich-cua-hang" element={<LichCuaHang />} />
+                            <Route path="/quan-ly-chi-tieu" element={<QuanLyChiTieu />} />
+                            <Route path="/lich-soan-do" element={<LichSoanDo />} />
+                            <Route path="/bao-cao-doanh-thu" element={<DoanhThu />} />
+                            <Route path="/quan-ly-kho" element={<QuanLyKho />} />
+                        </Routes>
+                    </div>
 
-                        <footer class="main-footer">
-                            <p>LONG WEDDING COPYRIGHT 2025</p>
-                        </footer>
-                    </main>
+                    <footer className="main-footer">
+                        <p>LONG WEDDING COPYRIGHT 2025</p>
+                    </footer>
+                </main>
+            </div>
+
+            {/* 🎯 Dialog hiển thị thông tin người dùng */}
+            {showDialog && (
+                <div className="dialog-overlay" onClick={() => setShowDialog(false)}>
+                    <div className="dialog" onClick={(e) => e.stopPropagation()}>
+                        {/* 🔴 Nút đóng góc phải */}
+                        <button className="dialog-close-btn" onClick={() => setShowDialog(false)}>
+                            ×
+                        </button>
+
+                        <img
+                            src={user?.avatar || "https://scontent.fhan5-9.fna.fbcdn.net/v/t39.30808-6/540694805_2780834042087100_7085640180785329332_n.jpg?_nc_cat=110&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=vGwBach99ogQ7kNvwHlCCyz&_nc_oc=AdkPsams-aoLPGXTLiDj9UD1EYedRsgzJ4foDlb3anqV2ggGa3tBwDAzYTapDRxSTWY&_nc_zt=23&_nc_ht=scontent.fhan5-9.fna&_nc_gid=U4OIpzD-nFY3oSELh1v_wQ&oh=00_Afd5c05opBDNkeSxbT4cPHYHOoBbKCSODUxFp27PHabglQ&oe=68F04A4D"}
+                            alt="avatar"
+                            className="dialog-avatar"
+                        />
+                        <h2>{user?.fullname || "Tên người dùng"}</h2>
+                        <p><strong>Ngày sinh:</strong> {user?.birthday || "01/01/1990"}</p>
+                        <p><strong>Chức vụ:</strong> {user?.position || "Nhân viên"}</p>
+
+                        <button className="logout-btn" onClick={handleLogout}>
+                            Đăng xuất
+                        </button>
+                    </div>
                 </div>
-
-                <script src="script.js"></script>
-            </body>
+            )}
         </div>
     );
 }

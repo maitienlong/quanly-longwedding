@@ -1,27 +1,80 @@
+import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import otherService from '../../API/services/otherService';
+import { useLoading } from "../../context/LoadingContext";
+import ThemHopDongDialog from './ThemHopDongDialog'; // 👈 import dialog
+
+function removeAccents(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 function HopDongKhachHang() {
+    const [hopDong, setHopDong] = useState({ hopDong: [] });
+    const { showLoading, hideLoading } = useLoading();
+    const [showDialog, setShowDialog] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+
+
+    useEffect(() => {
+        showLoading("Đang tải hợp đồng ...");
+        otherService.findAllHopDong()
+            .then((response) => {
+                setHopDong(response.data);
+                toast.success("Tải dữ liệu hợp đồng khách hàng thành công!");
+                hideLoading();
+            })
+            .catch((error) => {
+                console.error('Error fetching data:', error);
+                toast.error("Lỗi khi tải dữ liệu hợp đồng khách hàng.");
+                hideLoading();
+            });
+    }, [showLoading, hideLoading]);
+
+    const filteredHopDong =
+        hopDong.hopDong?.filter((hd) => {
+            if (!searchTerm) return true; // nếu chưa nhập thì hiện tất cả
+            const lowerTerm = removeAccents(searchTerm.toLowerCase());
+            return (
+                (hd.maHopDong && removeAccents(hd.maHopDong.toLowerCase()).includes(lowerTerm)) ||
+                (hd.tenKhachHang && removeAccents(hd.tenKhachHang.toLowerCase()).includes(lowerTerm)) ||
+                (hd.tenCoDau && removeAccents(hd.tenCoDau.toLowerCase()).includes(lowerTerm))
+            );
+        }) || [];
+
+
     return (
         <div className="hopdongkhachhang">
-            <div class="content-header">
-                <h2>HỢP ĐỒNG KHÁCH HÀNG</h2>
-                <div class="filters">
-                    <button class="add-new-btn">
-                        <i class="fa-solid fa-plus"></i>
+            <div className="content-header">
+                <h2 className="title-hdkh">HỢP ĐỒNG KHÁCH HÀNG</h2>
+                <div className="filters">
+                    <button
+                        className="add-new-btn"
+                        onClick={() => setShowDialog(true)}
+                    >
+                        <i className="fa-solid fa-plus"></i>
                         THÊM HỢP ĐỒNG MỚI
                     </button>
-                    <div class="select-wrapper">
-                        <i class="fa-solid fa-calendar-alt"></i>
+
+                    <div className="select-wrapper">
+                        <i className="fa-solid fa-calendar-alt"></i>
                         <select>
                             <option>Lọc chọn thời gian tìm kiếm</option>
                         </select>
                     </div>
-                    <div class="search-bar">
-                        <i class="fa-solid fa-search"></i>
-                        <input type="text" placeholder="Tìm kiếm tên hoặc mã số HĐ" />
+
+                    <div className="search-bar">
+                        <i className="fa-solid fa-search"></i>
+                        <input
+                            type="text"
+                            placeholder="Tìm kiếm tên hoặc mã số HĐ"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                 </div>
             </div>
 
-            <div class="table-container">
+            {/* ===== DANH SÁCH HỢP ĐỒNG ===== */}
+            <div className="table-container">
                 <table>
                     <thead>
                         <tr>
@@ -31,56 +84,48 @@ function HopDongKhachHang() {
                             <th>SĐT</th>
                             <th>TRẠNG THÁI</th>
                             <th>DỊCH VỤ</th>
-                            <th>NGÀY HĐ</th>
+                            <th>NGÀY KÝ HĐ</th>
                             <th>NGÀY CHỤP</th>
-                            <th>NGÀY XEM</th>
-                            <th>NGÀY TRẢ</th>
+                            <th>NGÀY CƯỚI</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td>1</td>
-                            <td>W123456</td>
-                            <td>TIẾN LONG<br />THANH THỦY</td>
-                            <td>0862180802<br />0862620802</td>
-                            <td><span class="status-chip">TẠO MỚI</span></td>
-                            <td>CHỤP CƯỚI</td>
-                            <td>01/01<br />2000</td>
-                            <td>02/02<br />2000</td>
-                            <td>03/03<br />2000</td>
-                            <td>04/04<br />2000</td>
-                        </tr>
-
-                        <tr>
-                            <td>1</td>
-                            <td>W123456</td>
-                            <td>TIẾN LONG<br />THANH THỦY</td>
-                            <td>0862180802<br />0862620802</td>
-                            <td><span class="status-chip">CHỈNH SỬA ẢNH</span></td>
-                            <td>CHỤP CƯỚI</td>
-                            <td>01/01<br />2000</td>
-                            <td>02/02<br />2000</td>
-                            <td>03/03<br />2000</td>
-                            <td>04/04<br />2000</td>
-                        </tr>
-
-                        <tr>
-                            <td>1</td>
-                            <td>W123456</td>
-                            <td>TIẾN LONG<br />THANH THỦY</td>
-                            <td>0862180802<br />0862620802</td>
-                            <td><span class="status-chip">CHỈNH SỬA ẢNH</span></td>
-                            <td>CHỤP CƯỚI</td>
-                            <td>01/01<br />2000</td>
-                            <td>02/02<br />2000</td>
-                            <td>03/03<br />2000</td>
-                            <td>04/04<br />2000</td>
-                        </tr>
+                        {hopDong.hopDong && hopDong.hopDong.length > 0 ? (
+                            filteredHopDong.map((hd, index) => (
+                                <tr key={index}>
+                                    <td>{index + 1}</td>
+                                    <td>{hd.maHopDong}</td>
+                                    <td>{hd.khachHang.chuRe.tenKhachHang}<br />{hd.khachHang.coDau.tenKhachHang}</td>
+                                    <td>{hd.khachHang.chuRe.soDienThoai}<br />{hd.khachHang.coDau.soDienThoai}</td>
+                                    <td><span className="status-chip">{hd.trangThaiHopDong}</span></td>
+                                    <td>CHỤP CƯỚI</td>
+                                    <td>{hd.ngayKy}</td>
+                                    <td>{hd.ngayChup}</td>
+                                    <td>{hd.ngayCuoi}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="10">Không có dữ liệu hợp đồng khách hàng.</td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>
-        </div>
-    )
 
+            {/* ===== DIALOG THÊM HỢP ĐỒNG ===== */}
+            {showDialog && (
+                <ThemHopDongDialog
+                    onClose={() => setShowDialog(false)}
+                    onSave={(data) => {
+                        console.log("Dữ liệu hợp đồng mới:", data);
+                        toast.success("Đã lưu hợp đồng mới!");
+                        setShowDialog(false);
+                    }}
+                />
+            )}
+        </div>
+    );
 }
+
 export default HopDongKhachHang;

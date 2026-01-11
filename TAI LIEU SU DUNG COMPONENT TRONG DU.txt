@@ -1,0 +1,43 @@
+TAI LIEU SU DUNG COMPONENT TRONG DU AN LONGWEDDING QUAN LY
+
+SEARCH
+
+import SearchInput from "../../components/SearchInput";
+
+const [keyword, setKeyword] = useState("");
+
+<SearchInput
+    value={keyword}
+    onChange={setKeyword}
+    placeholder="Tìm kiếm tên hoặc mã số"
+    width="280px"
+    onEnter={(value) => console.log("Search:", value)}
+/>
+
+<SearchInput
+    value={search}
+    onChange={setSearch}
+    placeholder="Tìm dịch vụ..."
+/>
+
+
+<SearchInput
+    value={keyword}
+    onChange={setKeyword}
+    placeholder="Tên / SĐT khách hàng"
+/>
+
+
+
+BUTTON
+
+import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import AppButton from "../../components/AppButton";
+
+<AppButton
+    icon={faPlus}
+    onClick={() => setModalType("service")}
+>
+    Thêm
+</AppButton>
+

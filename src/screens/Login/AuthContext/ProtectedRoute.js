@@ -10,14 +10,7 @@ const ProtectedRoute = () => {
         return <Navigate to="/login" replace />;
     }
 
-    return (
-        <div className="app-layout">
-            <main className="main-content-layout">
-                {/* Outlet sẽ render component con tương ứng với route */}
-                <Outlet /> 
-            </main>
-        </div>
-    );
+      return <Outlet />;
 };
 
 export default ProtectedRoute;
