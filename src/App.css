@@ -1,5 +1,12 @@
-.App {
-
+:root {
+  --primary-color: #d4af37; /* Gold */
+  --primary-dark: #b8962e;
+  --secondary-bg: #f9f9f9;
+  --text-main: #333;
+  --text-light: #666;
+  --border-color: #e0e0e0;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  --radius: 8px;
 }
 
 .containers {

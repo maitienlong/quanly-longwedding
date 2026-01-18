@@ -1,29 +1,27 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./ThemHopDongDialog.css";
+import AppSearchInput from "../../components/AppSearchInput";
 
-function ThemHopDongDialog({ onClose, onSave }) {
+function ThemHopDongDialog({ mode = "add", data, onClose }) {
+
+
     const getToday = () => {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, "0");
-        const dd = String(today.getDate()).padStart(2, "0");
-        return `${yyyy}-${mm}-${dd}`;
+        const d = new Date();
+        return d.toISOString().split("T")[0];
     };
 
-    const addDays = (dateStr, days) => {
-        const date = new Date(dateStr);
-        date.setDate(date.getDate() + days);
-        const yyyy = date.getFullYear();
-        const mm = String(date.getMonth() + 1).padStart(2, "0");
-        const dd = String(date.getDate()).padStart(2, "0");
-        return `${yyyy}-${mm}-${dd}`;
-    };
+    const MASTER_PRODUCTS = [
+        { maDichVu: 1, tenDichVu: "Gói chụp ảnh cưới STUDIO VIP 1", giaDichVu: "8.000.000đ", tonKho: 10 },
+        { maDichVu: 2, tenDichVu: "Nâng cấp váy cưới lên VIP", giaDichVu: "6.000.000đ", tonKho: 5 },
+        { maDichVu: 3, tenDichVu: "Nâng cấp ảnh để bàn", giaDichVu: "1.000.000đ", tonKho: 20 },
+        { maDichVu: 4, tenDichVu: "Gói quay phim cưới trọn gói", giaDichVu: "10.000.000đ", tonKho: 8 },
+        { maDichVu: 5, tenDichVu: "Album ảnh cưới cao cấp", giaDichVu: "5.000.000đ", tonKho: 15 },
+        { maDichVu: 6, tenDichVu: "Phụ kiện chụp ảnh cưới", giaDichVu: "2.000.000đ", tonKho: 30 }
+    ];
 
-    // Hàm sinh mã hợp đồng ngẫu nhiên (theo năm)
     const generateMaHopDong = () => {
         const year = new Date().getFullYear();
-        const random = Math.floor(100 + Math.random() * 900); // ví dụ: 123, 458
-        return `HD-${year}-${random}`;
+        return `HD-${year}-${Math.floor(100 + Math.random() * 900)}`;
     };
 
     const [formData, setFormData] = useState({
@@ -39,111 +37,108 @@ function ThemHopDongDialog({ onClose, onSave }) {
         ngayTra: "",
         ngayAnHoi: "",
         ngayCuoi: "",
-        tongTien: "",
+        tongTien: 0,
         datCoc: "",
         thanhToan1: "",
         thanhToan2: "",
-        sanPham: [
-            {
-                ten: "Gói chụp ảnh cưới STUDIO VIP 1",
-                soLuong: 1,
-                gia: "8.000.000đ"
-            },
-            {
-                ten: "Nâng cấp váy cưới lên VIP",
-                soLuong: 1,
-                gia: "6.000.000đ"
-            },
-            {
-                ten: "Nâng cấp ảnh để bàn",
-                soLuong: 5,
-                gia: "1.000.000đ"
-            }
-        ]
+        sanPham: []
     });
 
-    // 1. THÊM STATE CHO TỪ KHÓA TÌM KIẾM
     const [searchTerm, setSearchTerm] = useState("");
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const searchRef = useRef(null);
+    const [dataIsDialog, setDataIsDialog] = useState(data);
 
     useEffect(() => {
-        const tong = formData.sanPham.reduce((sum, sp) => {
-            const giaNumber = parseInt((sp.gia || "0").toString().replace(/[^\d]/g, "")) || 0;
-            return sum + giaNumber * (sp.soLuong || 0);
-        }, 0);
+        console.log("DATA IN DIALOG:", data);
 
-        // Cập nhật tongTien trong formData
-        setFormData((prev) => ({ ...prev, tongTien: tong }));
-    }, [formData.sanPham]);
+        if (mode === "view" && data) {
+            setFormData({
+                maHopDong: data.maHopDong,
+                tenKhachHang: data.khachHang.chuRe.tenKhachHang,
+                soDTCodau: data.khachHang.coDau.soDienThoai,
+                soDTChure: data.khachHang.chuRe.soDienThoai,
+                ngayHopDong: data.ngayKy,
+                diaChiCodau: data.khachHang.coDau.diaChi,
+                diaChiChure: data.khachHang.chuRe.diaChi,
+                ngayChup: data.ngayChup,
+                ngayCuoi: data.ngayCuoi
+            });
+        }
+    }, [mode, data]);
 
-    // Lọc danh sách sản phẩm dựa trên từ khóa tìm kiếm
-    const filteredSanPham = formData.sanPham.filter(sp =>
-        sp.ten.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const suggestions = MASTER_PRODUCTS.filter(p =>
+        searchTerm.trim() &&
+        p.tenDichVu.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const handleSelectProduct = (product) => {
+        setFormData(prev => {
+            const exists = prev.sanPham.find(sp => sp.maDichVu === product.maDichVu);
+            if (exists) {
+                return {
+                    ...prev,
+                    sanPham: prev.sanPham.map(sp =>
+                        sp.maDichVu === product.maDichVu
+                            ? { ...sp, soLuong: sp.soLuong + 1 }
+                            : sp
+                    )
+                };
+            }
+            return {
+                ...prev,
+                sanPham: [...prev.sanPham, { ...product, soLuong: 1 }]
+            };
+        });
+        setSearchTerm("");
+        setShowSuggestions(false);
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSearchChange = (e) => {
-        setSearchTerm(e.target.value);
-    };
-
-    const handleSave = () => {
-        onSave(formData);
-    };
-
-    const handleSoLuongChange = (index, value) => {
-        const soLuong = parseInt(value) || 0;
-
-        setFormData((prev) => {
-            const updated = [...prev.sanPham];
-            // Lưu ý: index này là index trong mảng formData.sanPham, không phải trong filteredSanPham
-            updated[index].soLuong = soLuong;
-            return { ...prev, sanPham: updated };
-        });
-    };
-
-    // Hàm này sẽ dùng để cập nhật số lượng cho sản phẩm được lọc
-    // Để giữ state đồng bộ, ta tìm index gốc của sản phẩm trong formData.sanPham
-    const handleFilteredSoLuongChange = (filteredIndex, value) => {
-        const soLuong = parseInt(value) || 0;
-        const tenSanPham = filteredSanPham[filteredIndex].ten;
-
-        setFormData((prev) => {
-            const updated = prev.sanPham.map(sp => {
-                if (sp.ten === tenSanPham) {
-                    return { ...sp, soLuong: soLuong };
-                }
-                return sp;
-            });
-            return { ...prev, sanPham: updated };
-        });
-    };
 
 
     return (
         <div className="dialog-overlay">
             <div className="dialog large">
                 <button className="close-btn" onClick={onClose}>×</button>
-                <h3 className="dialog-title">THÊM HỢP ĐỒNG MỚI</h3>
+                <h3 className="dialog-title">{mode === "add" ? "TẠO MỚI HỢP ĐỒNG" : "THÔNG TIN HỢP ĐỒNG"}</h3>
 
                 <div className="dialog-content">
-                    {/* === CỘT TRÁI: SẢN PHẨM === */}
                     <div className="left-column">
                         <h4>Sản phẩm</h4>
-                        <div className="product-controls">
-                            {/* 2. THÊM INPUT TÌM KIẾM */}
-                            <input
-                                type="text"
-                                placeholder="🔍 Tìm tên sản phẩm..."
+
+                        {/* ===== SEARCH ===== */}
+                        <div className="product-search-container" ref={searchRef}>
+                            <AppSearchInput
                                 value={searchTerm}
-                                onChange={handleSearchChange}
-                                className="search-input"
+                                placeholder="Tìm tên sản phẩm"
+                                width="100%"
+                                onFocus={() => setShowSuggestions(true)}
+                                onChange={(e) => {
+                                    const value = e.target ? e.target.value : e;
+                                    setSearchTerm(value);
+                                    setShowSuggestions(true);
+                                }}
                             />
-                            {/* <button className="btn-search">🔍 Tìm</button> */}
-                            <button className="btn-add">➕ Thêm</button>
+
+                            {showSuggestions && suggestions.length > 0 && (
+                                <ul className="search-suggestions-pop">
+                                    {suggestions.map(p => (
+                                        <li key={p.maDichVu} onClick={() => handleSelectProduct(p)}>
+                                            <span className="p-name">{p.tenDichVu}</span>
+                                            <span className="p-price">{p.giaDichVu}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
+
+                        {/* ===== TABLE ===== */}
                         <table className="product-table">
                             <thead>
                                 <tr>
@@ -154,69 +149,35 @@ function ThemHopDongDialog({ onClose, onSave }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 3. SỬ DỤNG filteredSanPham THAY VÌ formData.sanPham */}
-                                {filteredSanPham.length === 0 ? (
-                                    <tr><td colSpan="4">Không tìm thấy sản phẩm</td></tr>
-                                ) : (
-                                    filteredSanPham.map((sp, idx) => {
-                                        const giaNumber = parseInt((sp.gia || "0").toString().replace(/[^\d]/g, "")) || 0;
-                                        const thanhTien = giaNumber * (sp.soLuong || 0);
-                                        const formatCurrency = (num) => num.toLocaleString("vi-VN") + "đ";
+                                {Array.isArray(formData.sanPham) && formData.sanPham.length > 0 ? (
+                                    formData.sanPham.map((sp) => {
+                                        const price =
+                                            parseInt((sp.giaDichVu || "0").replace(/[^\d]/g, "")) || 0;
+                                        const total = price * (sp.soLuong || 0);
 
                                         return (
-                                            <tr key={sp.ten}> {/* Dùng sp.ten làm key thay vì idx để tránh lỗi khi lọc */}
-                                                <td>{sp.ten}</td>
-                                                <td>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        value={sp.soLuong}
-                                                        onChange={(e) => handleFilteredSoLuongChange(idx, e.target.value)}
-                                                        style={{
-                                                            width: "60px",
-                                                            textAlign: "center",
-                                                            border: "1px solid #ccc",
-                                                            borderRadius: "4px",
-                                                        }}
-                                                    />
-                                                </td>
-                                                <td>{sp.gia}</td>
-                                                <td>{formatCurrency(thanhTien)}</td>
+                                            <tr key={sp.maDichVu}>
+                                                <td>{sp.tenDichVu}</td>
+                                                <td style={{ textAlign: "center" }}>{sp.soLuong}</td>
+                                                <td>{sp.giaDichVu}</td>
+                                                <td>{total.toLocaleString("vi-VN")}đ</td>
                                             </tr>
                                         );
                                     })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4} style={{ textAlign: "center", color: "#999" }}>
+                                            Chưa sử dụng dịch vụ
+                                        </td>
+                                    </tr>
                                 )}
                             </tbody>
 
-                            {/* Tổng cộng - Vẫn tính trên toàn bộ formData.sanPham */}
-                            <tfoot>
-                                <tr>
-                                    <td colSpan="3" style={{ textAlign: "right", fontWeight: "600" }}>
-                                        Tổng cộng:
-                                    </td>
-                                    <td style={{ fontWeight: "700", color: "#d4af37", textAlign: "center" }}>
-                                        {
-                                            formData.sanPham
-                                                .reduce((sum, sp) => {
-                                                    const giaNumber = parseInt((sp.gia || "0").toString().replace(/[^\d]/g, "")) || 0;
-                                                    return sum + giaNumber * (sp.soLuong || 0);
-                                                }, 0)
-                                                .toLocaleString("vi-VN") + "đ"
-                                        }
-                                    </td>
-                                </tr>
-                            </tfoot>
+
                         </table>
-
-
-                        
-
-
                     </div>
 
-                    
-
-                    {/* === CỘT PHẢI: KHÁCH HÀNG + HỢP ĐỒNG === */}
+                    {/* CỘT PHẢI */}
                     <div className="right-column">
                         <div className="dialog-section">
                             <h4>Thông tin khách hàng</h4>
@@ -316,7 +277,7 @@ function ThemHopDongDialog({ onClose, onSave }) {
 
                 <div className="dialog-actions">
                     <button className="btn-cancel" onClick={onClose}>Hủy</button>
-                    <button className="btn-save" onClick={handleSave}>Lưu hợp đồng</button>
+                    <button className="btn-save" onClick={() => { }}>Lưu hợp đồng</button>
                 </div>
             </div>
         </div>

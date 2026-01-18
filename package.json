@@ -21,6 +21,7 @@
     "axios": "^1.12.2",
     "cra-template": "1.2.0",
     "dayjs": "^1.11.13",
+    "framer-motion": "^12.26.2",
     "lunar-date-vn": "^1.0.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

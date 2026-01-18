@@ -1,17 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
-import ThemHopDongDialog from './ThemHopDongDialog'; // 👈 import dialog
+import ThemHopDongDialog from './ThemHopDongDialog';
+import AppSearchInput from '../../components/AppSearchInput';
+import AppButton from '../../components/AppButton';
+import AppComboBox from '../../components/AppComboBox';
+import { faPlus } from '@fortawesome/free-solid-svg-icons';
+import { useModal } from '../ModalContext';
 
 function removeAccents(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
+
 function HopDongKhachHang() {
     const [hopDong, setHopDong] = useState({ hopDong: [] });
     const { showLoading, hideLoading } = useLoading();
-    const [showDialog, setShowDialog] = useState(false);
+
     const [searchTerm, setSearchTerm] = useState("");
+    const [keyword, setKeyword] = useState("");
+    const [selectedValue, setSelectedValue] = useState(null);
+
+    const [selectedHopDong, setSelectedHopDong] = useState(null);
+
+    const { openModal } = useModal();
+
+    const dialogLockRef = useRef(false);
+    const data = [
+        { value: "locngay", label: "Ngày hôm nay" },
+        { value: "loctuan", label: "Tuần này" },
+        { value: "locthang", label: "Tháng này" },
+        { value: "locnam", label: "Năm này" },
+    ];
 
 
     useEffect(() => {
@@ -40,36 +60,33 @@ function HopDongKhachHang() {
             );
         }) || [];
 
-
     return (
         <div className="hopdongkhachhang">
-            <div className="content-header">
-                <h2 className="title-hdkh">HỢP ĐỒNG KHÁCH HÀNG</h2>
-                <div className="filters">
-                    <button
-                        className="add-new-btn"
-                        onClick={() => setShowDialog(true)}
+            <div class="content-header">
+                <h2>QUẢN LÝ HỢP ĐỒNG KHÁCH HÀNG</h2>
+                <div class="filters">
+                    <AppComboBox
+                        options={data}
+                        value={selectedValue}
+                        onChange={(val) => setSelectedValue(val)}
+                        placeholder="Lọc theo thời gian"
+                    />
+
+                    <AppSearchInput
+                        value={keyword}
+                        onChange={setKeyword}
+                        onSearch={() => console.log("Search service:", keyword)}
+                        placeholder="Tìm dịch vụ..."
+                    />
+
+                    <AppButton
+                        icon={faPlus}
+                        onClick={() => openModal("ADD_HOP_DONG")}
                     >
-                        <i className="fa-solid fa-plus"></i>
-                        THÊM HỢP ĐỒNG MỚI
-                    </button>
+                        Thêm hợp đồng
+                    </AppButton>
 
-                    <div className="select-wrapper">
-                        <i className="fa-solid fa-calendar-alt"></i>
-                        <select>
-                            <option>Lọc chọn thời gian tìm kiếm</option>
-                        </select>
-                    </div>
 
-                    <div className="search-bar">
-                        <i className="fa-solid fa-search"></i>
-                        <input
-                            type="text"
-                            placeholder="Tìm kiếm tên hoặc mã số HĐ"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
                 </div>
             </div>
 
@@ -92,7 +109,10 @@ function HopDongKhachHang() {
                     <tbody>
                         {hopDong.hopDong && hopDong.hopDong.length > 0 ? (
                             filteredHopDong.map((hd, index) => (
-                                <tr key={index}>
+                                <tr key={index}
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => openModal("VIEW_HOP_DONG", { data: hd })}
+                                >
                                     <td>{index + 1}</td>
                                     <td>{hd.maHopDong}</td>
                                     <td>{hd.khachHang.chuRe.tenKhachHang}<br />{hd.khachHang.coDau.tenKhachHang}</td>
@@ -113,17 +133,6 @@ function HopDongKhachHang() {
                 </table>
             </div>
 
-            {/* ===== DIALOG THÊM HỢP ĐỒNG ===== */}
-            {showDialog && (
-                <ThemHopDongDialog
-                    onClose={() => setShowDialog(false)}
-                    onSave={(data) => {
-                        console.log("Dữ liệu hợp đồng mới:", data);
-                        toast.success("Đã lưu hợp đồng mới!");
-                        setShowDialog(false);
-                    }}
-                />
-            )}
         </div>
     );
 }

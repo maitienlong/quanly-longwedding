@@ -3,12 +3,13 @@ import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch } from "@fortawesome/free-solid-svg-icons";
 
-const SearchInput = ({
+const AppSearchInput = ({
     value,
     onChange,
     placeholder = "Tìm kiếm tên hoặc mã số",
     width = "260px",
-    onEnter
+    onEnter,
+    onFocus
 }) => {
 
     const handleKeyDown = (e) => {
@@ -29,9 +30,10 @@ const SearchInput = ({
                 onChange={(e) => onChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
+                onFocus={onFocus}
             />
         </div>
     );
 };
 
-export default SearchInput;
+export default AppSearchInput;

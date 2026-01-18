@@ -2,7 +2,7 @@ function LichCuaHang() {
     return (
         <div className="hopdongkhachhang">
             <div class="content-header">
-                <h2>LỊCH CHỤP ẢNH</h2>
+                <h2>LỊCH LÀM VIỆC</h2>
                 <div class="filters">
                     <div class="select-wrapper">
                         <i class="fa-solid fa-calendar-alt"></i>

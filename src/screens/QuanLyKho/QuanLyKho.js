@@ -10,7 +10,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useLoading } from "../../context/LoadingContext";
 import otherService from '../../API/services/otherService';
-import SearchInput from '../../components/SearchInput';
+import SearchInput from '../../components/AppSearchInput';
 import AppButton from '../../components/AppButton';
 
 /* ==================== DIALOG ==================== */
