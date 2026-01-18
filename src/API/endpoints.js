@@ -10,6 +10,7 @@ export const ENDPOINTS = {
     FINDALLTRANGPHUC: "/trangPhuc/find"
   },
    DICHVU: {
-    FIND: "/dichVu/findAll"
+    FIND: "/dichVu/findAll",
+    CREATE: "/dichVu/create"
   }
 };
