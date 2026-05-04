@@ -1,5 +1,4 @@
 import './App.css';
-import { ModalProvider } from './screens/ModalContext';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './screens/Login/LoginPage';
 import { AuthProvider } from './screens/Login/AuthContext/AuthContext';
@@ -13,7 +12,7 @@ import MainV2 from './UI/MainV2';
 function App() {
   return (
     <div>
-      <ModalProvider>
+      
         <LoadingProvider>
           <Toaster position="top-right" richColors />
           <AuthProvider>
@@ -25,7 +24,7 @@ function App() {
             </Routes>
           </AuthProvider>
         </LoadingProvider>
-      </ModalProvider>
+    
     </div>
   );
 }

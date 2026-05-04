@@ -6,7 +6,15 @@ import AppSearchInput from '../../components/AppSearchInput';
 import AppButton from '../../components/AppButton';
 import AppComboBox from '../../components/AppComboBox';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
-import { useModal } from '../ModalContext';
+import ThemHopDongKHDialog from './ThemHopDongKHDialog';
+
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import Autocomplete from '@mui/material/Autocomplete';
+import Box from '@mui/material/Box';
+import DialogTitle from '@mui/material/DialogTitle';
+import Dialog from '@mui/material/Dialog';
 
 function removeAccents(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -22,15 +30,32 @@ function HopDongKhachHang() {
 
     const [selectedHopDong, setSelectedHopDong] = useState(null);
 
-    const { openModal } = useModal();
-
     const dialogLockRef = useRef(false);
-    const data = [
-        { value: "locngay", label: "Ngày hôm nay" },
-        { value: "loctuan", label: "Tuần này" },
-        { value: "locthang", label: "Tháng này" },
-        { value: "locnam", label: "Năm này" },
-    ];
+
+    // LOGIC DIALOG KHÁCH HÀNG
+    const [openDialogHD, setOpenDialogHD] = React.useState(false);
+    const [selectedValueDialog, setSelectedValueDialog] = React.useState({ data: "hello" });
+
+    const handleClickOpenDialog = () => {
+
+        setOpenDialogHD(true);
+        console.log("Mở dialog hợp đồng khách hàng" + openDialogHD);
+    };
+
+    const handleCloseDialog = (value) => {
+        setOpenDialogHD(false);
+        setSelectedValueDialog(value);
+    };
+    //-------------------------------
+
+    const locThoiGian = [
+        { label: 'Hôm nay', id: 1 },
+        { label: 'Tuần này', id: 2 },
+        { label: 'Tháng này', id: 3 },
+        { label: 'Năm này', id: 4 }]
+
+
+    const commonHeight = 56;
 
 
     useEffect(() => {
@@ -63,30 +88,30 @@ function HopDongKhachHang() {
         <div className="hopdongkhachhang">
             <div class="content-header">
                 <h2>QUẢN LÝ HỢP ĐỒNG KHÁCH HÀNG</h2>
-                <div class="filters">
-                    <AppComboBox
-                        options={data}
-                        value={selectedValue}
-                        onChange={(val) => setSelectedValue(val)}
-                        placeholder="Lọc theo thời gian"
+                <Stack spacing={2} direction="row">
+
+                    <Autocomplete
+                        disablePortal
+                        options={locThoiGian}
+                        sx={{ width: 300, height: commonHeight }}
+                        renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" />}
                     />
 
-                    <AppSearchInput
-                        value={keyword}
-                        onChange={setKeyword}
-                        onSearch={() => console.log("Search service:", keyword)}
-                        placeholder="Tìm dịch vụ..."
-                    />
+                    <TextField id="outlined-basic" label="Tìm kiếm" variant="outlined" InputProps={{
+                        sx: { height: commonHeight }
+                    }} />
 
-                    <AppButton
-                        icon={faPlus}
-                        onClick={() => openModal("ADD_HOP_DONG")}
-                    >
-                        Thêm hợp đồng
-                    </AppButton>
+                    <Button
+                        onClick={handleClickOpenDialog}
+                        variant="contained"
+                        sx={{
+                            height: commonHeight, // Ép chiều cao bằng với 2 input trên
+                            whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                        }}
+                    >Thêm Hợp Đồng</Button>
 
 
-                </div>
+                </Stack>
             </div>
 
             {/* ===== DANH SÁCH HỢP ĐỒNG ===== */}
@@ -110,7 +135,7 @@ function HopDongKhachHang() {
                             filteredHopDong.map((hd, index) => (
                                 <tr key={index}
                                     style={{ cursor: "pointer" }}
-                                    onClick={() => openModal("VIEW_HOP_DONG", { data: hd })}
+                                    onClick={() => {}}
                                 >
                                     <td>{index + 1}</td>
                                     <td>{hd.maHopDong}</td>
@@ -132,7 +157,33 @@ function HopDongKhachHang() {
                 </table>
             </div>
 
+
+            <ThemHopDongKHDialog
+                selectedValue={selectedValueDialog}
+                open={openDialogHD}
+                onClose={handleCloseDialog}
+            />
         </div>
+    );
+}
+
+function HopDongDialog(props) {
+    const { onClose, selectedValue, open } = props;
+    const handleClose = () => {
+        onClose(selectedValue);
+    };
+
+    const handleListItemClick = (value) => {
+        onClose(value);
+    };
+
+    return (
+        <Dialog onClose={handleClose} open={open}
+            fullWidth
+            maxWidth = "lg"
+            >
+            <DialogTitle>Hợp Đồng Khách Hàng</DialogTitle>
+        </Dialog>
     );
 }
 
