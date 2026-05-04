@@ -54,9 +54,7 @@ function HopDongKhachHang() {
         { label: 'Tháng này', id: 3 },
         { label: 'Năm này', id: 4 }]
 
-
     const commonHeight = 56;
-
 
     useEffect(() => {
         showLoading("Đang tải hợp đồng ...");

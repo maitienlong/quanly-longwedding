@@ -1,34 +1,49 @@
 import AppDialog from "../../components/AppDialog";
+import { useState, useEffect, useRef } from "react";
+import AppSearchInput from "../../components/AppSearchInput";
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 
-const ServiceDetailDialog = ({ open, onClose, service }) => {
-    if (!service) return null;
+
+
+function ServiceDetailDialog(props) {
+    const { onClose, data, selectedValue, open } = props;
+    const handleClose = () => {
+        onClose(selectedValue);
+    };
+
+    const handleListItemClick = (value) => {
+        onClose(value);
+    };
+
+
+    if (!data) return null;
 
     return (
-        <AppDialog
-            isOpen={open}
-            onClose={onClose}
-            title="Chi tiết dịch vụ"
-            width={600}
+        <Dialog
+            open={open}
+            onClose={handleClose}
+            fullWidth
+            maxWidth="lg"
         >
             <div className="service-detail">
-                <p><b>Mã dịch vụ:</b> {service.maDichVu}</p>
-                <p><b>Tên dịch vụ:</b> {service.tenDichVu}</p>
-
-                <p><b>Tồn kho:</b> {service.tonKho}</p>
-                <p><b>Mô tả:</b></p>
-                <p>{service.moTa}</p>
-
-                {service.hinhAnh && (
+                <p><b>Mã dịch vụ:</b> {data.maDichVu}</p>
+                <p><b>Tên dịch vụ:</b> {data.tenDichVu}</p>
+                <p><b>Tồn kho:</b> {data.tonKhoDichVu}</p>
+                <p><b>Mô tả:</b>{data.moTaDichVu}</p>
+        
+                {data.imageDichVu && (
                     <img
-                        src={typeof service.hinhAnh === "string"
-                            ? service.hinhAnh
-                            : URL.createObjectURL(service.hinhAnh)}
+                        src={typeof data.imageDichVu === "string"
+                            ? data.imageDichVu
+                            : URL.createObjectURL(data.imageDichVu)}
                         alt=""
                         style={{ width: "100%", borderRadius: 8, marginTop: 12 }}
                     />
                 )}
             </div>
-        </AppDialog>
+        </Dialog>
     );
 };
 
