@@ -173,7 +173,7 @@ h4 {
   background: #fff;
   padding: 0 5px;
   font-size: 0.8rem;
-  color: var(--primary-color);
+  color: #999;
   font-weight: 600;
   pointer-events: none;
 }

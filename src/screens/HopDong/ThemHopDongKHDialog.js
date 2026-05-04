@@ -4,13 +4,28 @@ import AppSearchInput from "../../components/AppSearchInput";
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import otherService from '../../API/services/otherService';
+import TextField from '@mui/material/TextField';
+import { toast } from 'sonner';
+import { useLoading } from "../../context/LoadingContext";
+import { NumericFormat } from 'react-number-format';
 
 function ThemHopDongKHDialog(props) {
-
     const { onClose, data, selectedValue, open } = props;
     const handleClose = () => {
         onClose(selectedValue);
     };
+    const { showLoading, hideLoading } = useLoading();
+    const [listDichVu, setListDichVu] = useState([]);
+
+    const [phoneKH1, setPhoneKH1] = useState("");
+    const [phoneKH2, setPhoneKH2] = useState("");
+    const [nameKH1, setNameKH1] = useState("");
+    const [nameKH2, setNameKH2] = useState("");
+    const [addressKH1, setAddressKH1] = useState("");
+    const [addressKH2, setAddressKH2] = useState("");
+
+    const commonHeight = 56;
 
     const handleListItemClick = (value) => {
         onClose(value);
@@ -20,15 +35,23 @@ function ThemHopDongKHDialog(props) {
         const d = new Date();
         return d.toISOString().split("T")[0];
     };
+    const nameRef = useRef(null);
+    useEffect(() => {
+        nameRef.current?.focus();
+        showLoading("Đang tải các dịch vụ.");
+        otherService.findDichVu()
+            .then((response) => {
+                setListDichVu(response.data.dichVu);
+                toast.success("Tải dữ liệu dịch vụ thành công!");
+                hideLoading();
+            })
+            .catch((error) => {
+                console.error('Error fetching data:', error);
+                toast.error("Lỗi khi tải dữ liệu dịch vụ.");
+                hideLoading();
+            });
+    }, [showLoading, hideLoading]);
 
-    const MASTER_PRODUCTS = [
-        { maDichVu: 1, tenDichVu: "Gói chụp ảnh cưới STUDIO VIP 1", giaDichVu: "8.000.000đ", tonKho: 10 },
-        { maDichVu: 2, tenDichVu: "Nâng cấp váy cưới lên VIP", giaDichVu: "6.000.000đ", tonKho: 5 },
-        { maDichVu: 3, tenDichVu: "Nâng cấp ảnh để bàn", giaDichVu: "1.000.000đ", tonKho: 20 },
-        { maDichVu: 4, tenDichVu: "Gói quay phim cưới trọn gói", giaDichVu: "10.000.000đ", tonKho: 8 },
-        { maDichVu: 5, tenDichVu: "Album ảnh cưới cao cấp", giaDichVu: "5.000.000đ", tonKho: 15 },
-        { maDichVu: 6, tenDichVu: "Phụ kiện chụp ảnh cưới", giaDichVu: "2.000.000đ", tonKho: 30 }
-    ];
 
     const generateMaHopDong = () => {
         const year = new Date().getFullYear();
@@ -58,6 +81,8 @@ function ThemHopDongKHDialog(props) {
         sanPham: []
     });
 
+    const [khachHang1, setKhachHang1] = useState('');
+
     const [searchTerm, setSearchTerm] = useState("");
     const [searchTermTPC, setSearchTermTPC] = useState("");
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -65,10 +90,7 @@ function ThemHopDongKHDialog(props) {
     const searchRef = useRef(null);
     const [dataIsDialog, setDataIsDialog] = useState(data);
 
-
-
-
-    const suggestions = MASTER_PRODUCTS.filter(p =>
+    const suggestions = listDichVu.filter(p =>
         searchTerm.trim() &&
         p.tenDichVu.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -112,13 +134,16 @@ function ThemHopDongKHDialog(props) {
                         sp.maDichVu === product.maDichVu
                             ? { ...sp, soLuong: sp.soLuong + 1 }
                             : sp
-                    )
+                    ),
+                    tongTien: prev.sanPham.reduce((total, sp) => total + (sp.giaDichVu * (sp.soLuong || 0)), 0)
                 };
             }
             return {
                 ...prev,
-                sanPham: [...prev.sanPham, { ...product, soLuong: 1 }]
+                sanPham: [...prev.sanPham, { ...product, soLuong: 1 }],
+                tongTien: prev.sanPham.reduce((total, sp) => total + (sp.giaDichVu * (sp.soLuong || 0)), 0) + product.giaDichVu
             };
+
         });
         setSearchTerm("");
         setShowSuggestions(false);
@@ -127,6 +152,20 @@ function ThemHopDongKHDialog(props) {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+
+    const onChangePhoneKH1 = (e) => {
+        const { name, value } = e.target;
+        setPhoneKH1(value);
+        otherService.findKhachHang({ soDienThoai: phoneKH1 })
+            .then((response) => {
+                console.log(response);
+                toast.success("Tìm kiếm khách hàng thành công!");
+            })
+            .catch((error) => {
+                toast.error("Lỗi khi tìm kiếm khách hàng.");
+            });
     };
 
     return (
@@ -181,15 +220,13 @@ function ThemHopDongKHDialog(props) {
                                 <tbody>
                                     {Array.isArray(formData.sanPham) && formData.sanPham.length > 0 ? (
                                         formData.sanPham.map((sp) => {
-                                            const price =
-                                                parseInt((sp.giaDichVu || "0").replace(/[^\d]/g, "")) || 0;
+                                            const price = parseFloat(sp.giaDichVu.toString().replace(/[^0-9.-]+/g, ""));
                                             const total = price * (sp.soLuong || 0);
-
                                             return (
                                                 <tr key={sp.maDichVu}>
                                                     <td>{sp.tenDichVu}</td>
                                                     <td style={{ textAlign: "center" }}>{sp.soLuong}</td>
-                                                    <td>{sp.giaDichVu}</td>
+                                                    <td>{sp.giaDichVu.toLocaleString("vi-VN")}đ</td>
                                                     <td>{total.toLocaleString("vi-VN")}đ</td>
                                                 </tr>
                                             );
@@ -210,38 +247,57 @@ function ThemHopDongKHDialog(props) {
                         {/* CỘT PHẢI */}
                         <div className="right-column">
                             <div className="dialog-section">
-                                <h4>Thông tin khách hàng</h4>
-
+                                <h4>Thông tin khách hàng 1</h4>
                                 <div className="floating-label">
-                                    <input name="tenKhachHang" value={formData.tenKhachHang} onChange={handleChange} required />
-                                    <label>Tên Cô Dâu <i>(Khách Hàng Chính)</i></label>
+                                    <input name="phoneKH1" value={phoneKH1} onChange={onChangePhoneKH1} maxLength={10} required />
+                                    <label>Phone khách hàng 1</label>
                                 </div>
 
                                 <div className="floating-label">
-                                    <input name="soDTCodau" value={formData.soDTCodau} onChange={handleChange} required />
-                                    <label>SĐT Cô Dâu</label>
+                                    <input name="tenKhachHang" value={nameKH1} onChange={(e) => { setNameKH1(e.value) }} required />
+                                    <label>Tên khách hàng</label>
                                 </div>
 
                                 <div className="floating-label">
-                                    <input name="diaChiCodau" value={formData.diaChiCodau} onChange={handleChange} required />
-                                    <label>Địa chỉ Cô Dâu</label>
+                                    <input name="diaChiCodau" value={addressKH1} onChange={(e) => { setAddressKH1(e.value) }} required />
+                                    <label>Địa chỉ</label>
+                                </div>
+
+                                <Button
+                                    onClick={() => { }}
+                                    color="success"
+                                    variant="contained"
+                                    sx={{
+                                        whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                                    }}
+                                >Tạo khách hàng mới</Button>
+                            </div>
+
+                            <div className="dialog-section">
+                                <h4>Thông tin khách hàng 2</h4>
+                                <div className="floating-label">
+                                    <input name="phoneKH2" value={phoneKH2}  maxLength={10} required />
+                                    <label>Phone khách hàng 2</label>
                                 </div>
 
                                 <div className="floating-label">
-                                    <input name="tenKhachHang" value={formData.tenKhachHang} onChange={handleChange} required />
-                                    <label>Tên Chú Rể</label>
+                                    <input name="tenKhachHang" value={nameKH2} onChange={(e) => { setNameKH2(e.value) }} required />
+                                    <label>Tên khách hàng 2</label>
                                 </div>
 
                                 <div className="floating-label">
-                                    <input name="soDTChure" value={formData.soDTChure} onChange={handleChange} required />
-                                    <label>SĐT Chú Rể</label>
+                                    <input name="diaChiCodau" value={addressKH2} onChange={(e) => { setAddressKH2(e.value) }} required />
+                                    <label>Địa chỉ khách hàng 2</label>
                                 </div>
 
-                                <div className="floating-label">
-                                    <input name="diaChiChure" value={formData.diaChiChure} onChange={handleChange} required />
-                                    <label>Địa chỉ Chú Rể</label>
-                                </div>
-
+                                <Button
+                                    onClick={() => { }}
+                                    color="success"
+                                    variant="contained"
+                                    sx={{
+                                        whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                                    }}
+                                >Tạo khách hàng mới</Button>
                             </div>
 
                             <div className="dialog-section">
@@ -275,7 +331,7 @@ function ThemHopDongKHDialog(props) {
                         </div>
                     </div>
 
-                    <div className="dialog-section payment">
+                    {/* <div className="dialog-section payment">
                         <h4>Thông tin chuyên viên phục vụ</h4>
                         <div className="colorthing-grid">
                             <div className="floating-label">
@@ -293,37 +349,68 @@ function ThemHopDongKHDialog(props) {
                                 <label>Photoshop</label>
                             </div>
                         </div>
-                    </div>
+                    </div> */}
 
                     {/* === DƯỚI CÙNG: THANH TOÁN === */}
                     <div className="dialog-section payment">
                         <h4>Thông tin thanh toán</h4>
                         <div className="payment-grid">
-                            <div className="floating-label">
-                                <input type="number" name="tongTien" value={formData.tongTien} onChange={handleChange} required />
-                                <label>Tổng số tiền cần thanh toán</label>
-                            </div>
+                            <TextField
+                                id="outlined-read-only-input"
+                                label="Tổng tiền cần thanh toán"
+                                type="text"
+                                slotProps={{
+                                    input: {
+                                        readOnly: true,
+                                    },
+                                }}
+                                value={formData.tongTien.toLocaleString("vi-VN") + "đ"}
+                                sx={{
+                                    height: commonHeight, // Ép chiều cao bằng với 2 input trên
+                                    whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                                }}
+                            />
+                            <TextField
+                                required
+                                id="outlined-required"
+                                label="Sô tiền thanh toán"
+                                defaultValue={0}
+                                sx={{
+                                    height: commonHeight, // Ép chiều cao bằng với 2 input trên
+                                    whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                                }}
+                            />
 
-                            <div className="floating-label">
-                                <input type="number" name="datCoc" value={formData.datCoc} onChange={handleChange} required />
-                                <label>Đặt cọc</label>
-                            </div>
-
-                            <div className="floating-label">
-                                <input type="number" name="thanhToan1" value={formData.thanhToan1} onChange={handleChange} required />
-                                <label>Thanh toán lần 1</label>
-                            </div>
-
-                            <div className="floating-label">
-                                <input type="number" name="thanhToan2" value={formData.thanhToan2} onChange={handleChange} required />
-                                <label>Thanh toán lần 2</label>
-                            </div>
                         </div>
                     </div>
 
                     <div className="dialog-actions">
-                        <button className="btn-cancel" onClick={onClose}>Hủy</button>
-                        <button className="btn-save" onClick={() => { }}>Lưu hợp đồng</button>
+                        <Button
+                            onClick={onClose}
+                            variant="contained"
+                            color="error"
+                            sx={{
+                                height: commonHeight, // Ép chiều cao bằng với 2 input trên
+                                whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                            }}
+                        >Thoát</Button>
+                        <Button
+                            onClick={() => { }}
+                            variant="contained"
+                            color="success"
+                            sx={{
+                                height: commonHeight, // Ép chiều cao bằng với 2 input trên
+                                whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                            }}
+                        >Lưu và thanh toán</Button>
+                        <Button
+                            onClick={() => { }}
+                            variant="contained"
+                            sx={{
+                                height: commonHeight, // Ép chiều cao bằng với 2 input trên
+                                whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                            }}
+                        >Lưu</Button>
                     </div>
                 </div>
             </div>

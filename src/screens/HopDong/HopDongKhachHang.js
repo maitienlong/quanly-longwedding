@@ -15,6 +15,14 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import DialogTitle from '@mui/material/DialogTitle';
 import Dialog from '@mui/material/Dialog';
+import { styled } from '@mui/material/styles';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell, { tableCellClasses } from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
 
 function removeAccents(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -113,47 +121,47 @@ function HopDongKhachHang() {
             </div>
 
             {/* ===== DANH SÁCH HỢP ĐỒNG ===== */}
-            <div className="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>MÃ SỐ HĐ</th>
-                            <th>TÊN KHÁCH HÀNG</th>
-                            <th>SĐT</th>
-                            <th>TRẠNG THÁI</th>
-                            <th>DỊCH VỤ</th>
-                            <th>NGÀY KÝ HĐ</th>
-                            <th>NGÀY CHỤP</th>
-                            <th>NGÀY CƯỚI</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <TableContainer component={Paper}>
+                <Table aria-label="simple table">
+
+                    <TableHead>
+                        <TableRow>
+                            <TableCell align='center' style={{ width: 20 }}>STT</TableCell>
+                            <TableCell align='center' style={{ width: 20 }}>MÃ SỐ HĐ</TableCell>
+                            <TableCell align='center' style={{ width: 100 }}>TÊN KHÁCH HÀNG</TableCell>
+                            <TableCell style={{ width: 100 }}>LIÊN HỆ</TableCell>
+                            <TableCell align='center' style={{ width: 100 }}>DỊCH VỤ</TableCell>
+                            <TableCell align='center' style={{ width: 20 }}>TRẠNG THÁI</TableCell>
+                            <TableCell align='center' style={{ width: 100 }}>NGÀY HỢP ĐỒNG</TableCell>
+                            <TableCell align='center' style={{ width: 100 }}>NGÀY CHỤP</TableCell>
+                        </TableRow>
+                    </TableHead>
+
+                    <TableBody>
                         {hopDong.hopDong && hopDong.hopDong.length > 0 ? (
                             filteredHopDong.map((hd, index) => (
-                                <tr key={index}
+                                <TableRow key={index}
                                     style={{ cursor: "pointer" }}
-                                    onClick={() => {}}
+                                    onClick={() => { }}
                                 >
-                                    <td>{index + 1}</td>
-                                    <td>{hd.maHopDong}</td>
-                                    <td>{hd.khachHang.chuRe.tenKhachHang}<br />{hd.khachHang.coDau.tenKhachHang}</td>
-                                    <td>{hd.khachHang.chuRe.soDienThoai}<br />{hd.khachHang.coDau.soDienThoai}</td>
-                                    <td><span className="status-chip">{hd.trangThaiHopDong}</span></td>
-                                    <td>CHỤP CƯỚI</td>
-                                    <td>{hd.ngayKy}</td>
-                                    <td>{hd.ngayChup}</td>
-                                    <td>{hd.ngayCuoi}</td>
-                                </tr>
+                                    <TableCell align='center' style={{ width: 20 }}>{index + 1}</TableCell>
+                                    <TableCell align='center' style={{ width: 20 }}>{hd.maHopDong}</TableCell>
+                                    <TableCell align='left' style={{ width: 100 }}>{hd.khachHang.chuRe.tenKhachHang}<br />{hd.khachHang.coDau.tenKhachHang}</TableCell>
+                                    <TableCell align='left' style={{ width: 100 }}>{hd.khachHang.chuRe.soDienThoai}<br />{hd.khachHang.coDau.soDienThoai}</TableCell>
+                                    <TableCell align='center' style={{ width: 100 }}>CHỤP CƯỚI</TableCell>
+                                    <TableCell align='center' style={{ width: 20 }}><span className="status-chip">{hd.trangThaiHopDong}</span></TableCell>
+                                    <TableCell align='center' style={{ width: 100 }}>{hd.ngayKy}</TableCell>
+                                    <TableCell align='center' style={{ width: 100 }}>{hd.ngayChup}</TableCell>
+                                </TableRow>
                             ))
                         ) : (
-                            <tr>
-                                <td colSpan="10">Không có dữ liệu hợp đồng khách hàng.</td>
-                            </tr>
+                            <TableRow>
+                                <TableCell colSpan="10">Không có dữ liệu hợp đồng khách hàng.</TableCell>
+                            </TableRow>
                         )}
-                    </tbody>
-                </table>
-            </div>
+                    </TableBody>
+                </Table>
+            </TableContainer>
 
 
             <ThemHopDongKHDialog
@@ -178,8 +186,8 @@ function HopDongDialog(props) {
     return (
         <Dialog onClose={handleClose} open={open}
             fullWidth
-            maxWidth = "lg"
-            >
+            maxWidth="lg"
+        >
             <DialogTitle>Hợp Đồng Khách Hàng</DialogTitle>
         </Dialog>
     );

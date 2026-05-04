@@ -12,5 +12,8 @@ export const ENDPOINTS = {
    DICHVU: {
     FIND: "/dichVu/findAll",
     CREATE: "/dichVu/create"
+  },KHACHHANG: {
+    FIND: "/khachHang/findOne",
+    CREATE: "/khachHang/create"
   }
 };
