@@ -4,16 +4,20 @@ export const ENDPOINTS = {
     LOGIN: "/auth/loginUser"
   },
   HOPDONG: {
-    FINDALLHOPDONG: "/hopDong/findAllHDCuoi"
+    LIST: "/hopDong/list",
+    CREATEHOPDONG: "/hopDong/create",
+    UPDATEHOPDONG: "/hopDong/update",
+    DELETEHOPDONG: "/hopDong/delete",
+    PAYHOPDONG: "/hopDong/pay"
   },
-   TRANGPHUC: {
+  TRANGPHUC: {
     FINDALLTRANGPHUC: "/trangPhuc/find"
   },
-   DICHVU: {
+  DICHVU: {
     FIND: "/dichVu/findAll",
     CREATE: "/dichVu/create"
-  },KHACHHANG: {
-    FIND: "/khachHang/findOne",
+  }, KHACHHANG: {
+    FIND: "/khachHang/find",
     CREATE: "/khachHang/create"
   }
 };

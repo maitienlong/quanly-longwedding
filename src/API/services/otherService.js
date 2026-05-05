@@ -3,7 +3,7 @@ import axiosClient from "../axiosClient";
 import { ENDPOINTS } from "../endpoints";
 
 const appService = {
-   findAllHopDong: (params) => axiosClient.post(ENDPOINTS.HOPDONG.FINDALLHOPDONG, params),
+   LIST_HOPDONG: (params) => axiosClient.post(ENDPOINTS.HOPDONG.LIST, params),
    findAllTrangPhuc: (params) => axiosClient.post(ENDPOINTS.TRANGPHUC.FINDALLTRANGPHUC, params),
    findDichVu: (params) => axiosClient.post(ENDPOINTS.DICHVU.FIND, params),
    ServiceAddProdcut: (params) => axiosClient.post(ENDPOINTS.DICHVU.CREATE, params),

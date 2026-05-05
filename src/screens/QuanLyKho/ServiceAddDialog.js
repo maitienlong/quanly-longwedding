@@ -77,9 +77,9 @@ function ServiceAddDialog(props) {
         otherService.ServiceAddProdcut({
             maDichVu: id.trim(),
             tenDichVu: name.trim(),
-            giaDichVu: priceRaw,
+            giaTriDichVu: priceRaw,
             loaiDichVu: loaiDichVu,
-            giaThueDichVu: priceThueRaw,
+            giaChoThueDichVu: priceThueRaw,
             tonKhoDichVu: tonKho ? Number(tonKho) : 0,
             moTaDichVu: description.trim(),
             imageDichVu: imageBase64

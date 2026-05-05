@@ -7,6 +7,7 @@ import AppButton from '../../components/AppButton';
 import AppComboBox from '../../components/AppComboBox';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import ThemHopDongKHDialog from './ThemHopDongKHDialog';
+import {formatDate} from '../utils/convertDate';
 
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -29,7 +30,7 @@ function removeAccents(str) {
 }
 
 function HopDongKhachHang() {
-    const [hopDong, setHopDong] = useState({ hopDong: [] });
+    const [hopDong, setHopDong] = useState([]);
     const { showLoading, hideLoading } = useLoading();
 
     const [searchTerm, setSearchTerm] = useState("");
@@ -66,29 +67,51 @@ function HopDongKhachHang() {
 
     useEffect(() => {
         showLoading("Đang tải hợp đồng ...");
-        otherService.findAllHopDong()
+        otherService.LIST_HOPDONG()
             .then((response) => {
-                setHopDong(response.data);
+                console.log(response.data.hopDong);
+                setHopDong(response.data.hopDong);
                 toast.success("Tải dữ liệu hợp đồng khách hàng thành công!");
                 hideLoading();
             })
             .catch((error) => {
                 console.error('Error fetching data:', error);
-                toast.error("Lỗi khi tải dữ liệu hợp đồng khách hàng.");
+                toast.error("Lỗi khi tải dữ liệu hợp đồng khách hàng." + error.message);
                 hideLoading();
             });
     }, [showLoading, hideLoading]);
 
     const filteredHopDong =
-        hopDong.hopDong?.filter((hd) => {
+        hopDong?.filter((hd) => {
             if (!searchTerm) return true; // nếu chưa nhập thì hiện tất cả
             const lowerTerm = removeAccents(searchTerm.toLowerCase());
             return (
                 (hd.maHopDong && removeAccents(hd.maHopDong.toLowerCase()).includes(lowerTerm)) ||
-                (hd.tenKhachHang && removeAccents(hd.tenKhachHang.toLowerCase()).includes(lowerTerm)) ||
-                (hd.tenCoDau && removeAccents(hd.tenCoDau.toLowerCase()).includes(lowerTerm))
+                (hd.khachHang1.tenKhachHang && removeAccents(hd.khachHang1.toLowerCase()).includes(lowerTerm)) ||
+                (hd.khachHang2.tenKhachHang && removeAccents(hd.khachHang2.toLowerCase()).includes(lowerTerm))
             );
         }) || [];
+
+    const convertTrangThai = (giaiDoan) => {
+        switch (giaiDoan) {
+            case 1:
+                return "Đã ký hợp đồng";
+            case 2:
+                return "Chụp Ảnh";
+            case 3:
+                return "Chỉnh Sửa";
+            case 4:
+                return "Khách Duyệt";
+            case 5:
+                return "Gửi in";
+            case 6:
+                return "Chờ Thanh Toán";
+            case 9:
+                return "Hoàn Thành";
+            default:
+                return giaiDoan;
+        }
+    };
 
     return (
         <div className="hopdongkhachhang">
@@ -138,7 +161,7 @@ function HopDongKhachHang() {
                     </TableHead>
 
                     <TableBody>
-                        {hopDong.hopDong && hopDong.hopDong.length > 0 ? (
+                        {hopDong && hopDong.length > 0 ? (
                             filteredHopDong.map((hd, index) => (
                                 <TableRow key={index}
                                     style={{ cursor: "pointer" }}
@@ -146,12 +169,12 @@ function HopDongKhachHang() {
                                 >
                                     <TableCell align='center' style={{ width: 20 }}>{index + 1}</TableCell>
                                     <TableCell align='center' style={{ width: 20 }}>{hd.maHopDong}</TableCell>
-                                    <TableCell align='left' style={{ width: 100 }}>{hd.khachHang.chuRe.tenKhachHang}<br />{hd.khachHang.coDau.tenKhachHang}</TableCell>
-                                    <TableCell align='left' style={{ width: 100 }}>{hd.khachHang.chuRe.soDienThoai}<br />{hd.khachHang.coDau.soDienThoai}</TableCell>
+                                    <TableCell align='left' style={{ width: 100 }}>{hd.khachHang1.tenKhachHang}<br />{hd.khachHang2.tenKhachHang}</TableCell>
+                                    <TableCell align='left' style={{ width: 100 }}>{hd.khachHang1.soDienThoai}<br />{hd.khachHang2.soDienThoai}</TableCell>
                                     <TableCell align='center' style={{ width: 100 }}>CHỤP CƯỚI</TableCell>
-                                    <TableCell align='center' style={{ width: 20 }}><span className="status-chip">{hd.trangThaiHopDong}</span></TableCell>
-                                    <TableCell align='center' style={{ width: 100 }}>{hd.ngayKy}</TableCell>
-                                    <TableCell align='center' style={{ width: 100 }}>{hd.ngayChup}</TableCell>
+                                    <TableCell align='center' style={{ width: 20 }}><span className="status-chip">{convertTrangThai(hd.giaiDoan)}</span></TableCell>
+                                    <TableCell align='center' style={{ width: 100 }}>{formatDate(hd.ngayHopDong)}</TableCell>
+                                    <TableCell align='center' style={{ width: 100 }}>{formatDate(hd.cacNgay.ngayChup) || "Đang cập nhật"}</TableCell>
                                 </TableRow>
                             ))
                         ) : (
