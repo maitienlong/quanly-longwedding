@@ -157,8 +157,9 @@ function ThemHopDongKHDialog(props) {
 
     const onChangePhoneKH1 = (e) => {
         const { name, value } = e.target;
+      
         setPhoneKH1(value);
-        otherService.findKhachHang({ soDienThoai: phoneKH1 })
+        otherService.findKhachHang({ soDienThoai: value })
             .then((response) => {
                 console.log(response);
                 toast.success("Tìm kiếm khách hàng thành công!");
@@ -276,7 +277,7 @@ function ThemHopDongKHDialog(props) {
                             <div className="dialog-section">
                                 <h4>Thông tin khách hàng 2</h4>
                                 <div className="floating-label">
-                                    <input name="phoneKH2" value={phoneKH2}  maxLength={10} required />
+                                    <input name="phoneKH2" value={phoneKH2} maxLength={10} required />
                                     <label>Phone khách hàng 2</label>
                                 </div>
 
