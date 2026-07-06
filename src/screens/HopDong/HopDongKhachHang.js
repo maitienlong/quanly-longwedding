@@ -89,12 +89,11 @@ function HopDongKhachHang() {
             .then((response) => {
                 console.log(response.data.hopDong);
                 setHopDong(response.data.hopDong);
-                toast.success("Tải dữ liệu hợp đồng khách hàng thành công!");
                 hideLoading();
             })
             .catch((error) => {
                 console.error('Error fetching data:', error);
-                toast.error("Lỗi khi tải dữ liệu hợp đồng khách hàng." + error.message);
+                toast.error("Đã có lỗi rồi hai ơi: " + error.message);
                 hideLoading();
             });
     }, [showLoading, hideLoading]);

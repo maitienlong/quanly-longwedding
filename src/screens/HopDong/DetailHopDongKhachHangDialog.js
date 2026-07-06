@@ -100,6 +100,11 @@ function DetailHopDongKhachHangDialog(props) {
     const [dichVuChinh, setDichVuChinh] = useState(0);
     const [khachThanhToanTruoc, setKhachThanhToanTruoc] = useState(0);
     const [nhanVienSale, setNhanVienSale] = useState("0");
+    const [gioChup, setGioChup] = useState("");
+    const [diaDiemChup, setDiaDiemChup] = useState("");
+    const [thoChupHinh, setThoChupHinh] = useState("");
+    const [thoMakeUp, setThoMakeUp] = useState("");
+    const [chotLich, setChotLich] = useState("Chưa gọi điện");
 
     // Local progress states
     const [linkAnhGoc, setLinkAnhGoc] = useState("");
@@ -147,7 +152,6 @@ function DetailHopDongKhachHangDialog(props) {
         otherService.findDichVu()
             .then((response) => {
                 setListDichVu(response.data.dichVu);
-                toast.success("Hoàn thành!");
                 hideLoading();
             })
             .catch((error) => {
@@ -217,6 +221,21 @@ function DetailHopDongKhachHangDialog(props) {
                 setNgayCuoi(formatTimestampToDateInput(data.cacNgay.ngayCuoi));
                 setNgayChinhAnh(formatTimestampToDateInput(data.cacNgay.ngayChinhAnh));
                 setNgayTraAnh(formatTimestampToDateInput(data.cacNgay.ngayTraAnh));
+                setGioChup(data.cacNgay.gioChup || "");
+                setDiaDiemChup(data.cacNgay.diaDiemChup || "");
+                setChotLich(data.cacNgay.chotLich || "Chưa gọi điện");
+            } else {
+                setGioChup("");
+                setDiaDiemChup("");
+                setChotLich("Chưa gọi điện");
+            }
+
+            if (data.nguoiPhucVu) {
+                setThoChupHinh(data.nguoiPhucVu.thoChupHinh || "");
+                setThoMakeUp(data.nguoiPhucVu.thoMakeUp || "");
+            } else {
+                setThoChupHinh("");
+                setThoMakeUp("");
             }
 
             setNhanVienSale(data.nhanVienSale || "0");
@@ -433,6 +452,16 @@ function DetailHopDongKhachHangDialog(props) {
                 ngayCuoi: convertDateToISOString(ngayCuoi),
                 ngayChinhAnh: convertDateToISOString(ngayChinhAnh),
                 ngayTraAnh: convertDateToISOString(ngayTraAnh),
+                gioChup,
+                diaDiemChup,
+                chotLich
+            },
+            nguoiPhucVu: {
+                thoChupHinh,
+                thoMakeUp,
+                thoChinhAnh: data?.nguoiPhucVu?.thoChinhAnh || "",
+                banHang: data?.nguoiPhucVu?.banHang || "",
+                phucVu: data?.nguoiPhucVu?.phucVu || ""
             },
             nhanVienSale: nhanVienSale,
             giaiDoan: giaiDoan,
@@ -451,7 +480,7 @@ function DetailHopDongKhachHangDialog(props) {
 
     const submitProgressUpdate = (stepNumber, progressData) => {
         if (!data || !data._id) return;
-        
+
         showLoading("Đang cập nhật tiến trình...");
         otherService.UPDATE_PROGRESS({
             maHopDong: maHopDong,
@@ -639,8 +668,8 @@ function DetailHopDongKhachHangDialog(props) {
                                                         <td>{item.tenDichVuSnapshot}</td>
                                                         <td style={{ textAlign: "center" }}>
                                                             {/* Nút giảm số lượng */}
-                                                            <button 
-                                                                className="btn-qty" 
+                                                            <button
+                                                                className="btn-qty"
                                                                 onClick={() => handleDecreaseQuantity(productId)}
                                                                 disabled={!canDecrease}
                                                                 style={{ opacity: canDecrease ? 1 : 0.5, cursor: canDecrease ? 'pointer' : 'not-allowed' }}
@@ -742,7 +771,24 @@ function DetailHopDongKhachHangDialog(props) {
                                             <label>Nhân viên sale</label>
                                         </div>
 
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="text" name="thoChupHinh" value={thoChupHinh} onChange={(e) => setThoChupHinh(e.target.value)} />
+                                            <label>Thợ chụp hình</label>
+                                        </div>
 
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="text" name="thoMakeUp" value={thoMakeUp} onChange={(e) => setThoMakeUp(e.target.value)} />
+                                            <label>Thợ Make-up</label>
+                                        </div>
+
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <select name="chotLich" value={chotLich} onChange={(e) => setChotLich(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '4px', border: '1px solid #ccc', padding: '0 8px', fontSize: '0.85rem' }}>
+                                                <option value="Chưa gọi điện">Chưa gọi điện</option>
+                                                <option value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</option>
+                                                <option value="Đã chốt lịch">Đã chốt lịch</option>
+                                            </select>
+                                            <label style={{ top: '-10px', fontSize: '0.8rem', color: '#1976d2' }}>Chốt lịch</label>
+                                        </div>
                                     </div>
 
                                     <div className="dialog-section-khachhang-item">
@@ -763,6 +809,16 @@ function DetailHopDongKhachHangDialog(props) {
                                         <div className="floating-label">
                                             <input type="date" name="ngayCuoi" value={ngayCuoi} onChange={(e) => setNgayCuoi(e.target.value)} required />
                                             <label>Ngày cưới</label>
+                                        </div>
+
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="text" name="gioChup" value={gioChup} onChange={(e) => setGioChup(e.target.value)} placeholder="ví dụ: 9h30p" />
+                                            <label>Giờ chụp ảnh</label>
+                                        </div>
+
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />
+                                            <label>Địa điểm chụp</label>
                                         </div>
                                     </div>
                                 </div>
@@ -959,7 +1015,7 @@ function DetailHopDongKhachHangDialog(props) {
                     <h3 style={{ margin: '0 0 16px 0', color: '#1976d2', borderBottom: '1px solid #eee', paddingBottom: '8px', fontWeight: 'bold' }}>
                         Cập nhật tiến trình: {targetStep === 2 ? "Chụp hình" : targetStep === 3 ? "Hậu kỳ" : "In ảnh"}
                     </h3>
-                    
+
                     {targetStep === 2 && (
                         <div style={{ marginTop: '12px' }}>
                             <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
@@ -999,7 +1055,7 @@ function DetailHopDongKhachHangDialog(props) {
                             <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
                                 Bổ sung danh sách ảnh in kích thước và số lượng:
                             </p>
-                            
+
                             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                                 <TextField
                                     label="Kích thước (ví dụ: 60x90, 30x45)"

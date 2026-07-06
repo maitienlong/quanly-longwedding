@@ -91,6 +91,11 @@ function ThemHopDongKHDialog(props) {
     const [khachThanhToan, setKhachThanhToan] = useState(0);
     const [methodPayment, setMethodPayment] = useState(0);
     const [nhanVienSale, setNhanVienSale] = useState("0");
+    const [gioChup, setGioChup] = useState("");
+    const [diaDiemChup, setDiaDiemChup] = useState("");
+    const [thoChupHinh, setThoChupHinh] = useState("");
+    const [thoMakeUp, setThoMakeUp] = useState("");
+    const [chotLich, setChotLich] = useState("Chưa gọi điện");
 
     // state cho giảm giá
     const [giamGia, setGiamGia] = useState(0);
@@ -107,7 +112,6 @@ function ThemHopDongKHDialog(props) {
         otherService.findDichVu()
             .then((response) => {
                 setListDichVu(response.data.dichVu);
-                toast.success("Hoàn thành!");
                 hideLoading();
             })
             .catch((error) => {
@@ -242,6 +246,11 @@ function ThemHopDongKHDialog(props) {
         setNgayChup("");
         setNgayAnHoi("");
         setNgayCuoi("");
+        setGioChup("");
+        setDiaDiemChup("");
+        setThoChupHinh("");
+        setThoMakeUp("");
+        setChotLich("Chưa gọi điện");
 
         // 2. Thông tin khách hàng 1
         setIDKH1("");
@@ -395,6 +404,13 @@ function ThemHopDongKHDialog(props) {
                 ngayCuoi: convertDateToISOString(ngayCuoi),
                 ngayChinhAnh: convertDateToISOString(ngayChinhAnh),
                 ngayTraAnh: convertDateToISOString(ngayTraAnh),
+                gioChup,
+                diaDiemChup,
+                chotLich
+            },
+            nguoiPhucVu: {
+                thoChupHinh,
+                thoMakeUp
             },
             nhanVienSale: nhanVienSale,
             giaiDoan: 1,
@@ -621,7 +637,24 @@ function ThemHopDongKHDialog(props) {
                                             <label>Nhân viên sale</label>
                                         </div>
 
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="text" name="thoChupHinh" value={thoChupHinh} onChange={(e) => setThoChupHinh(e.target.value)} />
+                                            <label>Thợ chụp hình</label>
+                                        </div>
 
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="text" name="thoMakeUp" value={thoMakeUp} onChange={(e) => setThoMakeUp(e.target.value)} />
+                                            <label>Thợ Make-up</label>
+                                        </div>
+
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <select name="chotLich" value={chotLich} onChange={(e) => setChotLich(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '4px', border: '1px solid #ccc', padding: '0 8px', fontSize: '0.85rem' }}>
+                                                <option value="Chưa gọi điện">Chưa gọi điện</option>
+                                                <option value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</option>
+                                                <option value="Đã chốt lịch">Đã chốt lịch</option>
+                                            </select>
+                                            <label style={{ top: '-10px', fontSize: '0.8rem', color: '#1976d2' }}>Chốt lịch</label>
+                                        </div>
                                     </div>
 
                                     <div className="dialog-section-khachhang-item">
@@ -638,6 +671,16 @@ function ThemHopDongKHDialog(props) {
                                         <div className="floating-label">
                                             <input type="date" name="ngayCuoi" value={ngayCuoi} onChange={(e) => setNgayCuoi(e.target.value)} required />
                                             <label>Ngày cưới</label>
+                                        </div>
+
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="text" name="gioChup" value={gioChup} onChange={(e) => setGioChup(e.target.value)} placeholder="ví dụ: 9h30p" />
+                                            <label>Giờ chụp ảnh</label>
+                                        </div>
+
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />
+                                            <label>Địa điểm chụp</label>
                                         </div>
                                     </div>
                                 </div>
