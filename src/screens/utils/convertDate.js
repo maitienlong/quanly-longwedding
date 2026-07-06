@@ -11,7 +11,7 @@ const formatDate = (dateString) => {
     const MM = pad(date.getMonth() + 1);
     const yy = date.getFullYear().toString().slice(-0);
 
-    return `${hh}:${mm} - ${dd}/${MM}/${yy}`;
+    return `${hh}:${mm} ${dd}/${MM}/${yy}`;
 };
 
 

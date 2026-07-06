@@ -12,6 +12,11 @@ import { NumericFormat } from 'react-number-format';
 import { styled } from '@mui/material/styles';
 import Divider from '@mui/material/Divider';
 import Autocomplete from '@mui/material/Autocomplete';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
 import { formatDate } from '../utils/convertDate';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -100,12 +105,13 @@ function DetailHopDongKhachHangDialog(props) {
     const [dichVuChinh, setDichVuChinh] = useState(0);
     const [khachThanhToanTruoc, setKhachThanhToanTruoc] = useState(0);
     const [nhanVienSale, setNhanVienSale] = useState("0");
-    const [gioChup, setGioChup] = useState("");
+
     const [diaDiemChup, setDiaDiemChup] = useState("");
     const [thoChupHinh, setThoChupHinh] = useState("");
     const [thoMakeUp, setThoMakeUp] = useState("");
     const [thoChinhAnh, setThoChinhAnh] = useState("");
     const [chotLich, setChotLich] = useState("Chưa gọi điện");
+    const [listHopDong, setListHopDong] = useState([]);
 
     // Local progress states
     const [linkAnhGoc, setLinkAnhGoc] = useState("");
@@ -184,8 +190,28 @@ function DetailHopDongKhachHangDialog(props) {
         return "";
     };
 
+    const formatTimestampToDateTimeInput = (val) => {
+        if (!val) return "";
+        const date = new Date(val);
+        if (isNaN(date.getTime())) return "";
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
     useEffect(() => {
         if (open && data && data.maHopDong) {
+            otherService.LIST_HOPDONG({})
+                .then(response => {
+                    setListHopDong(response.data.hopDong || []);
+                })
+                .catch(error => {
+                    console.error("Lỗi khi tải danh sách hợp đồng để kiểm tra trùng lịch chụp:", error);
+                });
+
             setMaHopDong(data.maHopDong);
             setNgayHopDong(formatTimestampToDateInput(data.ngayHopDong) || getToday());
 
@@ -217,16 +243,16 @@ function DetailHopDongKhachHangDialog(props) {
             setNoiDungPayment("Thanh toán thêm");
 
             if (data.cacNgay) {
-                setNgayChup(formatTimestampToDateInput(data.cacNgay.ngayChup));
-                setNgayAnHoi(formatTimestampToDateInput(data.cacNgay.ngayAnHoi));
-                setNgayCuoi(formatTimestampToDateInput(data.cacNgay.ngayCuoi));
+                setNgayChup(formatTimestampToDateTimeInput(data.cacNgay.ngayChup));
+                setNgayAnHoi(formatTimestampToDateTimeInput(data.cacNgay.ngayAnHoi));
+                setNgayCuoi(formatTimestampToDateTimeInput(data.cacNgay.ngayCuoi));
                 setNgayChinhAnh(formatTimestampToDateInput(data.cacNgay.ngayChinhAnh));
                 setNgayTraAnh(formatTimestampToDateInput(data.cacNgay.ngayTraAnh));
-                setGioChup(data.cacNgay.gioChup || "");
+
                 setDiaDiemChup(data.cacNgay.diaDiemChup || "");
                 setChotLich(data.cacNgay.chotLich || "Chưa gọi điện");
             } else {
-                setGioChup("");
+
                 setDiaDiemChup("");
                 setChotLich("Chưa gọi điện");
             }
@@ -417,11 +443,35 @@ function DetailHopDongKhachHangDialog(props) {
 
 
 
+    const checkNgayChupConflict = (selectedDateTimeStr, currentContractId = null) => {
+        if (!selectedDateTimeStr) return null;
+        const selectedTime = new Date(selectedDateTimeStr).getTime();
+        if (isNaN(selectedTime)) return null;
+
+        const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+
+        for (const hd of listHopDong) {
+            if (currentContractId && hd._id === currentContractId) continue;
+            if (!hd.cacNgay?.ngayChup) continue;
+
+            const existingTime = new Date(hd.cacNgay.ngayChup).getTime();
+            if (isNaN(existingTime)) continue;
+
+            const diff = Math.abs(selectedTime - existingTime);
+            if (diff <= THREE_HOURS_MS) {
+                return hd;
+            }
+        }
+        return null;
+    };
+
     const onUpdateHopDong = () => {
         if (!data || !data._id) {
             toast.error("Không tìm thấy ID hợp đồng để cập nhật!");
             return;
         }
+
+
 
         showLoading("Đang cập nhật hợp đồng...");
         otherService.UPDATE_HOPDONG({
@@ -455,7 +505,14 @@ function DetailHopDongKhachHangDialog(props) {
                 ngayCuoi: convertDateToISOString(ngayCuoi),
                 ngayChinhAnh: convertDateToISOString(ngayChinhAnh),
                 ngayTraAnh: convertDateToISOString(ngayTraAnh),
-                gioChup,
+                gioChup: (() => {
+                    if (!ngayChup) return "";
+                    const date = new Date(ngayChup);
+                    if (isNaN(date.getTime())) return "";
+                    const hh = String(date.getHours()).padStart(2, '0');
+                    const mm = String(date.getMinutes()).padStart(2, '0');
+                    return `${hh}:${mm}`;
+                })(),
                 diaDiemChup,
                 chotLich
             },
@@ -804,25 +861,68 @@ function DetailHopDongKhachHangDialog(props) {
                                             <input type="date" name="ngayHopDong" value={ngayHopDong} disabled />
                                             <label>Ngày hợp đồng</label>
                                         </div>
-                                        <div className="floating-label">
-                                            <input type="date" name="ngayChup" value={ngayChup} onChange={(e) => setNgayChup(e.target.value)} required />
-                                            <label>Ngày chụp ảnh</label>
-                                        </div>
+                                        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+                                            <div style={{ marginBottom: '20px' }}>
+                                                <DateTimePicker
+                                                    label="Ngày chụp ảnh"
+                                                    value={ngayChup ? dayjs(ngayChup) : null}
+                                                    onChange={(newValue) => {
+                                                        const formatted = newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '';
+                                                        setNgayChup(formatted);
+                                                        if (formatted) {
+                                                            const conflict = checkNgayChupConflict(formatted, data?._id);
+                                                            if (conflict) {
+                                                                const conflictTime = new Date(conflict.cacNgay.ngayChup);
+                                                                const timeStr = `${String(conflictTime.getHours()).padStart(2, '0')}:${String(conflictTime.getMinutes()).padStart(2, '0')} ngày ${conflictTime.getDate()}/${conflictTime.getMonth() + 1}/${conflictTime.getFullYear()}`;
+                                                                toast.warning(`Cảnh báo: Trùng hoặc quá gần lịch chụp với HĐ ${conflict.maHopDong} (${conflict.khachHang1?.tenKhachHang || ''}) vào lúc ${timeStr} (khoảng cách dưới 3 tiếng).`);
+                                                            }
+                                                        }
+                                                    }}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            required: true,
+                                                            size: 'small',
+                                                        }
+                                                    }}
+                                                    format="DD/MM/YYYY HH:mm"
+                                                />
+                                            </div>
 
-                                        <div className="floating-label">
-                                            <input type="date" name="ngayAnHoi" value={ngayAnHoi} onChange={(e) => setNgayAnHoi(e.target.value)} required />
-                                            <label>Ngày ăn hỏi</label>
-                                        </div>
+                                            <div style={{ marginBottom: '20px' }}>
+                                                <DateTimePicker
+                                                    label="Ngày ăn hỏi"
+                                                    value={ngayAnHoi ? dayjs(ngayAnHoi) : null}
+                                                    onChange={(newValue) => setNgayAnHoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            required: true,
+                                                            size: 'small',
+                                                        }
+                                                    }}
+                                                    format="DD/MM/YYYY HH:mm"
+                                                />
+                                            </div>
 
-                                        <div className="floating-label">
-                                            <input type="date" name="ngayCuoi" value={ngayCuoi} onChange={(e) => setNgayCuoi(e.target.value)} required />
-                                            <label>Ngày cưới</label>
-                                        </div>
+                                            <div style={{ marginBottom: '20px' }}>
+                                                <DateTimePicker
+                                                    label="Ngày cưới"
+                                                    value={ngayCuoi ? dayjs(ngayCuoi) : null}
+                                                    onChange={(newValue) => setNgayCuoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            required: true,
+                                                            size: 'small',
+                                                        }
+                                                    }}
+                                                    format="DD/MM/YYYY HH:mm"
+                                                />
+                                            </div>
+                                        </LocalizationProvider>
 
-                                        <div className="floating-label" style={{ marginTop: '20px' }}>
-                                            <input type="text" name="gioChup" value={gioChup} onChange={(e) => setGioChup(e.target.value)} placeholder="ví dụ: 9h30p" />
-                                            <label>Giờ chụp ảnh</label>
-                                        </div>
+
 
                                         <div className="floating-label" style={{ marginTop: '20px' }}>
                                             <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />

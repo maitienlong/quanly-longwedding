@@ -25,6 +25,8 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Box from '@mui/material/Box';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 const getDichVuChinhLabel = (id) => {
     const options = {
@@ -56,6 +58,19 @@ const formatDateOnly = (dateString) => {
     return `${dd}/${MM}/${yyyy}`;
 };
 
+const formatDateTime = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    const pad = (n) => n.toString().padStart(2, '0');
+    const dd = pad(date.getDate());
+    const MM = pad(date.getMonth() + 1);
+    const yyyy = date.getFullYear();
+    const hh = pad(date.getHours());
+    const mm = pad(date.getMinutes());
+    return `${hh}:${mm} ${dd}/${MM}/${yyyy}`;
+};
+
 const formatTimestampToDateInput = (val) => {
     if (!val) return "";
     const date = new Date(val);
@@ -81,6 +96,8 @@ const isPastToday = (dateString, giaiDoan, tab) => {
         isCompleted = giaiDoan >= 3; // Giai đoạn >= 3 (Hậu kỳ, In ảnh, Hoàn thành) coi như đã chụp xong
     } else if (tab === 'hauKy') {
         isCompleted = giaiDoan >= 4; // Giai đoạn >= 4 (In ảnh, Hoàn thành) coi như đã chỉnh sửa xong
+    } else if (tab === 'inAnh') {
+        isCompleted = giaiDoan >= 5; // Giai đoạn >= 5 (Hoàn thành) coi như đã in xong
     } else if (tab === 'anHoiVaCuoi') {
         isCompleted = giaiDoan >= 5; // Giai đoạn >= 5 (Hoàn thành) coi như đã xong
     }
@@ -92,6 +109,11 @@ const isPastToday = (dateString, giaiDoan, tab) => {
 function LichCuaHang() {
     const [hopDong, setHopDong] = useState([]);
     const { showLoading, hideLoading } = useLoading();
+
+    const [viewMode, setViewMode] = useState('list'); // 'list' hoặc 'calendar'
+    const todayDate = new Date();
+    const [currentMonth, setCurrentMonth] = useState(todayDate.getMonth()); // 0 - 11
+    const [currentYear, setCurrentYear] = useState(todayDate.getFullYear());
 
     // Tab quản lý
     const [activeTab, setActiveTab] = useState('chupHinh'); // 'chupHinh', 'hauKy', hoặc 'anHoiVaCuoi'
@@ -115,7 +137,7 @@ function LichCuaHang() {
     // dialog cập nhật lịch chụp cho Tab Chụp Hình
     const [openChupHinhDialog, setOpenChupHinhDialog] = useState(false);
     const [selectedChupHinhContract, setSelectedChupHinhContract] = useState(null);
-    const [confirmGioChup, setConfirmGioChup] = useState("");
+
     const [confirmDiaDiem, setConfirmDiaDiem] = useState("");
     const [confirmChotLich, setConfirmChotLich] = useState("Chưa gọi điện");
     const [confirmLinkAnh, setConfirmLinkAnh] = useState("");
@@ -128,6 +150,16 @@ function LichCuaHang() {
     const [confirmNgayTraAnh, setConfirmNgayTraAnh] = useState("");
     const [confirmLinkAnhChinhSua, setConfirmLinkAnhChinhSua] = useState("");
 
+    // dialog nhập kích thước & số lượng khi chuyển sang in ảnh
+    const [openInAnhInputDialog, setOpenInAnhInputDialog] = useState(false);
+    const [tempDanhSachAnhIn, setTempDanhSachAnhIn] = useState([]);
+    const [tempKichThuoc, setTempKichThuoc] = useState("");
+    const [tempSoLuong, setTempSoLuong] = useState(1);
+
+    // dialog hiển thị danh sách ảnh in & hoàn thành cho Tab In Ảnh
+    const [openInAnhViewDialog, setOpenInAnhViewDialog] = useState(false);
+    const [selectedInAnhContract, setSelectedInAnhContract] = useState(null);
+
     const loadHopDong = useCallback((tabVal, timeVal, searchVal) => {
         showLoading("Đang tải lịch cửa hàng ...");
         let dateField = 'cacNgay.ngayChup';
@@ -136,6 +168,9 @@ function LichCuaHang() {
         if (tabVal === 'hauKy') {
             dateField = 'cacNgay.ngayChinhAnh';
             targetStage = 3;
+        } else if (tabVal === 'inAnh') {
+            dateField = 'cacNgay.ngayTraAnh';
+            targetStage = 4;
         } else if (tabVal === 'anHoiVaCuoi') {
             dateField = 'anHoiVaCuoi';
             targetStage = 'all';
@@ -148,8 +183,9 @@ function LichCuaHang() {
         if (targetStage !== 'all') {
             params.status = targetStage;
         }
-        if (timeVal && timeVal !== 'all') {
-            params.filter = timeVal;
+        const finalTimeVal = tabVal === 'inAnh' ? 'all' : timeVal;
+        if (finalTimeVal && finalTimeVal !== 'all') {
+            params.filter = finalTimeVal;
         }
         if (searchVal) {
             params.keyword = searchVal;
@@ -177,7 +213,7 @@ function LichCuaHang() {
     const handleRowClick = (hd) => {
         if (activeTab === 'chupHinh') {
             setSelectedChupHinhContract(hd);
-            setConfirmGioChup(hd.cacNgay?.gioChup || "");
+
             setConfirmDiaDiem(hd.cacNgay?.diaDiemChup || "");
             setConfirmChotLich(hd.cacNgay?.chotLich || "Chưa gọi điện");
             setConfirmLinkAnh(hd.linkAnhGoc || "");
@@ -189,6 +225,9 @@ function LichCuaHang() {
             setConfirmNgayTraAnh(formatTimestampToDateInput(hd.cacNgay?.ngayTraAnh) || "");
             setConfirmLinkAnhChinhSua(hd.linkAnhChinhSua || "");
             setOpenHauKyDialog(true);
+        } else if (activeTab === 'inAnh') {
+            setSelectedInAnhContract(hd);
+            setOpenInAnhViewDialog(true);
         } else {
             setSendData(hd);
             setOpenDetailDialog(true);
@@ -209,7 +248,15 @@ function LichCuaHang() {
             maHopDong: selectedChupHinhContract.maHopDong,
             cacNgay: {
                 ...selectedChupHinhContract.cacNgay,
-                gioChup: confirmGioChup,
+                gioChup: (() => {
+                    const ngayChup = selectedChupHinhContract.cacNgay?.ngayChup;
+                    if (!ngayChup) return "";
+                    const date = new Date(ngayChup);
+                    if (isNaN(date.getTime())) return "";
+                    const hh = String(date.getHours()).padStart(2, '0');
+                    const mm = String(date.getMinutes()).padStart(2, '0');
+                    return `${hh}:${mm}`;
+                })(),
                 diaDiemChup: confirmDiaDiem,
                 chotLich: confirmChotLich
             },
@@ -268,6 +315,9 @@ function LichCuaHang() {
 
         if (targetStage) {
             payload.giaiDoan = targetStage;
+            if (targetStage === 4) {
+                payload.danhSachAnhIn = tempDanhSachAnhIn;
+            }
         }
 
         otherService.UPDATE_HOPDONG(payload)
@@ -291,15 +341,377 @@ function LichCuaHang() {
             });
     };
 
+    // --- CÁC HÀM HỖ TRỢ HIỂN THỊ LỊCH THÁNG ---
+    const getDaysInMonthGrid = (year, month) => {
+        const firstDayOfMonth = new Date(year, month, 1);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        
+        const daysInMonth = lastDayOfMonth.getDate();
+        const startDayOfWeek = firstDayOfMonth.getDay(); 
+        
+        const grid = [];
+        
+        const prevMonthLastDay = new Date(year, month, 0).getDate();
+        for (let i = startDayOfWeek - 1; i >= 0; i--) {
+            const d = new Date(year, month - 1, prevMonthLastDay - i);
+            grid.push({
+                date: d,
+                isCurrentMonth: false,
+                dayNum: d.getDate(),
+                monthNum: d.getMonth()
+            });
+        }
+        
+        for (let i = 1; i <= daysInMonth; i++) {
+            const d = new Date(year, month, i);
+            grid.push({
+                date: d,
+                isCurrentMonth: true,
+                dayNum: i,
+                monthNum: month
+            });
+        }
+        
+        const remainingSlots = 42 - grid.length;
+        for (let i = 1; i <= remainingSlots; i++) {
+            const d = new Date(year, month + 1, i);
+            grid.push({
+                date: d,
+                isCurrentMonth: false,
+                dayNum: i,
+                monthNum: d.getMonth()
+            });
+        }
+        
+        return grid;
+    };
+
+    const isSameDay = (date1, date2String) => {
+        if (!date2String) return false;
+        const date2 = new Date(date2String);
+        if (isNaN(date2.getTime())) return false;
+        return date1.getFullYear() === date2.getFullYear() &&
+               date1.getMonth() === date2.getMonth() &&
+               date1.getDate() === date2.getDate();
+    };
+
+    const isToday = (date) => {
+        const today = new Date();
+        return date.getFullYear() === today.getFullYear() &&
+               date.getMonth() === today.getMonth() &&
+               date.getDate() === today.getDate();
+    };
+
+    const getEventsForDay = (dayDate) => {
+        const events = [];
+        const filteredHopDong = hopDong || [];
+        
+        const getTimeFromDate = (dateString) => {
+            if (!dateString) return "";
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return "";
+            const hh = String(date.getHours()).padStart(2, '0');
+            const mm = String(date.getMinutes()).padStart(2, '0');
+            return `${hh}:${mm}`;
+        };
+
+        filteredHopDong.forEach(hd => {
+            if (activeTab === 'chupHinh') {
+                if (isSameDay(dayDate, hd.cacNgay?.ngayChup)) {
+                    const time = getTimeFromDate(hd.cacNgay?.ngayChup) || hd.cacNgay?.gioChup || 'Chưa giờ';
+                    events.push({
+                        type: 'chupHinh',
+                        contract: hd,
+                        label: `${time} - ${hd.khachHang1?.tenKhachHang || ''}`,
+                        color: '#3498db'
+                    });
+                }
+            } else if (activeTab === 'hauKy') {
+                if (isSameDay(dayDate, hd.cacNgay?.ngayChinhAnh)) {
+                    events.push({
+                        type: 'hauKy_chinh',
+                        contract: hd,
+                        label: `Bắt đầu chỉnh: ${hd.khachHang1?.tenKhachHang || ''}`,
+                        color: '#9b59b6'
+                    });
+                }
+                if (isSameDay(dayDate, hd.cacNgay?.ngayTraAnh)) {
+                    events.push({
+                        type: 'hauKy_tra',
+                        contract: hd,
+                        label: `Trả ảnh: ${hd.khachHang1?.tenKhachHang || ''}`,
+                        color: '#e67e22'
+                    });
+                }
+            } else if (activeTab === 'inAnh') {
+                if (isSameDay(dayDate, hd.cacNgay?.ngayTraAnh)) {
+                    events.push({
+                        type: 'inAnh',
+                        contract: hd,
+                        label: `Bàn giao ảnh: ${hd.khachHang1?.tenKhachHang || ''}`,
+                        color: '#f39c12'
+                    });
+                }
+            } else if (activeTab === 'anHoiVaCuoi') {
+                if (isSameDay(dayDate, hd.cacNgay?.ngayAnHoi)) {
+                    const time = getTimeFromDate(hd.cacNgay?.ngayAnHoi);
+                    const timeLabel = time ? `${time} - ` : '';
+                    events.push({
+                        type: 'anHoi',
+                        contract: hd,
+                        label: `${timeLabel}${hd.khachHang1?.tenKhachHang || ''} (Ăn Hỏi)`,
+                        color: '#e74c3c'
+                    });
+                }
+                if (isSameDay(dayDate, hd.cacNgay?.ngayCuoi)) {
+                    const time = getTimeFromDate(hd.cacNgay?.ngayCuoi);
+                    const timeLabel = time ? `${time} - ` : '';
+                    events.push({
+                        type: 'cuoi',
+                        contract: hd,
+                        label: `${timeLabel}${hd.khachHang1?.tenKhachHang || ''} (Cưới)`,
+                        color: '#2ecc71'
+                    });
+                }
+            }
+        });
+        return events;
+    };
+
+    const getEventBackground = (type) => {
+        switch (type) {
+            case 'chupHinh':
+                return '#e8f0fe';
+            case 'hauKy_chinh':
+                return '#f3e8fd';
+            case 'hauKy_tra':
+                return '#fef3c7';
+            case 'inAnh':
+                return '#fef3c7';
+            case 'anHoi':
+                return '#fee2e2';
+            case 'cuoi':
+                return '#dcfce7';
+            default:
+                return '#f1f3f4';
+        }
+    };
+
+    const getEventTextColor = (type) => {
+        switch (type) {
+            case 'chupHinh':
+                return '#1a73e8';
+            case 'hauKy_chinh':
+                return '#9333ea';
+            case 'hauKy_tra':
+                return '#d97706';
+            case 'inAnh':
+                return '#d97706';
+            case 'anHoi':
+                return '#dc2626';
+            case 'cuoi':
+                return '#16a34a';
+            default:
+                return '#3c4043';
+        }
+    };
+
+    const handlePrevMonth = () => {
+        if (currentMonth === 0) {
+            setCurrentMonth(11);
+            setCurrentYear(prev => prev - 1);
+        } else {
+            setCurrentMonth(prev => prev - 1);
+        }
+    };
+
+    const handleNextMonth = () => {
+        if (currentMonth === 11) {
+            setCurrentMonth(0);
+            setCurrentYear(prev => prev + 1);
+        } else {
+            setCurrentMonth(prev => prev + 1);
+        }
+    };
+
+    const handleGoToToday = () => {
+        const today = new Date();
+        setCurrentMonth(today.getMonth());
+        setCurrentYear(today.getFullYear());
+    };
+
+    const renderMonthlyCalendar = () => {
+        const daysGrid = getDaysInMonthGrid(currentYear, currentMonth);
+        const dayNames = ['CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+        
+        return (
+            <Paper elevation={1} style={{ padding: '20px', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
+                <style>{`
+                    .calendar-event-badge {
+                        transition: all 0.2s ease-in-out;
+                    }
+                    .calendar-event-badge:hover {
+                        filter: brightness(0.92);
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+                        transform: translateY(-1px);
+                    }
+                `}</style>
+                {/* Lịch Header / Điều hướng */}
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <Button 
+                            variant="outlined" 
+                            onClick={handleGoToToday}
+                            style={{ textTransform: 'none', fontWeight: 'bold' }}
+                        >
+                            Hôm nay
+                        </Button>
+                        <Button 
+                            variant="outlined" 
+                            onClick={handlePrevMonth}
+                            style={{ minWidth: '40px', padding: '6px' }}
+                            title="Tháng trước"
+                        >
+                            <i className="fa-solid fa-chevron-left"></i>
+                        </Button>
+                        <Button 
+                            variant="outlined" 
+                            onClick={handleNextMonth}
+                            style={{ minWidth: '40px', padding: '6px' }}
+                            title="Tháng sau"
+                        >
+                            <i className="fa-solid fa-chevron-right"></i>
+                        </Button>
+                    </Box>
+                    <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 'bold', color: '#1976d2' }}>
+                        Tháng {currentMonth + 1} năm {currentYear}
+                    </h3>
+                    <Box width="100px"></Box> {/* Giữ cân bằng layout */}
+                </Box>
+
+                {/* Lưới ngày và thứ */}
+                <Box 
+                    display="grid" 
+                    gridTemplateColumns="repeat(7, 1fr)" 
+                    gridAutoRows="minmax(130px, auto)"
+                    borderTop="1px solid #dadce0"
+                    borderLeft="1px solid #dadce0"
+                >
+                    {/* Hàng thứ trong tuần */}
+                    {dayNames.map((name, idx) => (
+                        <Box 
+                            key={`header-${idx}`} 
+                            textAlign="center" 
+                            fontWeight="bold" 
+                            fontSize="0.9rem"
+                            color={idx === 0 ? '#d32f2f' : idx === 6 ? '#1976d2' : '#5f6368'}
+                            borderRight="1px solid #dadce0"
+                            borderBottom="1px solid #dadce0"
+                            padding="12px 4px"
+                            backgroundColor="#f1f3f4"
+                        >
+                            {name}
+                        </Box>
+                    ))}
+                    {daysGrid.map((day, idx) => {
+                        const dayEvents = getEventsForDay(day.date);
+                        const isDayToday = isToday(day.date);
+                        
+                        let dayLabel = `${day.dayNum}`;
+                        if (day.dayNum === 1) {
+                            dayLabel = `1 thg ${day.monthNum + 1}`;
+                        }
+                        
+                        return (
+                            <Box 
+                                key={idx}
+                                borderRight="1px solid #dadce0"
+                                borderBottom="1px solid #dadce0"
+                                padding="8px"
+                                backgroundColor={day.isCurrentMonth ? '#fff' : '#f8f9fa'}
+                                display="flex"
+                                flexDirection="column"
+                                style={{ minHeight: '130px', position: 'relative' }}
+                            >
+                                {/* Ngày số */}
+                                <Box display="flex" justifyContent="flex-start" mb={1}>
+                                    {isDayToday ? (
+                                        <span style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            backgroundColor: '#1a73e8',
+                                            color: '#fff',
+                                            width: '28px',
+                                            height: '28px',
+                                            borderRadius: '50%',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            {day.dayNum}
+                                        </span>
+                                    ) : (
+                                        <span style={{
+                                            fontSize: '0.85rem',
+                                            fontWeight: day.isCurrentMonth ? '600' : 'normal',
+                                            color: day.isCurrentMonth ? (day.date.getDay() === 0 ? '#d32f2f' : '#3c4043') : '#70757a',
+                                            padding: '4px'
+                                        }}>
+                                            {dayLabel}
+                                        </span>
+                                    )}
+                                </Box>
+
+                                {/* Sự kiện trong ngày */}
+                                <Box 
+                                    flexGrow={1} 
+                                    display="flex" 
+                                    flexDirection="column" 
+                                    gap="5px"
+                                    style={{ overflowY: 'auto', maxHeight: '110px' }}
+                                >
+                                    {dayEvents.map((evt, eIdx) => (
+                                        <div
+                                            key={eIdx}
+                                            onClick={() => handleRowClick(evt.contract)}
+                                            style={{
+                                                backgroundColor: getEventBackground(evt.type),
+                                                color: getEventTextColor(evt.type),
+                                                borderLeft: `4px solid ${evt.color}`,
+                                                padding: '4px 8px',
+                                                borderRadius: '4px',
+                                                fontSize: '0.75rem',
+                                                fontWeight: '600',
+                                                cursor: 'pointer',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                            }}
+                                            className="calendar-event-badge"
+                                            title={evt.label}
+                                        >
+                                            {evt.label}
+                                        </div>
+                                    ))}
+                                </Box>
+                            </Box>
+                        );
+                    })}
+                </Box>
+            </Paper>
+        );
+    };
+
     const commonHeight = 56;
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
-            loadHopDong(activeTab, selectedTime?.id, searchInput);
+            const timeFilter = viewMode === 'calendar' ? 'all' : selectedTime?.id;
+            loadHopDong(activeTab, timeFilter, searchInput);
         }, 400);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [activeTab, selectedTime?.id, searchInput, loadHopDong]);
+    }, [activeTab, selectedTime?.id, searchInput, loadHopDong, viewMode]);
 
     useEffect(() => {
         if (sendData && sendData._id) {
@@ -315,11 +727,11 @@ function LichCuaHang() {
 
     const renderTrangThaiBadge = (giaiDoan) => {
         const states = {
-            1: { label: "Tạo hợp đồng", color: "#7f8c8d" },
-            2: { label: "Chụp hình", color: "#3498db" },
-            3: { label: "Hậu kỳ", color: "#9b59b6" },
-            4: { label: "In ảnh", color: "#e67e22" },
-            5: { label: "Hoàn thành", color: "#2ecc71" }
+            1: { label: "Tạo hợp đồng", color: "#7f8c8d" }, // Ghi
+            2: { label: "Chụp hình", color: "#f39c12" },   // Vàng
+            3: { label: "Hậu kỳ", color: "#3498db" },      // Xanh nước biển
+            4: { label: "In ảnh", color: "#8d6e63" },      // Nâu
+            5: { label: "Hoàn thành", color: "#2ecc71" }   // Xanh lá cây
         };
         const st = states[giaiDoan] || { label: "Không rõ", color: "#95a5a6" };
         return (
@@ -389,24 +801,68 @@ function LichCuaHang() {
                     <i className="fa-solid fa-wand-magic-sparkles" style={{ marginRight: '8px' }}></i>
                     QUẢN LÝ LỊCH HẬU KỲ
                 </button>
+                <button
+                    onClick={() => {
+                        setActiveTab('inAnh');
+                        setSendData({});
+                    }}
+                    style={{
+                        padding: '10px 24px',
+                        fontSize: '1rem',
+                        fontWeight: 'bold',
+                        border: 'none',
+                        background: activeTab === 'inAnh' ? '#1976d2' : 'transparent',
+                        color: activeTab === 'inAnh' ? '#fff' : '#666',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s',
+                        boxShadow: activeTab === 'inAnh' ? '0 2px 5px rgba(0,0,0,0.2)' : 'none'
+                    }}
+                >
+                    <i className="fa-solid fa-print" style={{ marginRight: '8px' }}></i>
+                    QUẢN LÝ LỊCH IN ẢNH
+                </button>
+                <button
+                    onClick={() => {
+                        setActiveTab('anHoiVaCuoi');
+                        setSendData({});
+                    }}
+                    style={{
+                        padding: '10px 24px',
+                        fontSize: '1rem',
+                        fontWeight: 'bold',
+                        border: 'none',
+                        background: activeTab === 'anHoiVaCuoi' ? '#1976d2' : 'transparent',
+                        color: activeTab === 'anHoiVaCuoi' ? '#fff' : '#666',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s',
+                        boxShadow: activeTab === 'anHoiVaCuoi' ? '0 2px 5px rgba(0,0,0,0.2)' : 'none'
+                    }}
+                >
+                    <i className="fa-solid fa-heart" style={{ marginRight: '8px' }}></i>
+                    QUẢN LÝ LỊCH ĂN HỎI & CƯỚI
+                </button>
             </div>
-
+ 
             <div className="content-header">
-                <h2>{activeTab === 'chupHinh' ? 'LỊCH LÀM VIỆC CHỤP HÌNH' : 'LỊCH LÀM VIỆC HẬU KỲ'}</h2>
-                <Stack spacing={2} direction="row">
-                    <Autocomplete
-                        disablePortal
-                        options={locThoiGian}
-                        value={selectedTime}
-                        onChange={(event, newValue) => {
-                            setSelectedTime(newValue || locThoiGian[0]);
-                        }}
-                        getOptionLabel={(option) => option.label}
-                        isOptionEqualToValue={(option, value) => option.id === value.id}
-                        sx={{ width: 220, height: commonHeight }}
-                        renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" />}
-                    />
-
+                <h2>{activeTab === 'chupHinh' ? 'LỊCH LÀM VIỆC CHỤP HÌNH' : activeTab === 'hauKy' ? 'LỊCH LÀM VIỆC HẬU KỲ' : activeTab === 'inAnh' ? 'LỊCH LÀM VIỆC IN ẢNH' : 'LỊCH LÀM VIỆC ĂN HỎI & CƯỚI'}</h2>
+                <Stack spacing={2} direction="row" alignItems="center">
+                    {viewMode === 'list' && (
+                        <Autocomplete
+                            disablePortal
+                            options={locThoiGian}
+                            value={selectedTime}
+                            onChange={(event, newValue) => {
+                                setSelectedTime(newValue || locThoiGian[0]);
+                            }}
+                            getOptionLabel={(option) => option.label}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                            sx={{ width: 220, height: commonHeight }}
+                            renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" />}
+                        />
+                    )}
+ 
                     <TextField
                         id="outlined-basic"
                         label="Tìm kiếm (Mã HĐ, SĐT, Tên)"
@@ -418,158 +874,282 @@ function LichCuaHang() {
                         }}
                         sx={{ width: 280 }}
                     />
+
+                    <ToggleButtonGroup
+                        value={viewMode}
+                        exclusive
+                        onChange={(event, nextView) => {
+                            if (nextView !== null) {
+                                setViewMode(nextView);
+                            }
+                        }}
+                        aria-label="view mode selector"
+                        sx={{ height: commonHeight, backgroundColor: '#fff' }}
+                    >
+                        <ToggleButton value="list" aria-label="list view" title="Dạng danh sách">
+                            <i className="fa-solid fa-list" style={{ marginRight: '6px' }}></i>
+                            Danh sách
+                        </ToggleButton>
+                        <ToggleButton value="calendar" aria-label="calendar view" title="Dạng lịch tháng">
+                            <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px' }}></i>
+                            Lịch tháng
+                        </ToggleButton>
+                    </ToggleButtonGroup>
                 </Stack>
             </div>
 
-            {/* ===== DANH SÁCH LỊCH LÀM VIỆC ===== */}
-            <TableContainer component={Paper}>
-                <Table aria-label="simple table">
-                    <TableHead>
-                        {activeTab === 'chupHinh' ? (
-                            <TableRow>
-                                <TableCell align='center' style={{ width: 20 }}>STT</TableCell>
-                                <TableCell align='center' style={{ width: 50 }}>MÃ SỐ HĐ</TableCell>
-                                <TableCell align='center' style={{ width: 150 }}>TÊN KHÁCH HÀNG</TableCell>
-                                <TableCell style={{ width: 100 }}>SĐT</TableCell>
-                                <TableCell align='center' style={{ width: 120 }}>ĐỊA ĐIỂM CHỤP</TableCell>
-                                <TableCell align='center' style={{ width: 120 }}>EKIP</TableCell>
-                                <TableCell align='center' style={{ width: 100 }}>DỊCH VỤ</TableCell>
-                                <TableCell align='center' style={{ width: 100 }}>NGÀY CHỤP</TableCell>
-                                <TableCell align='center' style={{ width: 80 }}>GIỜ CHỤP</TableCell>
-                                <TableCell align='center' style={{ width: 120 }}>CHỐT LỊCH</TableCell>
-                            </TableRow>
-                        ) : (
-                            <TableRow>
-                                <TableCell align='center' style={{ width: 20 }}>STT</TableCell>
-                                <TableCell align='center' style={{ width: 50 }}>MÃ SỐ HĐ</TableCell>
-                                <TableCell align='center' style={{ width: 150 }}>TÊN KHÁCH HÀNG</TableCell>
-                                <TableCell style={{ width: 100 }}>SĐT</TableCell>
-                                <TableCell align='center' style={{ width: 120 }}>THỢ CHỈNH ẢNH</TableCell>
-                                <TableCell align='center' style={{ width: 100 }}>DỊCH VỤ</TableCell>
-                                <TableCell align='center' style={{ width: 100 }}>NGÀY HẬU KỲ</TableCell>
-                                <TableCell align='center' style={{ width: 100 }}>NGÀY TRẢ ẢNH</TableCell>
-                                <TableCell align='center' style={{ width: 120 }}>TIẾN TRÌNH</TableCell>
-                            </TableRow>
-                        )}
-                    </TableHead>
+            {/* ===== NỘI DUNG LỊCH LÀM VIỆC ===== */}
+            {viewMode === 'list' ? (
+                <TableContainer component={Paper} style={{ overflowX: 'auto' }}>
+                    <style>{`
+                        .fixed-layout-table {
+                            table-layout: fixed !important;
+                            width: 100% !important;
+                            min-width: 1090px !important;
+                        }
+                        .fixed-layout-table th, .fixed-layout-table td {
+                            word-wrap: break-word !important;
+                            word-break: break-word !important;
+                            white-space: normal !important;
+                        }
+                    `}</style>
+                    <Table aria-label="simple table" className="fixed-layout-table">
+                        <TableHead>
+                            {activeTab === 'chupHinh' ? (
+                                <TableRow>
+                                    <TableCell align='center' style={{ width: 40 }}>STT</TableCell>
+                                    <TableCell align='center' style={{ width: 140 }}>NGÀY CHỤP</TableCell>
+                                    <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
+                                    <TableCell align='center' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
+                                    <TableCell style={{ width: 110 }}>SĐT</TableCell>
+                                    <TableCell align='center' style={{ width: 160 }}>ĐỊA ĐIỂM CHỤP</TableCell>
+                                    <TableCell align='center' style={{ width: 150 }}>EKIP</TableCell>
+                                    <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
+                                    <TableCell align='center' style={{ width: 130 }}>CHỐT LỊCH</TableCell>
+                                </TableRow>
+                            ) : activeTab === 'hauKy' ? (
+                                <TableRow>
+                                    <TableCell align='center' style={{ width: 40 }}>STT</TableCell>
+                                    <TableCell align='center' style={{ width: 140 }}>NGÀY HẬU KỲ</TableCell>
+                                    <TableCell align='center' style={{ width: 140 }}>NGÀY TRẢ ẢNH</TableCell>
+                                    <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
+                                    <TableCell align='center' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
+                                    <TableCell style={{ width: 110 }}>SĐT</TableCell>
+                                    <TableCell align='center' style={{ width: 140 }}>THỢ CHỈNH ẢNH</TableCell>
+                                    <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
+                                    <TableCell align='center' style={{ width: 120 }}>TIẾN TRÌNH</TableCell>
+                                </TableRow>
+                            ) : activeTab === 'inAnh' ? (
+                                <TableRow>
+                                    <TableCell align='center' style={{ width: 40 }}>STT</TableCell>
+                                    <TableCell align='center' style={{ width: 140 }}>NGÀY CHUYỂN IN</TableCell>
+                                    <TableCell align='center' style={{ width: 140 }}>NGÀY TRẢ ẢNH</TableCell>
+                                    <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
+                                    <TableCell align='center' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
+                                    <TableCell style={{ width: 110 }}>SĐT</TableCell>
+                                    <TableCell align='center' style={{ width: 140 }}>THỢ CHỈNH ẢNH</TableCell>
+                                    <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
+                                    <TableCell align='center' style={{ width: 120 }}>TIẾN TRÌNH</TableCell>
+                                </TableRow>
+                            ) : (
+                                <TableRow>
+                                    <TableCell align='center' style={{ width: 40 }}>STT</TableCell>
+                                    <TableCell align='center' style={{ width: 170 }}>NGÀY ĂN HỎI</TableCell>
+                                    <TableCell align='center' style={{ width: 170 }}>NGÀY CƯỚI</TableCell>
+                                    <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
+                                    <TableCell align='center' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
+                                    <TableCell style={{ width: 110 }}>SĐT</TableCell>
+                                    <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
+                                    <TableCell align='center' style={{ width: 120 }}>TIẾN TRÌNH</TableCell>
+                                </TableRow>
+                            )}
+                        </TableHead>
+     
+                        <TableBody>
+                            {filteredHopDong && filteredHopDong.length > 0 ? (
+                                filteredHopDong.map((hd, index) => {
+                                    const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? hd.cacNgay?.ngayChinhAnh : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
+                                    const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab);
+     
+                                    return (
+                                        <TableRow key={index}
+                                            style={{ 
+                                                cursor: "pointer",
+                                                backgroundColor: isOverdue ? '#fff5f5' : 'inherit',
+                                                transition: 'background-color 0.3s'
+                                            }}
+                                            onClick={() => handleRowClick(hd)}
+                                        >
+                                            {/* 1. STT */}
+                                            <TableCell align='center'>{index + 1}</TableCell>
 
-                    <TableBody>
-                        {filteredHopDong && filteredHopDong.length > 0 ? (
-                            filteredHopDong.map((hd, index) => {
-                                const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : hd.cacNgay?.ngayChinhAnh;
-                                const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab);
-
-                                return (
-                                    <TableRow key={index}
-                                        style={{ 
-                                            cursor: "pointer",
-                                            backgroundColor: isOverdue ? '#fff5f5' : 'inherit',
-                                            transition: 'background-color 0.3s'
-                                        }}
-                                        onClick={() => handleRowClick(hd)}
-                                    >
-                                        <TableCell align='center'>{index + 1}</TableCell>
-                                        <TableCell align='center'>{hd.maHopDong}</TableCell>
-                                        <TableCell align='left'>
-                                            {hd.khachHang1?.tenKhachHang}
-                                            {hd.khachHang2?.tenKhachHang && (
-                                                <>
-                                                    <br />
-                                                    <hr style={{ opacity: "40%", margin: "4px 0" }} />
-                                                    {hd.khachHang2.tenKhachHang}
-                                                </>
-                                            )}
-                                        </TableCell>
-                                        <TableCell align='left'>
-                                            {hd.khachHang1?.soDienThoai}
-                                            {hd.khachHang2?.soDienThoai && (
-                                                <>
-                                                    <br />
-                                                    <hr style={{ opacity: "40%", margin: "4px 0" }} />
-                                                    {hd.khachHang2.soDienThoai}
-                                                </>
-                                            )}
-                                        </TableCell>
-
-                                        {activeTab === 'chupHinh' ? (
-                                            <>
-                                                <TableCell align='center'>{hd.cacNgay?.diaDiemChup || "Chưa cập nhật"}</TableCell>
-                                                <TableCell align='center'>
-                                                    {(() => {
-                                                        const parts = [];
-                                                        if (hd.nguoiPhucVu?.thoChupHinh) parts.push(`Chụp: ${hd.nguoiPhucVu.thoChupHinh}`);
-                                                        if (hd.nguoiPhucVu?.thoMakeUp) parts.push(`Make: ${hd.nguoiPhucVu.thoMakeUp}`);
-                                                        return parts.join(" + ") || "Chưa giao ekip";
-                                                    })()}
-                                                </TableCell>
-                                                <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
+                                            {/* 2. Ngày tháng (chuyển lên trước mã số hợp đồng) */}
+                                            {activeTab === 'chupHinh' && (
                                                 <TableCell align='center' style={{ 
                                                     color: isOverdue ? '#e53e3e' : 'inherit', 
                                                     fontWeight: isOverdue ? 'bold' : 'normal' 
                                                 }}>
-                                                    {formatDateOnly(hd.cacNgay?.ngayChup) || "Chưa cập nhật"}
+                                                    {formatDateTime(hd.cacNgay?.ngayChup) || "Chưa cập nhật"}
                                                     {isOverdue && (
                                                         <span style={{ display: 'block', fontSize: '0.75rem', color: '#e53e3e', fontWeight: 'bold', marginTop: '2px' }}>
                                                             (Trễ lịch)
                                                         </span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell align='center'>{hd.cacNgay?.gioChup || "Chưa cập nhật"}</TableCell>
-                                                <TableCell align='center'>
-                                                    {(() => {
-                                                        const status = hd.cacNgay?.chotLich || "Chưa gọi điện";
-                                                        let color = "#e67e22"; // default orange
-                                                        if (status === "Đã gọi điện xác nhận" || status === "Đã chốt lịch") {
-                                                            color = "#2ecc71"; // green
-                                                        }
-                                                        return (
-                                                            <span style={{
-                                                                backgroundColor: color,
-                                                                color: '#fff',
-                                                                padding: '4px 8px',
-                                                                borderRadius: '12px',
-                                                                fontSize: '0.8rem',
-                                                                fontWeight: '500',
-                                                                whiteSpace: 'nowrap'
-                                                            }}>
-                                                                {status}
+                                            )}
+                                            {activeTab === 'hauKy' && (
+                                                <>
+                                                    <TableCell align='center' style={{ 
+                                                        color: isOverdue ? '#e53e3e' : 'inherit', 
+                                                        fontWeight: isOverdue ? 'bold' : 'normal' 
+                                                    }}>
+                                                        {formatDateOnly(hd.cacNgay?.ngayChinhAnh) || "Chưa cập nhật"}
+                                                        {isOverdue && (
+                                                            <span style={{ display: 'block', fontSize: '0.75rem', color: '#e53e3e', fontWeight: 'bold', marginTop: '2px' }}>
+                                                                (Trễ lịch)
                                                             </span>
-                                                        );
-                                                    })()}
-                                                </TableCell>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <TableCell align='center'>{hd.nguoiPhucVu?.thoChinhAnh || "Chưa giao"}</TableCell>
-                                                <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
-                                                <TableCell align='center' style={{ 
-                                                    color: isOverdue ? '#e53e3e' : 'inherit', 
-                                                    fontWeight: isOverdue ? 'bold' : 'normal' 
-                                                }}>
-                                                    {formatDateOnly(hd.cacNgay?.ngayChinhAnh) || "Chưa cập nhật"}
-                                                    {isOverdue && (
-                                                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#e53e3e', fontWeight: 'bold', marginTop: '2px' }}>
-                                                            (Trễ lịch)
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell align='center'>{formatDateOnly(hd.cacNgay?.ngayTraAnh) || "Chưa cập nhật"}</TableCell>
-                                                <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
-                                            </>
-                                        )}
-                                    </TableRow>
-                                );
-                            })
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={activeTab === 'chupHinh' ? 10 : 9} align="center" style={{ color: "#999", padding: "20px 0" }}>
-                                    Không có dữ liệu lịch làm việc.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell align='center'>{formatDateOnly(hd.cacNgay?.ngayTraAnh) || "Chưa cập nhật"}</TableCell>
+                                                </>
+                                            )}
+                                            {activeTab === 'inAnh' && (
+                                                <>
+                                                    <TableCell align='center'>
+                                                        {formatDateTime(hd.cacNgay?.ngayChuyenInAnh) || "Chưa cập nhật"}
+                                                    </TableCell>
+                                                    <TableCell align='center' style={{ 
+                                                        color: isOverdue ? '#e53e3e' : 'inherit', 
+                                                        fontWeight: isOverdue ? 'bold' : 'normal' 
+                                                    }}>
+                                                        {formatDateOnly(hd.cacNgay?.ngayTraAnh) || "Chưa cập nhật"}
+                                                        {isOverdue && (
+                                                            <span style={{ display: 'block', fontSize: '0.75rem', color: '#e53e3e', fontWeight: 'bold', marginTop: '2px' }}>
+                                                                (Trễ lịch)
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                </>
+                                            )}
+                                            {activeTab === 'anHoiVaCuoi' && (
+                                                <>
+                                                    <TableCell align='center' style={{ 
+                                                        color: isPastToday(hd.cacNgay?.ngayAnHoi, hd.giaiDoan, activeTab) ? '#e53e3e' : 'inherit', 
+                                                        fontWeight: isPastToday(hd.cacNgay?.ngayAnHoi, hd.giaiDoan, activeTab) ? 'bold' : 'normal' 
+                                                    }}>
+                                                        {formatDateTime(hd.cacNgay?.ngayAnHoi) || "-"}
+                                                    </TableCell>
+                                                    <TableCell align='center' style={{ 
+                                                        color: isPastToday(hd.cacNgay?.ngayCuoi, hd.giaiDoan, activeTab) ? '#e53e3e' : 'inherit', 
+                                                        fontWeight: isPastToday(hd.cacNgay?.ngayCuoi, hd.giaiDoan, activeTab) ? 'bold' : 'normal' 
+                                                    }}>
+                                                        {formatDateTime(hd.cacNgay?.ngayCuoi) || "-"}
+                                                    </TableCell>
+                                                </>
+                                            )}
+
+                                            {/* 3. Mã số HĐ */}
+                                            <TableCell align='center'>{hd.maHopDong}</TableCell>
+
+                                            {/* 4. Tên khách hàng */}
+                                            <TableCell align='left'>
+                                                {hd.khachHang1?.tenKhachHang}
+                                                {hd.khachHang2?.tenKhachHang && (
+                                                    <>
+                                                        <br />
+                                                        <hr style={{ opacity: "40%", margin: "4px 0" }} />
+                                                        {hd.khachHang2.tenKhachHang}
+                                                    </>
+                                                )}
+                                            </TableCell>
+
+                                            {/* 5. Số điện thoại */}
+                                            <TableCell align='left'>
+                                                {hd.khachHang1?.soDienThoai}
+                                                {hd.khachHang2?.soDienThoai && (
+                                                    <>
+                                                        <br />
+                                                        <hr style={{ opacity: "40%", margin: "4px 0" }} />
+                                                        {hd.khachHang2.soDienThoai}
+                                                    </>
+                                                )}
+                                            </TableCell>
+
+                                            {/* 6. Các cột thông tin còn lại sau SĐT */}
+                                            {activeTab === 'chupHinh' && (
+                                                <>
+                                                    <TableCell align='center'>{hd.cacNgay?.diaDiemChup || "Chưa cập nhật"}</TableCell>
+                                                    <TableCell align='center'>
+                                                        {(() => {
+                                                            const parts = [];
+                                                            if (hd.nguoiPhucVu?.thoChupHinh) parts.push(`Chụp: ${hd.nguoiPhucVu.thoChupHinh}`);
+                                                            if (hd.nguoiPhucVu?.thoMakeUp) parts.push(`Make: ${hd.nguoiPhucVu.thoMakeUp}`);
+                                                            return parts.join(" + ") || "Chưa giao ekip";
+                                                        })()}
+                                                    </TableCell>
+                                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
+                                                    <TableCell align='center'>
+                                                        {(() => {
+                                                            const status = hd.cacNgay?.chotLich || "Chưa gọi điện";
+                                                            let color = "#e67e22"; // default orange
+                                                            if (status === "Đã gọi điện xác nhận" || status === "Đã chốt lịch") {
+                                                                color = "#2ecc71"; // green
+                                                            }
+                                                            return (
+                                                                <span style={{
+                                                                    backgroundColor: color,
+                                                                    color: '#fff',
+                                                                    padding: '4px 8px',
+                                                                    borderRadius: '12px',
+                                                                    fontSize: '0.8rem',
+                                                                    fontWeight: '500',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}>
+                                                                    {status}
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </TableCell>
+                                                </>
+                                            )}
+
+                                            {activeTab === 'hauKy' && (
+                                                <>
+                                                    <TableCell align='center'>{hd.nguoiPhucVu?.thoChinhAnh || "Chưa giao"}</TableCell>
+                                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
+                                                    <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
+                                                </>
+                                            )}
+                                            {activeTab === 'inAnh' && (
+                                                <>
+                                                    <TableCell align='center'>{hd.nguoiPhucVu?.thoChinhAnh || "Chưa giao"}</TableCell>
+                                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
+                                                    <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
+                                                </>
+                                            )}
+
+                                            {activeTab === 'anHoiVaCuoi' && (
+                                                <>
+                                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
+                                                    <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
+                                                </>
+                                            )}
+                                        </TableRow>
+                                    );
+                                })
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={activeTab === 'chupHinh' ? 9 : activeTab === 'hauKy' ? 9 : activeTab === 'inAnh' ? 8 : 8} align="center" style={{ color: "#999", padding: "20px 0" }}>
+                                        Không có dữ liệu lịch làm việc.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            ) : (
+                renderMonthlyCalendar()
+            )}
 
             {/* Dialog chi tiết hợp đồng cho Tab Hậu Kỳ */}
             <DetailHopDongKhachHangDialog
@@ -599,13 +1179,7 @@ function LichCuaHang() {
                             </Select>
                         </FormControl>
 
-                        <TextField
-                            label="Giờ chụp"
-                            variant="outlined"
-                            fullWidth
-                            value={confirmGioChup}
-                            onChange={(e) => setConfirmGioChup(e.target.value)}
-                        />
+
 
                         <TextField
                             label="Địa điểm chụp"
@@ -698,11 +1272,218 @@ function LichCuaHang() {
                         <Button onClick={() => handleUpdateHauKy(null)} variant="outlined" color="primary">
                             Cập nhật
                         </Button>
-                        <Button onClick={() => handleUpdateHauKy(4)} variant="contained" color="warning">
+                        <Button onClick={() => {
+                            if (!confirmLinkAnhChinhSua.trim()) {
+                                toast.error("Vui lòng nhập đường dẫn ảnh chỉnh sửa trước khi chuyển sang in ảnh!");
+                                return;
+                            }
+                            setTempDanhSachAnhIn(selectedHauKyContract?.danhSachAnhIn || []);
+                            setTempKichThuoc("");
+                            setTempSoLuong(1);
+                            setOpenInAnhInputDialog(true);
+                        }} variant="contained" color="warning">
                             Chuyển sang in ảnh
                         </Button>
                         <Button onClick={() => handleUpdateHauKy(5)} variant="contained" color="success">
                             Hoàn thành
+                        </Button>
+                    </Box>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog nhập kích thước & số lượng khi chuyển sang in ảnh */}
+            <Dialog open={openInAnhInputDialog} onClose={() => setOpenInAnhInputDialog(false)} maxWidth="sm" fullWidth>
+                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2' }}>
+                    NHẬP THÔNG TIN ẢNH IN - HĐ: {selectedHauKyContract?.maHopDong}
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Box display="flex" flexDirection="column" gap={2} mt={1}>
+                        <p style={{ fontSize: '0.9rem', color: '#555', margin: 0 }}>
+                            Nhập danh sách kích thước và số lượng ảnh cần in ấn:
+                        </p>
+                        <Box display="flex" gap={1}>
+                            <TextField
+                                label="Kích thước (ví dụ: 60x90, 30x45)"
+                                variant="outlined"
+                                value={tempKichThuoc}
+                                onChange={(e) => setTempKichThuoc(e.target.value)}
+                                size="small"
+                                style={{ flex: 2 }}
+                            />
+                            <TextField
+                                label="Số lượng"
+                                type="number"
+                                variant="outlined"
+                                value={tempSoLuong}
+                                onChange={(e) => setTempSoLuong(Math.max(1, parseInt(e.target.value) || 1))}
+                                size="small"
+                                style={{ flex: 1 }}
+                                inputProps={{ min: 1 }}
+                            />
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() => {
+                                    if (!tempKichThuoc.trim()) {
+                                        toast.warning("Vui lòng nhập kích thước!");
+                                        return;
+                                    }
+                                    setTempDanhSachAnhIn([
+                                        ...tempDanhSachAnhIn,
+                                        { kichThuoc: tempKichThuoc.trim(), soLuong: tempSoLuong }
+                                    ]);
+                                    setTempKichThuoc("");
+                                    setTempSoLuong(1);
+                                }}
+                            >
+                                Thêm
+                            </Button>
+                        </Box>
+
+                        <Box style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '8px' }}>
+                            {tempDanhSachAnhIn.length === 0 ? (
+                                <p style={{ textAlign: 'center', color: '#999', fontSize: '0.85rem', margin: '16px 0' }}>Chưa có ảnh in nào trong danh sách</p>
+                            ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left' }}>
+                                            <th style={{ padding: '6px' }}>STT</th>
+                                            <th style={{ padding: '6px' }}>Kích thước</th>
+                                            <th style={{ padding: '6px' }}>Số lượng</th>
+                                            <th style={{ padding: '6px', textAlign: 'center' }}>Hành động</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {tempDanhSachAnhIn.map((item, idx) => (
+                                            <tr key={idx} style={{ borderBottom: '1px solid #f9f9f9' }}>
+                                                <td style={{ padding: '6px' }}>{idx + 1}</td>
+                                                <td style={{ padding: '6px' }}>{item.kichThuoc}</td>
+                                                <td style={{ padding: '6px' }}>{item.soLuong}</td>
+                                                <td style={{ padding: '6px', textAlign: 'center' }}>
+                                                    <Button
+                                                        size="small"
+                                                        color="error"
+                                                        onClick={() => {
+                                                            setTempDanhSachAnhIn(tempDanhSachAnhIn.filter((_, i) => i !== idx));
+                                                        }}
+                                                    >
+                                                        Xóa
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </Box>
+                    </Box>
+                </DialogContent>
+                <DialogActions style={{ padding: '16px 24px' }}>
+                    <Button onClick={() => setOpenInAnhInputDialog(false)} color="inherit">
+                        Quay lại
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            if (tempDanhSachAnhIn.length === 0) {
+                                toast.warning("Vui lòng thêm ít nhất một ảnh in!");
+                                return;
+                            }
+                            // Trigger actual stage transition
+                            handleUpdateHauKy(4);
+                            setOpenInAnhInputDialog(false);
+                        }}
+                        variant="contained"
+                        color="success"
+                    >
+                        Xác nhận chuyển in ảnh
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog quản lý & bàn giao in ấn cho Tab In Ảnh */}
+            <Dialog open={openInAnhViewDialog} onClose={() => setOpenInAnhViewDialog(false)} maxWidth="sm" fullWidth>
+                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2' }}>
+                    CHI TIẾT IN ẤN - HĐ: {selectedInAnhContract?.maHopDong}
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Box display="flex" flexDirection="column" gap={2} mt={1}>
+                        <Box display="flex" flexDirection="column" gap={0.5}>
+                            <p style={{ margin: 0, fontSize: '0.95rem' }}><strong>Khách hàng:</strong> {selectedInAnhContract?.khachHang1?.tenKhachHang} {selectedInAnhContract?.khachHang1?.soDienThoai ? `(${selectedInAnhContract.khachHang1.soDienThoai})` : ''}</p>
+                            {selectedInAnhContract?.khachHang2 && (
+                                <p style={{ margin: 0, fontSize: '0.95rem' }}><strong>Khách hàng 2:</strong> {selectedInAnhContract.khachHang2.tenKhachHang} {selectedInAnhContract.khachHang2.soDienThoai ? `(${selectedInAnhContract.khachHang2.soDienThoai})` : ''}</p>
+                            )}
+                            <p style={{ margin: 0, fontSize: '0.95rem' }}><strong>Thời gian chuyển in ảnh:</strong> {formatDateTime(selectedInAnhContract?.cacNgay?.ngayChuyenInAnh) || "Chưa cập nhật"}</p>
+                            <p style={{ margin: 0, fontSize: '0.95rem' }}><strong>Ngày trả ảnh:</strong> {formatDateOnly(selectedInAnhContract?.cacNgay?.ngayTraAnh) || "Chưa cập nhật"}</p>
+                            {selectedInAnhContract?.linkAnhChinhSua && (
+                                <p style={{ margin: 0, fontSize: '0.95rem' }}>
+                                    <strong>Link ảnh chỉnh sửa:</strong> <a href={selectedInAnhContract.linkAnhChinhSua} target="_blank" rel="noopener noreferrer" style={{ color: '#1976d2', textDecoration: 'underline' }}>Mở link Drive</a>
+                                </p>
+                            )}
+                        </Box>
+
+                        <h4 style={{ margin: '12px 0 6px 0', color: '#333' }}>Danh sách ảnh in:</h4>
+                        <Box style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '8px' }}>
+                            {!selectedInAnhContract?.danhSachAnhIn || selectedInAnhContract.danhSachAnhIn.length === 0 ? (
+                                <p style={{ textAlign: 'center', color: '#999', fontSize: '0.85rem', margin: '16px 0' }}>Chưa cập nhật danh sách ảnh in</p>
+                            ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left' }}>
+                                            <th style={{ padding: '6px' }}>STT</th>
+                                            <th style={{ padding: '6px' }}>Kích thước</th>
+                                            <th style={{ padding: '6px' }}>Số lượng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {selectedInAnhContract.danhSachAnhIn.map((item, idx) => (
+                                            <tr key={idx} style={{ borderBottom: '1px solid #f9f9f9' }}>
+                                                <td style={{ padding: '6px' }}>{idx + 1}</td>
+                                                <td style={{ padding: '6px' }}>{item.kichThuoc}</td>
+                                                <td style={{ padding: '6px' }}>{item.soLuong}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </Box>
+                    </Box>
+                </DialogContent>
+                <DialogActions style={{ padding: '16px 24px', justifyContent: 'space-between' }}>
+                    <Button onClick={() => {
+                        setOpenInAnhViewDialog(false);
+                        setSendData(selectedInAnhContract);
+                        setOpenDetailDialog(true);
+                    }} variant="outlined" color="info">
+                        Xem chi tiết HĐ
+                    </Button>
+                    <Box display="flex" gap={1}>
+                        <Button onClick={() => setOpenInAnhViewDialog(false)} color="inherit">
+                            Thoát
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                showLoading("Đang chuyển trạng thái sang hoàn thành...");
+                                otherService.UPDATE_HOPDONG({
+                                    maHopDong: selectedInAnhContract.maHopDong,
+                                    giaiDoan: 5
+                                })
+                                .then(() => {
+                                    toast.success("Hợp đồng đã hoàn thành!");
+                                    setOpenInAnhViewDialog(false);
+                                    setSelectedInAnhContract(null);
+                                    loadHopDong(activeTab, selectedTime?.id, searchInput);
+                                    hideLoading();
+                                })
+                                .catch((error) => {
+                                    console.error(error);
+                                    toast.error("Có lỗi xảy ra: " + (error.response?.data?.message || error.message));
+                                    hideLoading();
+                                });
+                            }}
+                            variant="contained"
+                            color="success"
+                        >
+                            Bàn giao & Hoàn thành
                         </Button>
                     </Box>
                 </DialogActions>

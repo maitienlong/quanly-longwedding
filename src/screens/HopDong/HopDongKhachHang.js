@@ -152,6 +152,23 @@ function HopDongKhachHang() {
         }
     };
 
+    const getRowBackgroundColor = (giaiDoan) => {
+        switch (giaiDoan) {
+            case 1:
+                return '#f3f4f6'; // Ghi (Grey) nhạt
+            case 2:
+                return '#fffbeb'; // Vàng (Yellow) nhạt
+            case 3:
+                return '#eff6ff'; // Xanh nước biển (Blue) nhạt
+            case 4:
+                return '#faf5f0'; // Nâu (Brown) nhạt
+            case 5:
+                return '#f0fdf4'; // Xanh lá cây (Green) nhạt
+            default:
+                return 'inherit';
+        }
+    };
+
     return (
         <div className="hopdongkhachhang">
             <div className="content-header">
@@ -228,7 +245,16 @@ function HopDongKhachHang() {
                         {hopDong && hopDong.length > 0 ? (
                             filteredHopDong.map((hd, index) => (
                                 <TableRow key={index}
-                                    style={{ cursor: "pointer" }}
+                                    style={{ 
+                                        cursor: "pointer",
+                                        backgroundColor: getRowBackgroundColor(hd.giaiDoan)
+                                    }}
+                                    sx={{
+                                        '&:hover': {
+                                            filter: 'brightness(95%)',
+                                            transition: 'filter 0.15s ease'
+                                        }
+                                    }}
                                     onClick={() => {
                                         setSendData(hd);
                                         handleClickOpenDetailDialog();
@@ -256,7 +282,7 @@ function HopDongKhachHang() {
                                         )}
                                     </TableCell>
                                     <TableCell align='center' style={{ width: 100 }}>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
-                                    <TableCell align='center' style={{ width: 20 }}><span className="status-chip">{convertTrangThai(hd.giaiDoan)}</span></TableCell>
+                                    <TableCell align='center' style={{ width: 20 }}><span style={{ fontWeight: '600', fontSize: '0.85rem' }}>{convertTrangThai(hd.giaiDoan)}</span></TableCell>
                                     <TableCell align='center' style={{ width: 100 }}>{formatDate(hd.ngayHopDong)}</TableCell>
                                     <TableCell align='center' style={{ width: 100 }}>{formatDate(hd.cacNgay?.ngayChup) || "Đang cập nhật"}</TableCell>
                                 </TableRow>
