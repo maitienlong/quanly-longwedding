@@ -104,6 +104,7 @@ function DetailHopDongKhachHangDialog(props) {
     const [diaDiemChup, setDiaDiemChup] = useState("");
     const [thoChupHinh, setThoChupHinh] = useState("");
     const [thoMakeUp, setThoMakeUp] = useState("");
+    const [thoChinhAnh, setThoChinhAnh] = useState("");
     const [chotLich, setChotLich] = useState("Chưa gọi điện");
 
     // Local progress states
@@ -233,9 +234,11 @@ function DetailHopDongKhachHangDialog(props) {
             if (data.nguoiPhucVu) {
                 setThoChupHinh(data.nguoiPhucVu.thoChupHinh || "");
                 setThoMakeUp(data.nguoiPhucVu.thoMakeUp || "");
+                setThoChinhAnh(data.nguoiPhucVu.thoChinhAnh || "");
             } else {
                 setThoChupHinh("");
                 setThoMakeUp("");
+                setThoChinhAnh("");
             }
 
             setNhanVienSale(data.nhanVienSale || "0");
@@ -459,7 +462,7 @@ function DetailHopDongKhachHangDialog(props) {
             nguoiPhucVu: {
                 thoChupHinh,
                 thoMakeUp,
-                thoChinhAnh: data?.nguoiPhucVu?.thoChinhAnh || "",
+                thoChinhAnh: thoChinhAnh,
                 banHang: data?.nguoiPhucVu?.banHang || "",
                 phucVu: data?.nguoiPhucVu?.phucVu || ""
             },
@@ -789,6 +792,11 @@ function DetailHopDongKhachHangDialog(props) {
                                             </select>
                                             <label style={{ top: '-10px', fontSize: '0.8rem', color: '#1976d2' }}>Chốt lịch</label>
                                         </div>
+
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="text" name="thoChinhAnh" value={thoChinhAnh} onChange={(e) => setThoChinhAnh(e.target.value)} />
+                                            <label>Thợ chỉnh ảnh</label>
+                                        </div>
                                     </div>
 
                                     <div className="dialog-section-khachhang-item">
@@ -819,6 +827,16 @@ function DetailHopDongKhachHangDialog(props) {
                                         <div className="floating-label" style={{ marginTop: '20px' }}>
                                             <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />
                                             <label>Địa điểm chụp</label>
+                                        </div>
+
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="date" name="ngayChinhAnh" value={ngayChinhAnh} onChange={(e) => setNgayChinhAnh(e.target.value)} />
+                                            <label>Ngày bắt đầu hậu kỳ</label>
+                                        </div>
+
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="date" name="ngayTraAnh" value={ngayTraAnh} onChange={(e) => setNgayTraAnh(e.target.value)} />
+                                            <label>Ngày trả ảnh</label>
                                         </div>
                                     </div>
                                 </div>

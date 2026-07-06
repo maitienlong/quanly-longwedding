@@ -56,6 +56,16 @@ const formatDateOnly = (dateString) => {
     return `${dd}/${MM}/${yyyy}`;
 };
 
+const formatTimestampToDateInput = (val) => {
+    if (!val) return "";
+    const date = new Date(val);
+    if (isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const isPastToday = (dateString, giaiDoan, tab) => {
     if (!dateString) return false;
     const date = new Date(dateString);
@@ -71,6 +81,8 @@ const isPastToday = (dateString, giaiDoan, tab) => {
         isCompleted = giaiDoan >= 3; // Giai đoạn >= 3 (Hậu kỳ, In ảnh, Hoàn thành) coi như đã chụp xong
     } else if (tab === 'hauKy') {
         isCompleted = giaiDoan >= 4; // Giai đoạn >= 4 (In ảnh, Hoàn thành) coi như đã chỉnh sửa xong
+    } else if (tab === 'anHoiVaCuoi') {
+        isCompleted = giaiDoan >= 5; // Giai đoạn >= 5 (Hoàn thành) coi như đã xong
     }
     
     // Báo đỏ nếu ngày lịch trình nhỏ hơn ngày hôm nay và chưa hoàn thành
@@ -82,7 +94,7 @@ function LichCuaHang() {
     const { showLoading, hideLoading } = useLoading();
 
     // Tab quản lý
-    const [activeTab, setActiveTab] = useState('chupHinh'); // 'chupHinh' hoặc 'hauKy'
+    const [activeTab, setActiveTab] = useState('chupHinh'); // 'chupHinh', 'hauKy', hoặc 'anHoiVaCuoi'
 
     // Lọc và Tìm kiếm
     const locThoiGian = [
@@ -108,18 +120,33 @@ function LichCuaHang() {
     const [confirmChotLich, setConfirmChotLich] = useState("Chưa gọi điện");
     const [confirmLinkAnh, setConfirmLinkAnh] = useState("");
 
+    // dialog cập nhật lịch hậu kỳ cho Tab Hậu Kỳ
+    const [openHauKyDialog, setOpenHauKyDialog] = useState(false);
+    const [selectedHauKyContract, setSelectedHauKyContract] = useState(null);
+    const [confirmThoChinhAnh, setConfirmThoChinhAnh] = useState("");
+    const [confirmNgayChinhAnh, setConfirmNgayChinhAnh] = useState("");
+    const [confirmNgayTraAnh, setConfirmNgayTraAnh] = useState("");
+    const [confirmLinkAnhChinhSua, setConfirmLinkAnhChinhSua] = useState("");
+
     const loadHopDong = useCallback((tabVal, timeVal, searchVal) => {
         showLoading("Đang tải lịch cửa hàng ...");
-        const dateField = tabVal === 'chupHinh' ? 'cacNgay.ngayChup' : 'cacNgay.ngayChinhAnh';
-        const targetStage = tabVal === 'chupHinh' ? [1, 2] : 3;
+        let dateField = 'cacNgay.ngayChup';
+        let targetStage = [1, 2];
+
+        if (tabVal === 'hauKy') {
+            dateField = 'cacNgay.ngayChinhAnh';
+            targetStage = 3;
+        } else if (tabVal === 'anHoiVaCuoi') {
+            dateField = 'anHoiVaCuoi';
+            targetStage = 'all';
+        }
         
         const params = {
             isCalendar: true,
-            dateField: dateField,
-            status: targetStage
+            dateField: dateField
         };
-        if (tabVal === 'hauKy') {
-            params.chotLich = ["Đã gọi điện xác nhận", "Đã chốt lịch"];
+        if (targetStage !== 'all') {
+            params.status = targetStage;
         }
         if (timeVal && timeVal !== 'all') {
             params.filter = timeVal;
@@ -155,6 +182,13 @@ function LichCuaHang() {
             setConfirmChotLich(hd.cacNgay?.chotLich || "Chưa gọi điện");
             setConfirmLinkAnh(hd.linkAnhGoc || "");
             setOpenChupHinhDialog(true);
+        } else if (activeTab === 'hauKy') {
+            setSelectedHauKyContract(hd);
+            setConfirmThoChinhAnh(hd.nguoiPhucVu?.thoChinhAnh || "");
+            setConfirmNgayChinhAnh(formatTimestampToDateInput(hd.cacNgay?.ngayChinhAnh) || "");
+            setConfirmNgayTraAnh(formatTimestampToDateInput(hd.cacNgay?.ngayTraAnh) || "");
+            setConfirmLinkAnhChinhSua(hd.linkAnhChinhSua || "");
+            setOpenHauKyDialog(true);
         } else {
             setSendData(hd);
             setOpenDetailDialog(true);
@@ -191,6 +225,62 @@ function LichCuaHang() {
                 toast.success(shouldTransitionToHauKy ? "Đã chuyển sang hậu kỳ thành công!" : "Cập nhật thông tin chụp thành công!");
                 setOpenChupHinhDialog(false);
                 setSelectedChupHinhContract(null);
+                loadHopDong(activeTab, selectedTime?.id, searchInput);
+                hideLoading();
+            })
+            .catch((error) => {
+                console.error(error);
+                toast.error("Có lỗi xảy ra: " + (error.response?.data?.message || error.message));
+                hideLoading();
+            });
+    };
+
+    const handleUpdateHauKy = (targetStage = null) => {
+        if (!selectedHauKyContract) return;
+
+        if (targetStage === 4 && !confirmLinkAnhChinhSua.trim()) {
+            toast.error("Vui lòng nhập đường dẫn ảnh chỉnh sửa trước khi chuyển sang in ảnh!");
+            return;
+        }
+
+        let actionText = "Đang cập nhật lịch hậu kỳ...";
+        if (targetStage === 4) {
+            actionText = "Đang chuyển trạng thái sang in ảnh...";
+        } else if (targetStage === 5) {
+            actionText = "Đang chuyển trạng thái sang hoàn thành...";
+        }
+
+        showLoading(actionText);
+
+        const payload = {
+            maHopDong: selectedHauKyContract.maHopDong,
+            cacNgay: {
+                ...selectedHauKyContract.cacNgay,
+                ngayChinhAnh: confirmNgayChinhAnh ? new Date(confirmNgayChinhAnh).toISOString() : null,
+                ngayTraAnh: confirmNgayTraAnh ? new Date(confirmNgayTraAnh).toISOString() : null
+            },
+            nguoiPhucVu: {
+                ...selectedHauKyContract.nguoiPhucVu,
+                thoChinhAnh: confirmThoChinhAnh
+            },
+            linkAnhChinhSua: confirmLinkAnhChinhSua
+        };
+
+        if (targetStage) {
+            payload.giaiDoan = targetStage;
+        }
+
+        otherService.UPDATE_HOPDONG(payload)
+            .then((response) => {
+                let successText = "Cập nhật thông tin hậu kỳ thành công!";
+                if (targetStage === 4) {
+                    successText = "Đã chuyển sang in ảnh thành công!";
+                } else if (targetStage === 5) {
+                    successText = "Đã hoàn thành hợp đồng thành công!";
+                }
+                toast.success(successText);
+                setOpenHauKyDialog(false);
+                setSelectedHauKyContract(null);
                 loadHopDong(activeTab, selectedTime?.id, searchInput);
                 hideLoading();
             })
@@ -545,6 +635,76 @@ function LichCuaHang() {
                     <Button onClick={() => handleUpdateChupHinh(true)} variant="contained" color="success">
                         Chuyển sang hậu kỳ
                     </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog Cập nhật lịch hậu kỳ cho Tab Hậu Kỳ */}
+            <Dialog open={openHauKyDialog} onClose={() => setOpenHauKyDialog(false)} maxWidth="sm" fullWidth>
+                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2' }}>
+                    XÁC NHẬN LỊCH HẬU KỲ - HĐ: {selectedHauKyContract?.maHopDong}
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Box display="flex" flexDirection="column" gap={2} mt={1}>
+                        <TextField
+                            label="Thợ chỉnh ảnh"
+                            variant="outlined"
+                            fullWidth
+                            value={confirmThoChinhAnh}
+                            onChange={(e) => setConfirmThoChinhAnh(e.target.value)}
+                        />
+
+                        <TextField
+                            label="Ngày bắt đầu hậu kỳ"
+                            type="date"
+                            variant="outlined"
+                            fullWidth
+                            value={confirmNgayChinhAnh}
+                            onChange={(e) => setConfirmNgayChinhAnh(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                        />
+
+                        <TextField
+                            label="Ngày trả ảnh"
+                            type="date"
+                            variant="outlined"
+                            fullWidth
+                            value={confirmNgayTraAnh}
+                            onChange={(e) => setConfirmNgayTraAnh(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                        />
+
+                        <TextField
+                            label="Đường dẫn ảnh chỉnh sửa (Link ảnh)"
+                            variant="outlined"
+                            fullWidth
+                            value={confirmLinkAnhChinhSua}
+                            onChange={(e) => setConfirmLinkAnhChinhSua(e.target.value)}
+                            placeholder="https://drive.google.com/..."
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions style={{ padding: '16px 24px', justifyContent: 'space-between' }}>
+                    <Button onClick={() => {
+                        setOpenHauKyDialog(false);
+                        setSendData(selectedHauKyContract);
+                        setOpenDetailDialog(true);
+                    }} variant="outlined" color="info">
+                        Xem chi tiết HĐ
+                    </Button>
+                    <Box display="flex" gap={1}>
+                        <Button onClick={() => setOpenHauKyDialog(false)} color="inherit">
+                            Hủy
+                        </Button>
+                        <Button onClick={() => handleUpdateHauKy(null)} variant="outlined" color="primary">
+                            Cập nhật
+                        </Button>
+                        <Button onClick={() => handleUpdateHauKy(4)} variant="contained" color="warning">
+                            Chuyển sang in ảnh
+                        </Button>
+                        <Button onClick={() => handleUpdateHauKy(5)} variant="contained" color="success">
+                            Hoàn thành
+                        </Button>
+                    </Box>
                 </DialogActions>
             </Dialog>
         </div>
