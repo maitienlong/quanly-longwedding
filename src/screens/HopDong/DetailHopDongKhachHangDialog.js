@@ -44,7 +44,7 @@ const getDichVuChinhLabel = (id) => {
 function DetailHopDongKhachHangDialog(props) {
     const { onClose, data, selectedValue, open } = props;
     const handleClose = () => {
-        onClose(selectedValue);
+        onClose(hasUpdated);
     };
 
     const generateMaHopDong = () => {
@@ -100,6 +100,21 @@ function DetailHopDongKhachHangDialog(props) {
     const [dichVuChinh, setDichVuChinh] = useState(0);
     const [khachThanhToanTruoc, setKhachThanhToanTruoc] = useState(0);
     const [nhanVienSale, setNhanVienSale] = useState("0");
+
+    // Local progress states
+    const [linkAnhGoc, setLinkAnhGoc] = useState("");
+    const [linkAnhChinhSua, setLinkAnhChinhSua] = useState("");
+    const [danhSachAnhIn, setDanhSachAnhIn] = useState([]);
+    const [hasUpdated, setHasUpdated] = useState(false);
+
+    // States for progress input dialog
+    const [openProgressInput, setOpenProgressInput] = useState(false);
+    const [targetStep, setTargetStep] = useState(null);
+    const [inputLinkAnhGoc, setInputLinkAnhGoc] = useState("");
+    const [inputLinkAnhChinhSua, setInputLinkAnhChinhSua] = useState("");
+    const [inputDanhSachAnhIn, setInputDanhSachAnhIn] = useState([]);
+    const [newKichThuoc, setNewKichThuoc] = useState("");
+    const [newSoLuong, setNewSoLuong] = useState(1);
 
     // state cho giảm giá
     const [giamGia, setGiamGia] = useState(0);
@@ -207,6 +222,10 @@ function DetailHopDongKhachHangDialog(props) {
             setNhanVienSale(data.nhanVienSale || "0");
             setGiaiDoan(data.giaiDoan || 1);
             setDichVuChinh(data.dichVuChinh || 0);
+            setLinkAnhGoc(data.linkAnhGoc || "");
+            setLinkAnhChinhSua(data.linkAnhChinhSua || "");
+            setDanhSachAnhIn(data.danhSachAnhIn || []);
+            setHasUpdated(false);
         } else if (open) {
             resetForm();
         }
@@ -430,53 +449,92 @@ function DetailHopDongKhachHangDialog(props) {
         });
     };
 
+    const submitProgressUpdate = (stepNumber, progressData) => {
+        if (!data || !data._id) return;
+        
+        showLoading("Đang cập nhật tiến trình...");
+        otherService.UPDATE_PROGRESS({
+            maHopDong: maHopDong,
+            giaiDoan: stepNumber,
+            data: progressData
+        }).then((response) => {
+            const stepNames = {
+                1: "Tạo hợp đồng",
+                2: "Chụp hình",
+                3: "Hậu kỳ",
+                4: "In ảnh",
+                5: "Hoàn thành"
+            };
+            toast.success(`Đã chuyển tiến trình sang "${stepNames[stepNumber]}" thành công!`);
+            setGiaiDoan(stepNumber);
+            setHasUpdated(true);
+
+            // Cập nhật các state hiển thị cục bộ
+            if (stepNumber === 2) {
+                setLinkAnhGoc(progressData.linkAnhGoc);
+            } else if (stepNumber === 3) {
+                setLinkAnhChinhSua(progressData.linkAnhChinhSua);
+            } else if (stepNumber === 4) {
+                setDanhSachAnhIn(progressData.danhSachAnhIn);
+            }
+
+            hideLoading();
+            setOpenProgressInput(false);
+        }).catch((error) => {
+            console.error(error);
+            toast.error("Lỗi khi cập nhật tiến trình: " + (error.response?.data?.message || error.message || error));
+            hideLoading();
+        });
+    };
+
     const handleStepClick = (stepNumber) => {
         if (stepNumber === giaiDoan) return;
 
-        const stepNames = {
-            1: "Tạo hợp đồng",
-            2: "Chụp hình",
-            3: "Hậu kỳ",
-            4: "In ảnh",
-            5: "Hoàn thành"
+        // Không được phép đi lùi
+        if (stepNumber < giaiDoan) {
+            toast.error("Không thể quay lại tiến trình trước đó!");
+            return;
+        }
+
+        // Quy định chuyển đổi tiến trình hợp lệ
+        const allowedTransitions = {
+            1: [2],
+            2: [3],
+            3: [4, 5],
+            4: [5],
+            5: []
         };
 
-        if (window.confirm(`Bạn có muốn chuyển tiến trình hợp đồng sang "${stepNames[stepNumber]}" không?`)) {
-            setGiaiDoan(stepNumber);
+        const allowedTargets = allowedTransitions[giaiDoan] || [];
+        if (!allowedTargets.includes(stepNumber)) {
+            const stepNames = {
+                1: "Tạo hợp đồng (1)",
+                2: "Chụp hình (2)",
+                3: "Hậu kỳ (3)",
+                4: "In ảnh (4)",
+                5: "Hoàn thành (5)"
+            };
+            toast.error(`Không thể chuyển từ "${stepNames[giaiDoan]}" sang "${stepNames[stepNumber]}". Tiến trình phải đi theo thứ tự.`);
+            return;
+        }
 
-            if (data && data._id) {
-                showLoading(`Đang chuyển tiến trình sang "${stepNames[stepNumber]}"...`);
-                otherService.UPDATE_HOPDONG({
-                    _id: data._id,
-                    maHopDong,
-                    ngayHopDong,
-                    khachHang1: idKH1,
-                    khachHang2: idKH2,
-                    gioHang,
-                    thanhToan: {
-                        giamGia: giamGia,
-                        loaiGiamGia: loaiGiamGia,
-                        cacLuotThanhToan: data?.thanhToan?.cacLuotThanhToan || [],
-                    },
-                    cacNgay: {
-                        ngayChup: convertDateToISOString(ngayChup),
-                        ngayAnHoi: convertDateToISOString(ngayAnHoi),
-                        ngayCuoi: convertDateToISOString(ngayCuoi),
-                        ngayChinhAnh: convertDateToISOString(ngayChinhAnh),
-                        ngayTraAnh: convertDateToISOString(ngayTraAnh),
-                    },
-                    nhanVienSale: nhanVienSale,
-                    giaiDoan: stepNumber,
-                    dichVuChinh: dichVuChinh,
-                    khachThanhToanTruoc: khachThanhToanTruoc
-                }).then(() => {
-                    toast.success(`Đã chuyển tiến trình sang "${stepNames[stepNumber]}" thành công!`);
-                    hideLoading();
-                }).catch((error) => {
-                    toast.error("Lỗi khi cập nhật tiến trình: " + error);
-                    setGiaiDoan(giaiDoan); // Rollback state
-                    hideLoading();
-                });
+        // Giai đoạn hợp lệ -> mở dialog tương ứng hoặc xác nhận trực tiếp
+        setTargetStep(stepNumber);
+
+        if (stepNumber === 2) {
+            setInputLinkAnhGoc(linkAnhGoc || "");
+            setOpenProgressInput(true);
+        } else if (stepNumber === 3) {
+            setInputLinkAnhChinhSua(linkAnhChinhSua || "");
+            setOpenProgressInput(true);
+        } else if (stepNumber === 4) {
+            setInputDanhSachAnhIn(danhSachAnhIn || []);
+            setNewKichThuoc("");
+            setNewSoLuong(1);
+            setOpenProgressInput(true);
+        } else if (stepNumber === 5) {
+            if (window.confirm("Bạn có muốn chuyển tiến trình hợp đồng sang \"Hoàn thành\" không?")) {
+                submitProgressUpdate(5, {});
             }
         }
     };
@@ -489,7 +547,7 @@ function DetailHopDongKhachHangDialog(props) {
             <div className="dialog-overlay">
                 <div className="dialog large">
 
-                    <button className="close-btn" onClick={onClose}>×</button>
+                    <button className="close-btn" onClick={handleClose}>×</button>
                     <h3 className="dialog-title">CHI TIẾT HỢP ĐỒNG: <span style={{ color: '#d4af37' }}>{maHopDong}</span></h3>
 
                     <div className="dialog-progress">
@@ -711,6 +769,51 @@ function DetailHopDongKhachHangDialog(props) {
 
 
                             </div>
+
+                            {(linkAnhGoc || linkAnhChinhSua || (danhSachAnhIn && danhSachAnhIn.length > 0)) && (
+                                <div className="dialog-section" style={{ marginTop: '20px' }}>
+                                    <h4>Thông tin tiến trình</h4>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 15px', backgroundColor: '#fcfcfc', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
+                                        {linkAnhGoc && (
+                                            <div>
+                                                <strong style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: '#666' }}>Đường dẫn ảnh gốc:</strong>
+                                                <a href={linkAnhGoc} target="_blank" rel="noopener noreferrer" style={{ wordBreak: 'break-all', color: '#1976d2', textDecoration: 'underline', fontSize: '0.9rem', fontWeight: '500' }}>
+                                                    {linkAnhGoc}
+                                                </a>
+                                            </div>
+                                        )}
+                                        {linkAnhChinhSua && (
+                                            <div style={{ marginTop: '4px' }}>
+                                                <strong style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: '#666' }}>Đường dẫn ảnh chỉnh sửa:</strong>
+                                                <a href={linkAnhChinhSua} target="_blank" rel="noopener noreferrer" style={{ wordBreak: 'break-all', color: '#1976d2', textDecoration: 'underline', fontSize: '0.9rem', fontWeight: '500' }}>
+                                                    {linkAnhChinhSua}
+                                                </a>
+                                            </div>
+                                        )}
+                                        {danhSachAnhIn && danhSachAnhIn.length > 0 && (
+                                            <div style={{ marginTop: '4px' }}>
+                                                <strong style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: '#666' }}>Danh sách ảnh in:</strong>
+                                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                                    <thead>
+                                                        <tr style={{ borderBottom: '1px solid #ddd', textAlign: 'left', color: '#666' }}>
+                                                            <th style={{ padding: '6px 0' }}>Kích thước</th>
+                                                            <th style={{ padding: '6px 0', textAlign: 'right' }}>Số lượng</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {danhSachAnhIn.map((item, index) => (
+                                                            <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                                                                <td style={{ padding: '6px 0', color: '#333' }}>{item.kichThuoc}</td>
+                                                                <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 'bold', color: '#333' }}>{item.soLuong}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -830,7 +933,7 @@ function DetailHopDongKhachHangDialog(props) {
 
                     <div className="dialog-actions">
                         <Button
-                            onClick={onClose}
+                            onClick={handleClose}
                             variant="contained"
                             color="error"
                             sx={{
@@ -849,6 +952,166 @@ function DetailHopDongKhachHangDialog(props) {
                     </div>
                 </div>
             </div>
+
+            {/* Dialog nhập liệu thông tin tiến trình */}
+            <Dialog open={openProgressInput} onClose={() => setOpenProgressInput(false)} maxWidth="sm" fullWidth>
+                <div style={{ padding: '24px', fontFamily: 'sans-serif' }}>
+                    <h3 style={{ margin: '0 0 16px 0', color: '#1976d2', borderBottom: '1px solid #eee', paddingBottom: '8px', fontWeight: 'bold' }}>
+                        Cập nhật tiến trình: {targetStep === 2 ? "Chụp hình" : targetStep === 3 ? "Hậu kỳ" : "In ảnh"}
+                    </h3>
+                    
+                    {targetStep === 2 && (
+                        <div style={{ marginTop: '12px' }}>
+                            <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
+                                Vui lòng nhập đường dẫn thư mục chứa ảnh gốc của khách hàng:
+                            </p>
+                            <TextField
+                                label="Đường dẫn ảnh gốc (URL)"
+                                fullWidth
+                                variant="outlined"
+                                value={inputLinkAnhGoc}
+                                onChange={(e) => setInputLinkAnhGoc(e.target.value)}
+                                placeholder="https://drive.google.com/drive/folders/..."
+                                size="small"
+                            />
+                        </div>
+                    )}
+
+                    {targetStep === 3 && (
+                        <div style={{ marginTop: '12px' }}>
+                            <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
+                                Vui lòng nhập đường dẫn thư mục chứa ảnh đã chỉnh sửa (ảnh hậu kỳ):
+                            </p>
+                            <TextField
+                                label="Đường dẫn ảnh chỉnh sửa (URL)"
+                                fullWidth
+                                variant="outlined"
+                                value={inputLinkAnhChinhSua}
+                                onChange={(e) => setInputLinkAnhChinhSua(e.target.value)}
+                                placeholder="https://drive.google.com/drive/folders/..."
+                                size="small"
+                            />
+                        </div>
+                    )}
+
+                    {targetStep === 4 && (
+                        <div style={{ marginTop: '12px' }}>
+                            <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
+                                Bổ sung danh sách ảnh in kích thước và số lượng:
+                            </p>
+                            
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                                <TextField
+                                    label="Kích thước (ví dụ: 60x90, 30x45)"
+                                    variant="outlined"
+                                    value={newKichThuoc}
+                                    onChange={(e) => setNewKichThuoc(e.target.value)}
+                                    size="small"
+                                    sx={{ flex: 2 }}
+                                />
+                                <TextField
+                                    label="Số lượng"
+                                    type="number"
+                                    variant="outlined"
+                                    value={newSoLuong}
+                                    onChange={(e) => setNewSoLuong(Math.max(1, parseInt(e.target.value) || 1))}
+                                    size="small"
+                                    sx={{ flex: 1 }}
+                                    inputProps={{ min: 1 }}
+                                />
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={() => {
+                                        if (!newKichThuoc.trim()) {
+                                            toast.warning("Vui lòng nhập kích thước!");
+                                            return;
+                                        }
+                                        setInputDanhSachAnhIn([
+                                            ...inputDanhSachAnhIn,
+                                            { kichThuoc: newKichThuoc.trim(), soLuong: newSoLuong }
+                                        ]);
+                                        setNewKichThuoc("");
+                                        setNewSoLuong(1);
+                                    }}
+                                >
+                                    Thêm
+                                </Button>
+                            </div>
+
+                            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '8px' }}>
+                                {inputDanhSachAnhIn.length === 0 ? (
+                                    <p style={{ textAlign: 'center', color: '#999', fontSize: '0.85rem', margin: '16px 0' }}>Chưa có ảnh in nào trong danh sách</p>
+                                ) : (
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left' }}>
+                                                <th style={{ padding: '6px' }}>STT</th>
+                                                <th style={{ padding: '6px' }}>Kích thước</th>
+                                                <th style={{ padding: '6px' }}>Số lượng</th>
+                                                <th style={{ padding: '6px', textAlign: 'center' }}>Hành động</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {inputDanhSachAnhIn.map((item, idx) => (
+                                                <tr key={idx} style={{ borderBottom: '1px solid #f9f9f9' }}>
+                                                    <td style={{ padding: '6px' }}>{idx + 1}</td>
+                                                    <td style={{ padding: '6px' }}>{item.kichThuoc}</td>
+                                                    <td style={{ padding: '6px' }}>{item.soLuong}</td>
+                                                    <td style={{ padding: '6px', textAlign: 'center' }}>
+                                                        <Button
+                                                            size="small"
+                                                            color="error"
+                                                            onClick={() => {
+                                                                setInputDanhSachAnhIn(inputDanhSachAnhIn.filter((_, i) => i !== idx));
+                                                            }}
+                                                        >
+                                                            Xóa
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
+                        <Button variant="outlined" color="inherit" onClick={() => setOpenProgressInput(false)}>
+                            Hủy
+                        </Button>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={() => {
+                                if (targetStep === 2) {
+                                    if (!inputLinkAnhGoc.trim()) {
+                                        toast.warning("Vui lòng nhập đường dẫn ảnh gốc!");
+                                        return;
+                                    }
+                                    submitProgressUpdate(2, { linkAnhGoc: inputLinkAnhGoc.trim() });
+                                } else if (targetStep === 3) {
+                                    if (!inputLinkAnhChinhSua.trim()) {
+                                        toast.warning("Vui lòng nhập đường dẫn ảnh chỉnh sửa!");
+                                        return;
+                                    }
+                                    submitProgressUpdate(3, { linkAnhChinhSua: inputLinkAnhChinhSua.trim() });
+                                } else if (targetStep === 4) {
+                                    if (inputDanhSachAnhIn.length === 0) {
+                                        toast.warning("Vui lòng thêm ít nhất một ảnh in vào danh sách!");
+                                        return;
+                                    }
+                                    submitProgressUpdate(4, { danhSachAnhIn: inputDanhSachAnhIn });
+                                }
+                            }}
+                        >
+                            Xác nhận chuyển bước
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
 
         </Dialog >
     );

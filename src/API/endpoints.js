@@ -8,7 +8,9 @@ export const ENDPOINTS = {
     CREATE: "/hopDong/create",
     UPDATE: "/hopDong/update",
     DELETEHOPDONG: "/hopDong/delete",
-    PAYHOPDONG: "/hopDong/pay"
+    UPDATEPROGRESS: "/hopDong/update-progress",
+    PAYHOPDONG: "/hopDong/pay",
+    SEARCH: "/hopDong/search"
   },
   TRANGPHUC: {
     FINDALLTRANGPHUC: "/trangPhuc/find"

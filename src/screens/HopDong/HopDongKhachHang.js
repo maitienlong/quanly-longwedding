@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
@@ -8,8 +8,6 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
-import DialogTitle from '@mui/material/DialogTitle';
-import Dialog from '@mui/material/Dialog';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -18,9 +16,6 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import DetailHopDongKhachHangDialog from './DetailHopDongKhachHangDialog';
-function removeAccents(str) {
-    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
 
 const getDichVuChinhLabel = (id) => {
     const options = {
@@ -45,7 +40,27 @@ function HopDongKhachHang() {
     const [hopDong, setHopDong] = useState([]);
     const { showLoading, hideLoading } = useLoading();
 
-    const [searchTerm, setSearchTerm] = useState("");
+    // Lọc và Tìm kiếm
+    const locThoiGian = [
+        { label: 'Tất cả thời gian', id: 'all' },
+        { label: 'Hôm nay', id: 'hôm nay' },
+        { label: '1 tuần', id: '1 tuần' },
+        { label: '1 tháng', id: '1 tháng' },
+        { label: '4 tháng', id: '4 tháng' }
+    ];
+
+    const locTrangThai = [
+        { label: 'Tất cả trạng thái', id: 'all' },
+        { label: 'Tạo hợp đồng', id: 1 },
+        { label: 'Chụp hình', id: 2 },
+        { label: 'Hậu kỳ', id: 3 },
+        { label: 'In ảnh', id: 4 },
+        { label: 'Hoàn thành', id: 5 }
+    ];
+
+    const [selectedTime, setSelectedTime] = useState(locThoiGian[1]);
+    const [selectedStatus, setSelectedStatus] = useState(locTrangThai[0]);
+    const [searchInput, setSearchInput] = useState("");
 
     // LOGIC DIALOG KHÁCH HÀNG
     const [openDialogHD, setOpenDialogHD] = React.useState(false);
@@ -57,32 +72,20 @@ function HopDongKhachHang() {
         setOpenDialogHD(true);
     };
 
-    const handleCloseDialog = (value) => {
-        setOpenDialogHD(false);
-        setSelectedValueDialog(value);
-        loadHopDong();
-    };
-    const handleClickOpenDetailDialog = () => {
-        setOpenDetailDialog(true);
-    };
-    const handleCloseDetailDialog = (updated) => {
-        setOpenDetailDialog(false);
-        if (updated === true) {
-            loadHopDong();
-        }
-    };
-
-    const locThoiGian = [
-        { label: 'Hôm nay', id: 1 },
-        { label: 'Tuần này', id: 2 },
-        { label: 'Tháng này', id: 3 },
-        { label: 'Năm này', id: 4 }]
-
-    const commonHeight = 56;
-
-    const loadHopDong = () => {
+    const loadHopDong = useCallback((timeVal, statusVal, searchVal) => {
         showLoading("Đang tải hợp đồng ...");
-        otherService.LIST_HOPDONG()
+        const params = {};
+        if (timeVal && timeVal !== 'all') {
+            params.filter = timeVal;
+        }
+        if (statusVal && statusVal !== 'all') {
+            params.status = statusVal;
+        }
+        if (searchVal) {
+            params.keyword = searchVal;
+        }
+
+        otherService.LIST_HOPDONG(params)
             .then((response) => {
                 console.log(response.data.hopDong);
                 setHopDong(response.data.hopDong);
@@ -94,22 +97,44 @@ function HopDongKhachHang() {
                 toast.error("Lỗi khi tải dữ liệu hợp đồng khách hàng." + error.message);
                 hideLoading();
             });
-    };
-
-    useEffect(() => {
-        loadHopDong();
     }, [showLoading, hideLoading]);
 
-    const filteredHopDong =
-        hopDong?.filter((hd) => {
-            if (!searchTerm) return true; // nếu chưa nhập thì hiện tất cả
-            const lowerTerm = removeAccents(searchTerm.toLowerCase());
-            return (
-                (hd.maHopDong && removeAccents(hd.maHopDong.toLowerCase()).includes(lowerTerm)) ||
-                (hd.khachHang1?.tenKhachHang && removeAccents(hd.khachHang1.tenKhachHang.toLowerCase()).includes(lowerTerm)) ||
-                (hd.khachHang2?.tenKhachHang && removeAccents(hd.khachHang2.tenKhachHang.toLowerCase()).includes(lowerTerm))
-            );
-        }) || [];
+    const handleCloseDialog = (value) => {
+        setOpenDialogHD(false);
+        setSelectedValueDialog(value);
+        loadHopDong(selectedTime?.id, selectedStatus?.id, searchInput);
+    };
+    const handleClickOpenDetailDialog = () => {
+        setOpenDetailDialog(true);
+    };
+    const handleCloseDetailDialog = (updated) => {
+        setOpenDetailDialog(false);
+        if (updated === true) {
+            loadHopDong(selectedTime?.id, selectedStatus?.id, searchInput);
+        }
+    };
+
+    const commonHeight = 56;
+
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            loadHopDong(selectedTime?.id, selectedStatus?.id, searchInput);
+        }, 400);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [selectedTime?.id, selectedStatus?.id, searchInput, loadHopDong]);
+
+    useEffect(() => {
+        if (sendData && sendData._id) {
+            const updatedHD = hopDong.find(hd => hd._id === sendData._id);
+            if (updatedHD) {
+                setSendData(updatedHD);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hopDong, sendData?._id]);
+
+    const filteredHopDong = hopDong || [];
 
     const convertTrangThai = (giaiDoan) => {
         switch (giaiDoan) {
@@ -130,26 +155,53 @@ function HopDongKhachHang() {
 
     return (
         <div className="hopdongkhachhang">
-            <div class="content-header">
+            <div className="content-header">
                 <h2>QUẢN LÝ HỢP ĐỒNG KHÁCH HÀNG</h2>
                 <Stack spacing={2} direction="row">
 
                     <Autocomplete
                         disablePortal
                         options={locThoiGian}
-                        sx={{ width: 300, height: commonHeight }}
+                        value={selectedTime}
+                        onChange={(event, newValue) => {
+                            setSelectedTime(newValue || locThoiGian[0]);
+                        }}
+                        getOptionLabel={(option) => option.label}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        sx={{ width: 220, height: commonHeight }}
                         renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" />}
                     />
 
-                    <TextField id="outlined-basic" label="Tìm kiếm" variant="outlined" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} InputProps={{
-                        sx: { height: commonHeight }
-                    }} />
+                    <Autocomplete
+                        disablePortal
+                        options={locTrangThai}
+                        value={selectedStatus}
+                        onChange={(event, newValue) => {
+                            setSelectedStatus(newValue || locTrangThai[0]);
+                        }}
+                        getOptionLabel={(option) => option.label}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        sx={{ width: 220, height: commonHeight }}
+                        renderInput={(params) => <TextField {...params} label="Lọc theo trạng thái" />}
+                    />
+
+                    <TextField
+                        id="outlined-basic"
+                        label="Tìm kiếm (Mã HĐ, SĐT, Tên)"
+                        variant="outlined"
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        InputProps={{
+                            sx: { height: commonHeight }
+                        }}
+                        sx={{ width: 280 }}
+                    />
 
                     <Button
                         onClick={handleClickOpenDialog}
                         variant="contained"
                         sx={{
-                            height: commonHeight, // Ép chiều cao bằng với 2 input trên
+                            height: commonHeight, // Ép chiều cao bằng với các input trên
                             whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
                         }}
                     >Thêm Hợp Đồng</Button>
