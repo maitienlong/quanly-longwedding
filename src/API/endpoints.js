@@ -5,8 +5,8 @@ export const ENDPOINTS = {
   },
   HOPDONG: {
     LIST: "/hopDong/list",
-    CREATEHOPDONG: "/hopDong/create",
-    UPDATEHOPDONG: "/hopDong/update",
+    CREATE: "/hopDong/create",
+    UPDATE: "/hopDong/update",
     DELETEHOPDONG: "/hopDong/delete",
     PAYHOPDONG: "/hopDong/pay"
   },

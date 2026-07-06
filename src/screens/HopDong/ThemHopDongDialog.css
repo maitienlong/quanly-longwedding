@@ -13,7 +13,7 @@
 .dialog.large {
   background: #fff;
   width: 95%;
-  max-width: 1200px;
+
   max-height: 90vh;
   border-radius: var(--radius);
   position: relative;
@@ -34,7 +34,7 @@
   background: #fff;
   color: var(--primary-color);
   margin: 0;
-  padding: 20px 30px;
+  padding: 10px;
   font-size: 1.5rem;
   font-weight: 700;
   text-align: center;
@@ -149,6 +149,17 @@ h4 {
   padding: 10px 0;
 }
 
+.dialog-section-khachhang {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+}
+
+.dialog-section-khachhang-item {
+  flex: 1;
+  margin-right: 20px;
+}
+
 /* Floating Labels - Trực quan và đồng đều */
 .floating-label {
   position: relative;
@@ -185,7 +196,6 @@ h4 {
 
 /* PAYMENT SECTION */
 .payment {
-  padding: 20px 25px;
   background: #fff;
   border-top: 2px dashed var(--border-color);
 }
@@ -238,6 +248,51 @@ h4 {
 @media (max-width: 900px) {
   .dialog-content { grid-template-columns: 1fr; }
   .payment-grid { grid-template-columns: 1fr 1fr; }
+  .dialog-section-khachhang {
+    flex-direction: row;
+  }
+  .dialog-section-khachhang-item {
+    margin-right: 12px;
+  }
+  .dialog-section-khachhang-item:last-child {
+    margin-right: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .dialog.large {
+    width: 100% !important;
+    max-width: 100vw !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 0;
+  }
+  .dialog-content {
+    padding: 12px;
+    gap: 15px;
+  }
+  .left-column, .right-column {
+    padding: 12px;
+  }
+  .stepper-wrapper {
+    overflow-x: auto;
+    padding-bottom: 8px;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+  .step-container {
+    flex-grow: 0;
+    flex-shrink: 0;
+  }
+  .step-label {
+    font-size: 0.75rem;
+    white-space: normal;
+    max-width: 85px;
+  }
+  .step-line {
+    width: 30px;
+    flex-grow: 0;
+  }
 }
 
 
@@ -299,5 +354,166 @@ h4 {
 .search-suggestions-pop::-webkit-scrollbar-thumb {
     background: #ccc;
     border-radius: 10px;
+}
+
+.btn-qty {
+    width: 25px;
+    height: 25px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-qty:hover {
+    background-color: #f0f0f0;
+    border-color: #999;
+}
+
+.product-table td {
+    vertical-align: middle;
+}
+
+/* Progress Stepper Styles */
+.dialog-progress {
+    background-color: #fcfcfc;
+    border-bottom: 1px solid var(--border-color);
+    padding: 24px 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.stepper-wrapper {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    justify-content: space-between;
+}
+
+.step-container {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.step-container:last-child {
+    flex: none;
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    z-index: 2;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    border: 2px solid #e0e0e0;
+    color: #9e9e9e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step-badge-check {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: #2e7d32;
+    color: white;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    border: 1px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.step-label {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #757575;
+    text-align: center;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+/* Step Line */
+.step-line {
+    height: 3px;
+    background-color: #e0e0e0;
+    flex-grow: 1;
+    margin: 0 10px;
+    transform: translateY(-12px);
+    border-radius: 2px;
+    transition: all 0.5s ease;
+    z-index: 1;
+}
+
+.step-line.filled {
+    background-color: var(--primary-color);
+    box-shadow: 0 0 4px rgba(212, 175, 55, 0.2);
+}
+
+/* Stepper States styling */
+.step-item.active .step-icon-wrap {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: #fffdf5;
+    transform: scale(1.1);
+    box-shadow: 0 0 12px rgba(212, 175, 55, 0.4);
+    font-weight: bold;
+}
+
+.step-item.active .step-label {
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+.step-item.completed .step-icon-wrap {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: #ffffff;
+}
+
+.step-item.completed .step-label {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.step-item.pending:hover .step-icon-wrap {
+    border-color: #bdbdbd;
+    color: #616161;
+}
+
+.step-item:hover .step-icon-wrap {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.step-item.active:hover .step-icon-wrap {
+    transform: scale(1.1) translateY(-2px);
+    box-shadow: 0 4px 14px rgba(212, 175, 55, 0.5);
 }
 

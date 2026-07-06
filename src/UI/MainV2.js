@@ -45,7 +45,10 @@ function MainV2() {
             <div className="container">
                 <aside className="sidebar">
                     <div className="sidebar-header">
-                        <img className="logo-login" src={logo} alt="logo" />
+                        <div className="logo-title-group">
+                            <img className="logo-login" src={logo} alt="logo" />
+                            <h1 className="mobile-only-title">HỆ THỐNG QUẢN LÝ CỬA HÀNG LONG WEDDING</h1>
+                        </div>
                         <div className="time-display">
                             <h2 id="clock">{ctime}</h2>
                             <p id="date">{dayNames[new Date().getDay()]}, {cdate}</p>
