@@ -33,9 +33,10 @@ function ThemHopDongKHDialog(props) {
     };
 
 
-    const convertDateToTimestamp = (dateString) => {
+    const convertDateToISOString = (dateString) => {
+        if (!dateString) return null;
         const date = new Date(dateString);
-        return Math.floor(date.getTime() / 1000);
+        return isNaN(date.getTime()) ? null : date.toISOString();
     }
 
     const loaiHopDongOptions = [
@@ -389,11 +390,11 @@ function ThemHopDongKHDialog(props) {
                 }
             },
             cacNgay: {
-                ngayChup: convertDateToTimestamp(ngayChup),
-                ngayAnHoi: convertDateToTimestamp(ngayAnHoi),
-                ngayCuoi: convertDateToTimestamp(ngayCuoi),
-                ngayChinhAnh: convertDateToTimestamp(ngayChinhAnh),
-                ngayTraAnh: convertDateToTimestamp(ngayTraAnh),
+                ngayChup: convertDateToISOString(ngayChup),
+                ngayAnHoi: convertDateToISOString(ngayAnHoi),
+                ngayCuoi: convertDateToISOString(ngayCuoi),
+                ngayChinhAnh: convertDateToISOString(ngayChinhAnh),
+                ngayTraAnh: convertDateToISOString(ngayTraAnh),
             },
             nhanVienSale: nhanVienSale,
             giaiDoan: 1,
@@ -625,10 +626,6 @@ function ThemHopDongKHDialog(props) {
 
                                     <div className="dialog-section-khachhang-item">
                                         <div className="floating-label">
-                                            <input type="date" name="ngayHopDong" value={ngayHopDong} required />
-                                            <label>Ngày hợp đồng</label>
-                                        </div>
-                                        <div className="floating-label">
                                             <input type="date" name="ngayChup" value={ngayChup} onChange={(e) => setNgayChup(e.target.value)} required />
                                             <label>Ngày chụp ảnh</label>
                                         </div>
@@ -644,7 +641,6 @@ function ThemHopDongKHDialog(props) {
                                         </div>
                                     </div>
                                 </div>
-
 
                             </div>
                         </div>

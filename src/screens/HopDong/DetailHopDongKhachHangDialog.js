@@ -12,6 +12,7 @@ import { NumericFormat } from 'react-number-format';
 import { styled } from '@mui/material/styles';
 import Divider from '@mui/material/Divider';
 import Autocomplete from '@mui/material/Autocomplete';
+import { formatDate } from '../utils/convertDate';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faFileContract,
@@ -20,6 +21,25 @@ import {
     faPrint,
     faCircleCheck
 } from '@fortawesome/free-solid-svg-icons';
+
+const getDichVuChinhLabel = (id) => {
+    const options = {
+        1: 'Pre-Wedding',
+        2: 'Phóng Sự Ăn Hỏi',
+        3: 'Phóng Sự Cưới',
+        4: 'Beauty',
+        5: 'Ảnh Thẻ',
+        6: 'Bé',
+        7: 'Gia Đình',
+        8: 'Video Phóng Sự',
+        9: 'Thiệp Mời',
+        10: 'Livestream',
+        11: 'Trang điểm',
+        12: 'Cho thuê trang phục',
+        13: 'Khác'
+    };
+    return options[Number(id)] || 'Khác';
+};
 
 function DetailHopDongKhachHangDialog(props) {
     const { onClose, data, selectedValue, open } = props;
@@ -41,16 +61,15 @@ function DetailHopDongKhachHangDialog(props) {
     };
 
 
-    const convertDateToTimestamp = (dateString) => {
+    const convertDateToISOString = (dateString) => {
+        if (!dateString) return "";
         const date = new Date(dateString);
-        return Math.floor(date.getTime() / 1000);
-    }
+        if (isNaN(date.getTime())) return "";
+        return date.toISOString();
+    };
 
-    const loaiHopDongOptions = [
-
-    ]
-
-
+    const [methodPayment, setMethodPayment] = useState("Tiền mặt");
+    const [noiDungPayment, setNoiDungPayment] = useState("Thanh toán thêm");
     const { showLoading, hideLoading } = useLoading();
     const [listDichVu, setListDichVu] = useState([]);
 
@@ -85,6 +104,21 @@ function DetailHopDongKhachHangDialog(props) {
     // state cho giảm giá
     const [giamGia, setGiamGia] = useState(0);
     const [loaiGiamGia, setLoaiGiamGia] = useState(0); // "VND" hoặc "%"
+
+    const isOldService = (productId) => {
+        return data?.gioHang?.some(orig => {
+            const origId = orig.dichVu?._id || orig.dichVu || orig._id;
+            return origId === productId;
+        });
+    };
+
+    const getOriginalQuantity = (productId) => {
+        const origItem = data?.gioHang?.find(orig => {
+            const origId = orig.dichVu?._id || orig.dichVu || orig._id;
+            return origId === productId;
+        });
+        return origItem ? origItem.soLuong || 1 : 0;
+    };
 
     const commonHeight = 56;
 
@@ -158,7 +192,9 @@ function DetailHopDongKhachHangDialog(props) {
             setGioHang(data.gioHang || []);
             setGiamGia(data.thanhToan?.giamGia || 0);
             setLoaiGiamGia(data.thanhToan?.loaiGiamGia || 0);
-            setKhachThanhToanTruoc(data.khachThanhToanTruoc || 0);
+            setKhachThanhToanTruoc(0);
+            setMethodPayment("Tiền mặt");
+            setNoiDungPayment("Thanh toán thêm");
 
             if (data.cacNgay) {
                 setNgayChup(formatTimestampToDateInput(data.cacNgay.ngayChup));
@@ -199,40 +235,30 @@ function DetailHopDongKhachHangDialog(props) {
     );
 
     const handleSelectProduct = (product) => {
-        const isExisting = gioHang.find(sp => sp.maDichVu === product.maDichVu);
+        const productId = product.dichVu || product._id;
+        const isExisting = gioHang.find(sp => (sp.dichVu || sp._id) === productId);
 
         let updatedGioHang;
 
         if (isExisting) {
-            // Nếu đã có: Map qua mảng để tăng số lượng của sản phẩm đó
             updatedGioHang = gioHang.map(sp =>
-                sp.maDichVu === product.maDichVu
+                (sp.dichVu || sp._id) === productId
                     ? {
-                        ...sp, soLuong: (sp.soLuong || 0) + 1,
-                        dichVu: product._id
+                        ...sp,
+                        soLuong: (sp.soLuong || 0) + 1
                     }
                     : sp
             );
         } else {
-            // Nếu chưa có: Thêm sản phẩm mới vào mảng với số lượng là 1
-            // Lưu ý: Đảm bảo lấy đúng trường giá (giaChoThueDichVu) từ dữ liệu API
-            updatedGioHang = [...gioHang, { ...product, soLuong: 1, dichVu: product._id }];
+            updatedGioHang = [...gioHang, {
+                dichVu: product._id,
+                tenDichVuSnapshot: product.tenDichVu,
+                donGia: Number(product.giaChoThueDichVu) || 0,
+                soLuong: 1
+            }];
         }
 
-        // 2. Cập nhật state giỏ hàng (giữ đúng định dạng mảng)
-        setGioHang(updatedGioHang);
-
-        // 3. Tính toán tổng tiền
-        const newTotal = updatedGioHang.reduce((sum, item) => {
-            // Chuyển đổi giá về dạng số để tính toán (đề phòng giá là chuỗi)
-            const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
-            return sum + (price * (item.soLuong || 0));
-        }, 0);
-
-        // 4. Cập nhật state tổng tiền
-        setTongTien(newTotal);
-
-        // 5. Reset các ô search
+        updateCartAndTotal(updatedGioHang);
         setSearchTerm("");
         setShowSuggestions(false);
     };
@@ -241,32 +267,43 @@ function DetailHopDongKhachHangDialog(props) {
     const updateCartAndTotal = (newCart) => {
         setGioHang(newCart);
         const newTotal = newCart.reduce((sum, item) => {
-            const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
+            const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
             return sum + (price * (item.soLuong || 0));
         }, 0);
         setTongTien(newTotal);
     };
 
     // Hàm xóa hoàn toàn sản phẩm khỏi giỏ
-    const handleDeleteProduct = (maDichVu) => {
-        const updatedCart = gioHang.filter(sp => sp.maDichVu !== maDichVu);
+    const handleDeleteProduct = (dichVuId) => {
+        if (isOldService(dichVuId)) {
+            toast.error("Không được phép xóa dịch vụ cũ đã ký!");
+            return;
+        }
+        const updatedCart = gioHang.filter(sp => (sp.dichVu || sp._id) !== dichVuId);
         updateCartAndTotal(updatedCart);
-        toast.info(" Đã xóa sản phẩm khỏi giỏ hàng");
+        toast.info("Đã xóa sản phẩm khỏi giỏ hàng");
     };
 
     // Hàm giảm số lượng sản phẩm
-    const handleDecreaseQuantity = (maDichVu) => {
-        const existingProduct = gioHang.find(sp => sp.maDichVu === maDichVu);
+    const handleDecreaseQuantity = (dichVuId) => {
+        const existingProduct = gioHang.find(sp => (sp.dichVu || sp._id) === dichVuId);
+        if (!existingProduct) return;
+
+        if (isOldService(dichVuId)) {
+            const origQty = getOriginalQuantity(dichVuId);
+            if (existingProduct.soLuong <= origQty) {
+                toast.warning("Không thể giảm số lượng dịch vụ cũ dưới mức ban đầu!");
+                return;
+            }
+        }
 
         if (existingProduct.soLuong > 1) {
-            // Nếu số lượng > 1 thì giảm đi 1
             const updatedCart = gioHang.map(sp =>
-                sp.maDichVu === maDichVu ? { ...sp, soLuong: sp.soLuong - 1 } : sp
+                (sp.dichVu || sp._id) === dichVuId ? { ...sp, soLuong: sp.soLuong - 1 } : sp
             );
             updateCartAndTotal(updatedCart);
         } else {
-            // Nếu số lượng bằng 1 thì hỏi người dùng có muốn xóa không (hoặc xóa luôn)
-            handleDeleteProduct(maDichVu);
+            handleDeleteProduct(dichVuId);
         }
     };
 
@@ -353,16 +390,30 @@ function DetailHopDongKhachHangDialog(props) {
             khachHang1: idKH1,
             khachHang2: idKH2,
             gioHang,
-            thanhToan: {
-                giamGia: giamGia,
-                loaiGiamGia: loaiGiamGia,
-            },
+            thanhToan: (() => {
+                const cacLuotThanhToan = [...(data?.thanhToan?.cacLuotThanhToan || [])];
+                if (khachThanhToanTruoc > 0) {
+                    cacLuotThanhToan.push({
+                        id: `TT-${maHopDong}-${Date.now()}`,
+                        khachHang: nameKH1 || "Khách hàng 1",
+                        amount: Number(khachThanhToanTruoc),
+                        date: new Date().toISOString(),
+                        method: methodPayment || "Tiền mặt",
+                        noiDung: noiDungPayment || "Thanh toán thêm"
+                    });
+                }
+                return {
+                    giamGia: giamGia,
+                    loaiGiamGia: loaiGiamGia,
+                    cacLuotThanhToan: cacLuotThanhToan
+                };
+            })(),
             cacNgay: {
-                ngayChup: convertDateToTimestamp(ngayChup),
-                ngayAnHoi: convertDateToTimestamp(ngayAnHoi),
-                ngayCuoi: convertDateToTimestamp(ngayCuoi),
-                ngayChinhAnh: convertDateToTimestamp(ngayChinhAnh),
-                ngayTraAnh: convertDateToTimestamp(ngayTraAnh),
+                ngayChup: convertDateToISOString(ngayChup),
+                ngayAnHoi: convertDateToISOString(ngayAnHoi),
+                ngayCuoi: convertDateToISOString(ngayCuoi),
+                ngayChinhAnh: convertDateToISOString(ngayChinhAnh),
+                ngayTraAnh: convertDateToISOString(ngayTraAnh),
             },
             nhanVienSale: nhanVienSale,
             giaiDoan: giaiDoan,
@@ -405,13 +456,14 @@ function DetailHopDongKhachHangDialog(props) {
                     thanhToan: {
                         giamGia: giamGia,
                         loaiGiamGia: loaiGiamGia,
+                        cacLuotThanhToan: data?.thanhToan?.cacLuotThanhToan || [],
                     },
                     cacNgay: {
-                        ngayChup: convertDateToTimestamp(ngayChup),
-                        ngayAnHoi: convertDateToTimestamp(ngayAnHoi),
-                        ngayCuoi: convertDateToTimestamp(ngayCuoi),
-                        ngayChinhAnh: convertDateToTimestamp(ngayChinhAnh),
-                        ngayTraAnh: convertDateToTimestamp(ngayTraAnh),
+                        ngayChup: convertDateToISOString(ngayChup),
+                        ngayAnHoi: convertDateToISOString(ngayAnHoi),
+                        ngayCuoi: convertDateToISOString(ngayCuoi),
+                        ngayChinhAnh: convertDateToISOString(ngayChinhAnh),
+                        ngayTraAnh: convertDateToISOString(ngayTraAnh),
                     },
                     nhanVienSale: nhanVienSale,
                     giaiDoan: stepNumber,
@@ -518,30 +570,41 @@ function DetailHopDongKhachHangDialog(props) {
                                     <tbody>
                                         {Array.isArray(gioHang) && gioHang.length > 0 ? (
                                             gioHang.map((item) => {
-                                                // Lưu ý: Dùng giaChoThueDichVu cho đồng nhất với logic search
+                                                const productId = item.dichVu || item._id;
                                                 const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
                                                 const total = price * (item.soLuong || 0);
+                                                const origQty = getOriginalQuantity(productId);
+                                                const canDecrease = !isOldService(productId) ? item.soLuong > 1 : item.soLuong > origQty;
 
                                                 return (
-                                                    <tr key={item.maDichVu}>
+                                                    <tr key={productId}>
                                                         <td>{item.tenDichVuSnapshot}</td>
                                                         <td style={{ textAlign: "center" }}>
                                                             {/* Nút giảm số lượng */}
-                                                            <button className="btn-qty" onClick={() => handleDecreaseQuantity(item.maDichVu)}>-</button>
+                                                            <button 
+                                                                className="btn-qty" 
+                                                                onClick={() => handleDecreaseQuantity(productId)}
+                                                                disabled={!canDecrease}
+                                                                style={{ opacity: canDecrease ? 1 : 0.5, cursor: canDecrease ? 'pointer' : 'not-allowed' }}
+                                                            >-</button>
                                                             <span style={{ margin: "0 10px" }}>{item.soLuong}</span>
-                                                            {/* Nút tăng số lượng (tận dụng lại logic thêm) */}
+                                                            {/* Nút tăng số lượng */}
                                                             <button className="btn-qty" onClick={() => handleSelectProduct(item)}>+</button>
                                                         </td>
                                                         <td>{price.toLocaleString("vi-VN")}đ</td>
                                                         <td>{total.toLocaleString("vi-VN")}đ</td>
                                                         <td style={{ textAlign: "center" }}>
-                                                            <Button
-                                                                size="small"
-                                                                color="error"
-                                                                onClick={() => handleDeleteProduct(item.maDichVu)}
-                                                            >
-                                                                Xóa
-                                                            </Button>
+                                                            {isOldService(productId) ? (
+                                                                <span style={{ fontSize: '0.8rem', color: '#999', fontStyle: 'italic' }}>Dịch vụ gốc</span>
+                                                            ) : (
+                                                                <Button
+                                                                    size="small"
+                                                                    color="error"
+                                                                    onClick={() => handleDeleteProduct(productId)}
+                                                                >
+                                                                    Xóa
+                                                                </Button>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 );
@@ -611,15 +674,10 @@ function DetailHopDongKhachHangDialog(props) {
                                             <label>Mã hợp đồng</label>
                                         </div>
 
-                                        <Autocomplete
-                                            disablePortal
-                                            options={loaiHopDongOptions}
-                                            renderInput={(params) => <TextField {...params} label="Loại hợp đồng" />}
-                                            onChange={(event, newValue) => {
-                                                setDichVuChinh(newValue ? newValue.id : 0);
-                                            }
-                                            }
-                                        />
+                                        <div className="floating-label" style={{ marginTop: '20px' }}>
+                                            <input type="text" name="dichVuChinh" value={getDichVuChinhLabel(dichVuChinh)} disabled />
+                                            <label>Dịch vụ chính</label>
+                                        </div>
 
                                         <div className="floating-label" style={{ marginTop: '20px' }}>
                                             <input type="text" name="nhanVienSale" value={nhanVienSale} disabled />
@@ -659,57 +717,96 @@ function DetailHopDongKhachHangDialog(props) {
                     {/* === DƯỚI CÙNG: THANH TOÁN === */}
                     <div className="dialog-section payment">
                         <h4>Thông tin thanh toán</h4>
-                        <Stack
-                            direction={{ xs: 'column', md: 'row' }}
-                            divider={<Divider orientation={{ xs: 'horizontal', md: 'vertical' }} flexItem />}
-                            spacing={2}
-                        >
-                            <Stack
-                                direction="column"
-                                divider={<Divider orientation="horizontal" flexItem />}
-                                spacing={2}
-                            >
-                                <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1.2em', color: 'green' }}>Lịch sử thanh toán</p>
-
-                            </Stack>
-
-                            <Stack
-                                direction="column"
-                                divider={<Divider orientation="horizontal" flexItem />}
-                                spacing={2}
-                            >
-
-                                <div style={{ display: 'flex', gap: '5px' }}>
-
-
-
+                        <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', flexWrap: 'wrap', width: '100%' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 2, minWidth: '350px' }}>
+                                <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1.2em', color: 'green', margin: '0 0 10px 0' }}>Lịch sử thanh toán</p>
+                                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                    {data?.thanhToan?.cacLuotThanhToan && data.thanhToan.cacLuotThanhToan.length > 0 ? (
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '1px solid #ddd', textAlign: 'left', color: '#666' }}>
+                                                    <th style={{ padding: '6px' }}>Ngày</th>
+                                                    <th style={{ padding: '6px' }}>Số tiền</th>
+                                                    <th style={{ padding: '6px' }}>Hình thức</th>
+                                                    <th style={{ padding: '6px' }}>Ghi chú</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {data.thanhToan.cacLuotThanhToan.map((payment, index) => (
+                                                    <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                                                        <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>{formatDate(payment.date)}</td>
+                                                        <td style={{ padding: '6px', fontWeight: '600', color: '#333' }}>{payment.amount?.toLocaleString("vi-VN")}đ</td>
+                                                        <td style={{ padding: '6px' }}>{payment.method}</td>
+                                                        <td style={{ padding: '6px', color: '#666', fontStyle: 'italic' }}>{payment.noiDung || '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    ) : (
+                                        <p style={{ fontSize: '0.9rem', color: '#999', textAlign: 'left', margin: '10px 0' }}>Chưa có lượt thanh toán nào.</p>
+                                    )}
                                 </div>
+                            </div>
 
-                                <NumericFormat
-                                    customInput={TextField}
-                                    label="Thanh toán"
-                                    value={khachThanhToanTruoc}
-                                    onValueChange={(values) => {
-                                        const { floatValue } = values;
-                                        setKhachThanhToanTruoc(floatValue || 0);
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '200px' }}>
+                                <Autocomplete
+                                    disablePortal
+                                    options={[
+                                        { label: 'Chuyển khoản', id: 0 },
+                                        { label: 'Tiền mặt', id: 1 }
+                                    ]}
+                                    size="small"
+                                    value={{ label: methodPayment }}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Hình thức thanh toán"
+                                            sx={{
+                                                '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px', padding: '0 8px' },
+                                                '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
+                                                '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
+                                            }}
+                                        />
+                                    )}
+                                    onChange={(event, newValue) => {
+                                        setMethodPayment(newValue ? newValue.label : "Tiền mặt");
                                     }}
-                                    thousandSeparator="."
-                                    decimalSeparator=","
-                                    decimalScale={0}
-                                    allowNegative={false}
-                                    suffix=" đ"
+                                    sx={{
+                                        '& .MuiAutocomplete-inputRoot': { padding: '0 8px' }
+                                    }}
+                                />
+
+                                <TextField
+                                    label="Ghi chú thanh toán"
+                                    size="small"
+                                    value={noiDungPayment}
+                                    onChange={(e) => setNoiDungPayment(e.target.value)}
+                                    sx={{
+                                        '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px' },
+                                        '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
+                                        '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
+                                    }}
+                                />
+
+                                <TextField
+                                    label="Thanh toán"
+                                    value={khachThanhToanTruoc === 0 ? "" : khachThanhToanTruoc.toLocaleString("vi-VN")}
+                                    onChange={(e) => {
+                                        const rawValue = e.target.value.replace(/[^0-9]/g, "");
+                                        setKhachThanhToanTruoc(Number(rawValue) || 0);
+                                    }}
                                     fullWidth
                                     variant="outlined"
-                                    sx={{ height: commonHeight }} />
+                                    size="small"
+                                    sx={{
+                                        '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px' },
+                                        '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
+                                        '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
+                                    }}
+                                />
+                            </div>
 
-
-                            </Stack>
-
-                            <Stack
-                                direction="column"
-                                divider={<Divider orientation="horizontal" flexItem />}
-                                spacing={2}
-                            >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '200px' }}>
                                 <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
                                     Tổng tiền đơn hàng: <b>{gioHang.reduce((sum, item) => {
                                         const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
@@ -717,21 +814,17 @@ function DetailHopDongKhachHangDialog(props) {
                                     }, 0).toLocaleString("vi-VN") + " đ"} </b>
                                 </p>
                                 <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
-                                    Tổng tiền sau giảm giá: <b> {(data?.thanhToan?.tongGiaTriSauGiam || 0).toLocaleString("vi-VN")} đ</b>
+                                    Tổng tiền sau giảm giá: <b>{tongTien.toLocaleString("vi-VN")} đ</b>
                                 </p>
                                 <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
-                                    Tổng đã thanh toán: <b>{(data?.thanhToan?.khachHangDaThanhToan || 0).toLocaleString("vi-VN")} đ</b>
+                                    Tổng đã thanh toán: <b>{((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0)).toLocaleString("vi-VN")} đ</b>
                                 </p>
 
                                 <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1.2em', color: 'red' }}>
-                                    Tổng tiền còn lại: <b>{((data?.thanhToan?.tongGiaTriSauGiam || 0) - (data?.thanhToan?.khachHangDaThanhToan || 0)).toLocaleString("vi-VN")} đ</b>
+                                    Tổng tiền còn lại: <b>{Math.max(0, tongTien - ((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0))).toLocaleString("vi-VN")} đ</b>
                                 </p>
-
-
-                            </Stack>
-
-
-                        </Stack>
+                            </div>
+                        </div>
 
                     </div>
 

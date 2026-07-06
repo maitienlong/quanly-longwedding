@@ -1,5 +1,7 @@
 const formatDate = (dateString) => {
+    if (!dateString) return "";
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
 
     const pad = (n) => n.toString().padStart(2, '0');
 

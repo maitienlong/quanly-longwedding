@@ -22,6 +22,25 @@ function removeAccents(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+const getDichVuChinhLabel = (id) => {
+    const options = {
+        1: 'Pre-Wedding',
+        2: 'Phóng Sự Ăn Hỏi',
+        3: 'Phóng Sự Cưới',
+        4: 'Beauty',
+        5: 'Ảnh Thẻ',
+        6: 'Bé',
+        7: 'Gia Đình',
+        8: 'Video Phóng Sự',
+        9: 'Thiệp Mời',
+        10: 'Livestream',
+        11: 'Trang điểm',
+        12: 'Cho thuê trang phục',
+        13: 'Khác'
+    };
+    return options[Number(id)] || 'Khác';
+};
+
 function HopDongKhachHang() {
     const [hopDong, setHopDong] = useState([]);
     const { showLoading, hideLoading } = useLoading();
@@ -113,39 +132,32 @@ function HopDongKhachHang() {
         <div className="hopdongkhachhang">
             <div class="content-header">
                 <h2>QUẢN LÝ HỢP ĐỒNG KHÁCH HÀNG</h2>
-                 <Stack spacing={2} direction={{ xs: 'column', sm: 'row' }} sx={{ width: '100%' }}>
+                <Stack spacing={2} direction="row">
 
                     <Autocomplete
                         disablePortal
                         options={locThoiGian}
-                        sx={{ width: { xs: '100%', sm: 300 } }}
-                        renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" InputProps={{ ...params.InputProps, sx: { height: commonHeight } }} />}
+                        sx={{ width: 300, height: commonHeight }}
+                        renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" />}
                     />
 
-                    <TextField 
-                        id="outlined-basic" 
-                        label="Tìm kiếm" 
-                        variant="outlined" 
-                        sx={{ width: { xs: '100%', sm: 'auto' } }}
-                        InputProps={{
-                            sx: { height: commonHeight }
-                        }} 
-                    />
+                    <TextField id="outlined-basic" label="Tìm kiếm" variant="outlined" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} InputProps={{
+                        sx: { height: commonHeight }
+                    }} />
 
                     <Button
                         onClick={handleClickOpenDialog}
                         variant="contained"
                         sx={{
                             height: commonHeight, // Ép chiều cao bằng với 2 input trên
-                            whiteSpace: 'nowrap',  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
-                            width: { xs: '100%', sm: 'auto' }
+                            whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
                         }}
                     >Thêm Hợp Đồng</Button>
                 </Stack>
             </div>
 
             {/* ===== DANH SÁCH HỢP ĐỒNG ===== */}
-            <TableContainer component={Paper} sx={{ overflowX: 'auto', maxWidth: '100%' }}>
+            <TableContainer component={Paper}>
                 <Table aria-label="simple table">
 
                     <TableHead>
@@ -192,10 +204,10 @@ function HopDongKhachHang() {
                                             </>
                                         )}
                                     </TableCell>
-                                    <TableCell align='center' style={{ width: 100 }}>CHỤP CƯỚI</TableCell>
+                                    <TableCell align='center' style={{ width: 100 }}>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
                                     <TableCell align='center' style={{ width: 20 }}><span className="status-chip">{convertTrangThai(hd.giaiDoan)}</span></TableCell>
                                     <TableCell align='center' style={{ width: 100 }}>{formatDate(hd.ngayHopDong)}</TableCell>
-                                    <TableCell align='center' style={{ width: 100 }}>{formatDate(hd.cacNgay.ngayChup) || "Đang cập nhật"}</TableCell>
+                                    <TableCell align='center' style={{ width: 100 }}>{formatDate(hd.cacNgay?.ngayChup) || "Đang cập nhật"}</TableCell>
                                 </TableRow>
                             ))
                         ) : (
