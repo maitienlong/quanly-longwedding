@@ -60,7 +60,7 @@
 /* Main Content Layout */
 .dialog-content {
   display: grid;
-  grid-template-columns: 1.2fr 1fr; /* Chia cột Sản phẩm và Thông tin */
+  grid-template-columns: 1fr 1.2fr; /* Chia cột Thông tin (trái) và Sản phẩm (phải) */
   gap: 25px;
   padding: 25px;
   overflow-y: auto;
@@ -515,5 +515,134 @@ h4 {
 .step-item.active:hover .step-icon-wrap {
     transform: scale(1.1) translateY(-2px);
     box-shadow: 0 4px 14px rgba(212, 175, 55, 0.5);
+}
+
+/* Product parameters grid for contract dialogs */
+.product-parameters-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    padding: 15px;
+    background-color: #fafafa;
+    border-radius: 6px;
+    border: 1px solid #eef2f6;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.param-input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.param-input-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 5px;
+}
+
+.param-input-group input {
+    padding: 8px 10px;
+    font-size: 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    outline: none;
+    background-color: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.param-input-group input:focus {
+    border-color: #1976d2;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+@media (max-width: 900px) {
+    .product-parameters-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .product-parameters-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ================= SUMMARY PARAMETERS GRID ================= */
+.summary-parameters-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 15px;
+}
+
+.form-group-summary {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.form-group-summary label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 5px;
+}
+
+.summary-value-box {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    color: #1e293b;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.summary-value-input {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    color: #1e293b;
+    min-height: 38px;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+}
+
+.summary-value-input:focus {
+    border-color: #1976d2;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.summary-value-input:disabled {
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+    .summary-parameters-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .summary-parameters-grid {
+        grid-template-columns: 1fr;
+    }
 }
 

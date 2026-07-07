@@ -43,6 +43,19 @@ function ServiceAddDialog(props) {
     const [imageBase64, setImageBase64] = useState(null);
     const [loaiDichVu, setLoaiDichVu] = useState('');
 
+    const [soLuongAnhChinhSua, setSoLuongAnhChinhSua] = useState(0);
+    const [soLuongAnh16x21, setSoLuongAnh16x21] = useState(0);
+    const [soLuongAnh20x30, setSoLuongAnh20x30] = useState(0);
+    const [soLuongAnh60x90, setSoLuongAnh60x90] = useState(0);
+    const [trangDiemNgayAnHoi, setTrangDiemNgayAnHoi] = useState('');
+    const [trangDiemNgayCuoi, setTrangDiemNgayCuoi] = useState('');
+    const [trangPhucChoDoiBeLe, setTrangPhucChoDoiBeLe] = useState('');
+    const [trangPhucCoDauNgayAnHoi, setTrangPhucCoDauNgayAnHoi] = useState('');
+    const [trangPhucChuReNgayAnHoi, setTrangPhucChuReNgayAnHoi] = useState('');
+    const [trangPhucVayCuoiNgayCuoi, setTrangPhucVayCuoiNgayCuoi] = useState('');
+    const [trangPhucVestChuReNgayCuoi, setTrangPhucVestChuReNgayCuoi] = useState('');
+    const [hoaCamTay, setHoaCamTay] = useState('');
+
     const handlePriceChange = (e) => {
         const raw = parseCurrency(e.target.value);
         setPriceRaw(raw);
@@ -82,7 +95,19 @@ function ServiceAddDialog(props) {
             giaChoThueDichVu: priceThueRaw,
             tonKhoDichVu: tonKho ? Number(tonKho) : 0,
             moTaDichVu: description.trim(),
-            imageDichVu: imageBase64
+            imageDichVu: imageBase64,
+            soLuongAnhChinhSua: Number(loaiDichVu) === 2 ? Number(soLuongAnhChinhSua) || 0 : 0,
+            soLuongAnh16x21: Number(loaiDichVu) === 2 ? Number(soLuongAnh16x21) || 0 : 0,
+            soLuongAnh20x30: Number(loaiDichVu) === 2 ? Number(soLuongAnh20x30) || 0 : 0,
+            soLuongAnh60x90: Number(loaiDichVu) === 2 ? Number(soLuongAnh60x90) || 0 : 0,
+            trangDiemNgayAnHoi: Number(loaiDichVu) === 2 ? trangDiemNgayAnHoi : "",
+            trangDiemNgayCuoi: Number(loaiDichVu) === 2 ? trangDiemNgayCuoi : "",
+            trangPhucChoDoiBeLe: Number(loaiDichVu) === 2 ? trangPhucChoDoiBeLe : "",
+            trangPhucCoDauNgayAnHoi: Number(loaiDichVu) === 2 ? trangPhucCoDauNgayAnHoi : "",
+            trangPhucChuReNgayAnHoi: Number(loaiDichVu) === 2 ? trangPhucChuReNgayAnHoi : "",
+            trangPhucVayCuoiNgayCuoi: Number(loaiDichVu) === 2 ? trangPhucVayCuoiNgayCuoi : "",
+            trangPhucVestChuReNgayCuoi: Number(loaiDichVu) === 2 ? trangPhucVestChuReNgayCuoi : "",
+            hoaCamTay: Number(loaiDichVu) === 2 ? hoaCamTay : ""
         }).then((response) => {
             console.log(response);
             toast.success("Thêm dịch vụ thành công!");
@@ -168,6 +193,118 @@ function ServiceAddDialog(props) {
                                     placeholder="Nhập số lượng tồn kho"
                                 />
                             </div>
+
+                            {Number(loaiDichVu) === 2 && (
+                                <>
+                                    <div className="package-parameters-title">Thông số gói dịch vụ</div>
+                                    <div className="package-parameters-grid">
+                                        <div className="form-group">
+                                            <label>Số lượng ảnh chỉnh sửa</label>
+                                            <input
+                                                type="number"
+                                                value={soLuongAnhChinhSua}
+                                                onChange={(e) => setSoLuongAnhChinhSua(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Số lượng ảnh 16x21</label>
+                                            <input
+                                                type="number"
+                                                value={soLuongAnh16x21}
+                                                onChange={(e) => setSoLuongAnh16x21(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Số lượng ảnh 20x30</label>
+                                            <input
+                                                type="number"
+                                                value={soLuongAnh20x30}
+                                                onChange={(e) => setSoLuongAnh20x30(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Số lượng ảnh 60x90</label>
+                                            <input
+                                                type="number"
+                                                value={soLuongAnh60x90}
+                                                onChange={(e) => setSoLuongAnh60x90(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Trang điểm ngày ăn hỏi</label>
+                                            <input
+                                                type="text"
+                                                placeholder="VD: Make up cô dâu"
+                                                value={trangDiemNgayAnHoi}
+                                                onChange={(e) => setTrangDiemNgayAnHoi(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Trang điểm ngày cưới</label>
+                                            <input
+                                                type="text"
+                                                placeholder="VD: Make up cô dâu"
+                                                value={trangDiemNgayCuoi}
+                                                onChange={(e) => setTrangDiemNgayCuoi(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Trang phục bê lễ</label>
+                                            <input
+                                                type="text"
+                                                placeholder="VD: 5 bộ nam, 5 bộ nữ"
+                                                value={trangPhucChoDoiBeLe}
+                                                onChange={(e) => setTrangPhucChoDoiBeLe(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>TP cô dâu ngày ăn hỏi</label>
+                                            <input
+                                                type="text"
+                                                placeholder="VD: 1 áo dài đỏ"
+                                                value={trangPhucCoDauNgayAnHoi}
+                                                onChange={(e) => setTrangPhucCoDauNgayAnHoi(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>TP chú rể ngày ăn hỏi</label>
+                                            <input
+                                                type="text"
+                                                placeholder="VD: 1 áo dài đỏ"
+                                                value={trangPhucChuReNgayAnHoi}
+                                                onChange={(e) => setTrangPhucChuReNgayAnHoi(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Váy cưới ngày cưới (giá trị)</label>
+                                            <input
+                                                type="text"
+                                                placeholder="VD: Váy Luxury 10tr"
+                                                value={trangPhucVayCuoiNgayCuoi}
+                                                onChange={(e) => setTrangPhucVayCuoiNgayCuoi(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Vest chú rể ngày cưới</label>
+                                            <input
+                                                type="text"
+                                                placeholder="VD: 1 vest đen"
+                                                value={trangPhucVestChuReNgayCuoi}
+                                                onChange={(e) => setTrangPhucVestChuReNgayCuoi(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Hoa cầm tay</label>
+                                            <input
+                                                type="text"
+                                                placeholder="VD: Hoa hồng tươi"
+                                                value={hoaCamTay}
+                                                onChange={(e) => setHoaCamTay(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             <div className="form-group">
                                 <label>Mô tả</label>

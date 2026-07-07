@@ -922,9 +922,9 @@ function LichCuaHang() {
                                     <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
                                     <TableCell align='center' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
                                     <TableCell style={{ width: 110 }}>SĐT</TableCell>
+                                    <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
                                     <TableCell align='center' style={{ width: 160 }}>ĐỊA ĐIỂM CHỤP</TableCell>
                                     <TableCell align='center' style={{ width: 150 }}>EKIP</TableCell>
-                                    <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
                                     <TableCell align='center' style={{ width: 130 }}>CHỐT LỊCH</TableCell>
                                 </TableRow>
                             ) : activeTab === 'hauKy' ? (
@@ -1078,6 +1078,7 @@ function LichCuaHang() {
                                             {/* 6. Các cột thông tin còn lại sau SĐT */}
                                             {activeTab === 'chupHinh' && (
                                                 <>
+                                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
                                                     <TableCell align='center'>{hd.cacNgay?.diaDiemChup || "Chưa cập nhật"}</TableCell>
                                                     <TableCell align='center'>
                                                         {(() => {
@@ -1087,7 +1088,6 @@ function LichCuaHang() {
                                                             return parts.join(" + ") || "Chưa giao ekip";
                                                         })()}
                                                     </TableCell>
-                                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
                                                     <TableCell align='center'>
                                                         {(() => {
                                                             const status = hd.cacNgay?.chotLich || "Chưa gọi điện";
