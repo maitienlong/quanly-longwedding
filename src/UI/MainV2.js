@@ -9,6 +9,8 @@ import QuanLyChiTieu from "../screens/QuanLyChiTieu/QuanLyChiTieu";
 import LichSoanDo from "../screens/LichSoanDo/LichSoanDo";
 import DoanhThu from "../screens/DoanhThu/DoanhThu";
 import QuanLyKho from "../screens/QuanLyKho/QuanLyKho";
+import QuanLyNhanVien from "../screens/QuanLyNhanVien/QuanLyNhanVien";
+import QuanLyKhachHang from "../screens/QuanLyKhachHang/QuanLyKhachHang";
 import { Routes, Route, Link } from 'react-router-dom';
 import { useAuth } from '../screens/Login/AuthContext/AuthContext';
 import { toast } from 'sonner';
@@ -71,6 +73,8 @@ function MainV2() {
                             <li><Link to="/quan-ly-chi-tieu"><i className="fa-solid fa-cash-register"></i> QUẢN LÝ CHI TIÊU</Link></li>
                             <li><Link to="/bao-cao-doanh-thu"><i className="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
                             <li><Link to="/quan-ly-kho"><i className="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
+                            <li><Link to="/quan-ly-nhan-vien"><i className="fa-solid fa-users-gear"></i> QUẢN LÝ NHÂN VIÊN</Link></li>
+                            <li><Link to="/quan-ly-khach-hang"><i className="fa-solid fa-users"></i> QUẢN LÝ KHÁCH HÀNG</Link></li>
                         </ul>
                     </nav>
 
@@ -97,6 +101,8 @@ function MainV2() {
                             <Route path="/lich-soan-do" element={<LichSoanDo />} />
                             <Route path="/bao-cao-doanh-thu" element={<DoanhThu />} />
                             <Route path="/quan-ly-kho" element={<QuanLyKho />} />
+                            <Route path="/quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
+                            <Route path="/quan-ly-khach-hang" element={<QuanLyKhachHang />} />
                         </Routes>
                     </div>
 

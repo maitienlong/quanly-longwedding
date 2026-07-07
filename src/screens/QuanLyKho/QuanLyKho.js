@@ -114,7 +114,13 @@ const QuanLyKho = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {listSeviceAPI.map((data, index) => (
+                        {listSeviceAPI
+                            .filter(item => 
+                                !keyword || 
+                                item.maDichVu.toLowerCase().includes(keyword.toLowerCase()) || 
+                                item.tenDichVu.toLowerCase().includes(keyword.toLowerCase())
+                            )
+                            .map((data, index) => (
                             <TableRow key={data.maDichVu}
                                 sx={{
                                     '&:nth-of-type(odd)': {
@@ -129,8 +135,8 @@ const QuanLyKho = () => {
                                 </TableCell>
                                 <TableCell style={{ width: 20 }}>{data.maDichVu}</TableCell>
                                 <TableCell style={{ width: 100 }}>{data.tenDichVu}</TableCell>
-                                <TableCell style={{ width: 100 }}>{data.giaDichVu}</TableCell>
-                                <TableCell style={{ width: 100 }}>{data.giaThueDichVu}</TableCell>
+                                <TableCell style={{ width: 100 }}>{data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : '0 đ'}</TableCell>
+                                <TableCell style={{ width: 100 }}>{data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : '0 đ'}</TableCell>
                                 <TableCell style={{ width: 20 }}>{data.tonKhoDichVu}</TableCell>
                                 <TableCell style={{ width: 100 }}>{data.moTaDichVu}</TableCell>
                             </TableRow>
@@ -146,7 +152,10 @@ const QuanLyKho = () => {
 
             <ServiceDetailDialog
                 open={!!selectedService}
-                onClose={(data) => setSelectedService(data)}
+                onClose={(shouldReload) => {
+                    setSelectedService(null);
+                    if (shouldReload) onSaveSuccess();
+                }}
                 data={selectedService}
             />
 

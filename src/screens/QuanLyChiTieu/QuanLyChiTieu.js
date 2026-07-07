@@ -57,38 +57,36 @@ function QuanLyChiTieu() {
 
     const commonHeight = 40;
 
-    // Load data from contracts API and aggregate expenses
+    // Load data from contracts API and chiTieu API
     const loadData = () => {
         showLoading("Đang tải dữ liệu chi tiêu...");
-        otherService.LIST_HOPDONG({})
-            .then(res => {
-                const listHD = res.data.hopDong || [];
-                setHopDongs(listHD);
+        Promise.all([
+            otherService.LIST_HOPDONG({}),
+            otherService.LIST_CHITIEU({})
+        ])
+        .then(([resHD, resCT]) => {
+            const listHD = resHD.data.hopDong || [];
+            setHopDongs(listHD);
 
-                // Aggregate expenses from all contracts
-                const aggregated = [];
-                listHD.forEach(hd => {
-                    const listExpenses = hd.cacLuotChi || [];
-                    listExpenses.forEach(exp => {
-                        aggregated.push({
-                            ...exp,
-                            maHopDong: hd.maHopDong,
-                            contractId: hd._id,
-                            khachHangLabel: hd.maHopDong === 'CH-CHUNG' ? 'Chi tiêu chung cửa hàng' : 
-                                (hd.khachHang1?.tenKhachHang || 'Hợp đồng không tên')
-                        });
-                    });
-                });
+            const listCT = resCT.data.chiTieu || [];
+            const mapped = listCT.map(exp => {
+                const hd = listHD.find(h => h.maHopDong === exp.maHopDong);
+                return {
+                    ...exp,
+                    khachHangLabel: exp.maHopDong === 'CH-CHUNG' || !exp.maHopDong ? 'Chi tiêu chung cửa hàng' : 
+                        (hd?.khachHang1?.tenKhachHang || 'Hợp đồng không tên')
+                };
+            });
 
-                // Sort by date descending
-                aggregated.sort((a, b) => new Date(b.date) - new Date(a.date));
-                setExpensesList(aggregated);
-            })
-            .catch(err => {
-                console.error(err);
-                toast.error("Lỗi khi tải danh sách chi tiêu: " + err.message);
-            })
-            .finally(() => hideLoading());
+            // Sort by date descending
+            mapped.sort((a, b) => new Date(b.date) - new Date(a.date));
+            setExpensesList(mapped);
+        })
+        .catch(err => {
+            console.error(err);
+            toast.error("Lỗi khi tải danh sách chi tiêu: " + err.message);
+        })
+        .finally(() => hideLoading());
     };
 
     useEffect(() => {
@@ -160,25 +158,19 @@ function QuanLyChiTieu() {
         const isGeneral = !selectedHD;
         const targetMaHopDong = isGeneral ? "CH-CHUNG" : selectedHD.maHopDong;
         
-        let targetHD = hopDongs.find(hd => hd.maHopDong === targetMaHopDong);
+        const payload = {
+            id: `EXP-${Date.now()}`,
+            date: ngayChi ? new Date(ngayChi).toISOString() : new Date().toISOString(),
+            receiver: donViNhan.trim(),
+            reason: lyDoChi.trim(),
+            amount: Number(soTien),
+            creator: nguoiChi.trim() || "Cửa hàng",
+            note: ghiChu.trim(),
+            maHopDong: targetMaHopDong
+        };
 
-        const executeSave = (hdToUpdate) => {
-            const currentExpenses = hdToUpdate.cacLuotChi || [];
-            const newExpense = {
-                id: `EXP-${Date.now()}`,
-                date: ngayChi ? new Date(ngayChi).toISOString() : new Date().toISOString(),
-                receiver: donViNhan.trim(),
-                reason: lyDoChi.trim(),
-                amount: Number(soTien),
-                creator: nguoiChi.trim() || "Cửa hàng",
-                note: ghiChu.trim()
-            };
-
-            showLoading("Đang ghi nhận chi tiêu...");
-            otherService.UPDATE_HOPDONG({
-                maHopDong: hdToUpdate.maHopDong,
-                cacLuotChi: [...currentExpenses, newExpense]
-            })
+        showLoading("Đang ghi nhận chi tiêu...");
+        otherService.CREATE_CHITIEU(payload)
             .then(() => {
                 toast.success("Ghi nhận chi tiêu thành công!");
                 setOpenAddDialog(false);
@@ -189,33 +181,6 @@ function QuanLyChiTieu() {
                 toast.error("Có lỗi xảy ra: " + err.message);
                 hideLoading();
             });
-        };
-
-        if (isGeneral && !targetHD) {
-            // Create virtual general store expenses contract if not existing
-            showLoading("Đang khởi tạo mục chi tiêu cửa hàng...");
-            otherService.CREATE_HOPDONG({
-                maHopDong: "CH-CHUNG",
-                dichVuChinh: 13,
-                khachHang1: null,
-                cacNgay: {},
-                thanhToan: { giamGia: 0, loaiGiamGia: 0, cacLuotThanhToan: [] }
-            })
-            .then(() => {
-                otherService.LIST_HOPDONG({})
-                    .then(r => {
-                        const list = r.data.hopDong || [];
-                        const created = list.find(hd => hd.maHopDong === "CH-CHUNG");
-                        executeSave(created);
-                    });
-            })
-            .catch(err => {
-                toast.error("Không thể tạo mục chi tiêu chung: " + err.message);
-                hideLoading();
-            });
-        } else {
-            executeSave(targetHD);
-        }
     };
 
     // Delete an expenditure transaction
@@ -224,24 +189,16 @@ function QuanLyChiTieu() {
             return;
         }
 
-        const targetHD = hopDongs.find(hd => hd.maHopDong === exp.maHopDong);
-        if (!targetHD) return;
-
-        const updatedExpenses = (targetHD.cacLuotChi || []).filter(item => item.id !== exp.id);
-
         showLoading("Đang xóa chi tiêu...");
-        otherService.UPDATE_HOPDONG({
-            maHopDong: targetHD.maHopDong,
-            cacLuotChi: updatedExpenses
-        })
-        .then(() => {
-            toast.success("Xóa khoản chi tiêu thành công!");
-            loadData();
-        })
-        .catch(err => {
-            toast.error("Lỗi khi xóa chi tiêu: " + err.message);
-            hideLoading();
-        });
+        otherService.REMOVE_CHITIEU({ id: exp.id })
+            .then(() => {
+                toast.success("Xóa khoản chi tiêu thành công!");
+                loadData();
+            })
+            .catch(err => {
+                toast.error("Lỗi khi xóa chi tiêu: " + err.message);
+                hideLoading();
+            });
     };
 
     const formatDate = (dateStr) => {

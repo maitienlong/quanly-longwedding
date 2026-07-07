@@ -1,0 +1,45 @@
+.quanlynhanvien-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.quanlynhanvien-header h2 {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #1976d2;
+    margin: 0;
+}
+
+.quanlynhanvien-filters {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.quanlynhanvien-row:hover {
+    background-color: #f9f9f9;
+}
+
+/* Badge styling for user roles/permissions */
+.badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.badge-admin {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.badge-staff {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+}

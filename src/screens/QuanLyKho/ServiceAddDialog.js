@@ -7,17 +7,15 @@ import { useLoading } from "../../context/LoadingContext";
 
 import { fileToBase64 } from "../utils/fileToBase64.js";
 
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import Box from '@mui/material/Box';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 
 function ServiceAddDialog(props) {
-    const {open, onClose } = props;
+    const { open, onClose } = props;
     const handleClose = (data) => {
         onClose(data);
     };
@@ -122,7 +120,7 @@ function ServiceAddDialog(props) {
     };
 
     return (
-        <Dialog onClose={handleClose} open={open}>
+        <Dialog onClose={handleClose} open={open} fullWidth maxWidth="lg">
             <div className="dialog-container">
                 {/* ===== CỘT TRÁI: FORM ===== */}
                 <div className="dialog-header">
@@ -352,7 +350,7 @@ function ServiceAddDialog(props) {
                         <div className="form-actions service-form-actions">
                             <Button
                                 variant="outlined" color="error"
-                                onClick={handleClose(false)}
+                                onClick={() => handleClose(false)}
                             >
                                 Hủy
                             </Button>

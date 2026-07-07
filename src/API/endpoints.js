@@ -1,13 +1,17 @@
 // src/api/endpoints.js
 export const ENDPOINTS = {
   AUTH: {
-    LOGIN: "/auth/loginUser"
+    LOGIN: "/auth/loginUser",
+    CREATE: "/auth/createUser",
+    UPDATE: "/auth/updateUser",
+    REMOVE: "/auth/removeUser",
+    LIST: "/auth/findUsers"
   },
   HOPDONG: {
     LIST: "/hopDong/list",
     CREATE: "/hopDong/create",
     UPDATE: "/hopDong/update",
-    DELETEHOPDONG: "/hopDong/delete",
+    DELETEHOPDONG: "/hopDong/remove",
     UPDATEPROGRESS: "/hopDong/update-progress",
     PAYHOPDONG: "/hopDong/pay",
     SEARCH: "/hopDong/search"
@@ -17,9 +21,25 @@ export const ENDPOINTS = {
   },
   DICHVU: {
     FIND: "/dichVu/findAll",
-    CREATE: "/dichVu/create"
+    CREATE: "/dichVu/create",
+    UPDATE: "/dichVu/update",
+    REMOVE: "/dichVu/remove"
   }, KHACHHANG: {
     FIND: "/khachHang/find",
-    CREATE: "/khachHang/create"
+    CREATE: "/khachHang/create",
+    UPDATE: "/khachHang/update",
+    REMOVE: "/khachHang/remove"
+  },
+  CHITIEU: {
+    CREATE: "/chiTieu/create",
+    UPDATE: "/chiTieu/update",
+    REMOVE: "/chiTieu/remove",
+    LIST: "/chiTieu/findAll"
+  },
+  LICH_SOAN_DO: {
+    SAVE: "/lichSoanDo/save",
+    FIND_ALL: "/lichSoanDo/findAll",
+    FIND_BY_CONTRACT: "/lichSoanDo/findByContract",
+    REMOVE: "/lichSoanDo/remove"
   }
 };

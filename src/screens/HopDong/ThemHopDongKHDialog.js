@@ -478,6 +478,7 @@ function ThemHopDongKHDialog(props) {
 
         for (const hd of listHopDong) {
             if (currentContractId && hd._id === currentContractId) continue;
+            if (Number(hd.giaiDoan) !== 1) continue;
             if (!hd.cacNgay?.ngayChup) continue;
 
             const existingTime = new Date(hd.cacNgay.ngayChup).getTime();

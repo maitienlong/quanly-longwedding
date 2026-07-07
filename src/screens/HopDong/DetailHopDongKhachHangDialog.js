@@ -132,6 +132,8 @@ function DetailHopDongKhachHangDialog(props) {
     // state cho giảm giá
     const [giamGia, setGiamGia] = useState(0);
     const [loaiGiamGia, setLoaiGiamGia] = useState(0); // "VND" hoặc "%"
+    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+    const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
 
     const isOldService = (productId) => {
         return data?.gioHang?.some(orig => {
@@ -519,6 +521,7 @@ function DetailHopDongKhachHangDialog(props) {
 
         for (const hd of listHopDong) {
             if (currentContractId && hd._id === currentContractId) continue;
+            if (Number(hd.giaiDoan) !== 1) continue;
             if (!hd.cacNgay?.ngayChup) continue;
 
             const existingTime = new Date(hd.cacNgay.ngayChup).getTime();
@@ -603,6 +606,27 @@ function DetailHopDongKhachHangDialog(props) {
             toast.error("Có lỗi xảy ra khi cập nhật hợp đồng! " + error);
             hideLoading();
         });
+    };
+
+    const handleDeleteHopDong = () => {
+        if (deleteConfirmInput !== maHopDong) {
+            toast.error("Mã hợp đồng không chính xác!");
+            return;
+        }
+
+        showLoading("Đang xóa hợp đồng...");
+        otherService.deleteHopDong({ maHopDong })
+            .then((response) => {
+                toast.success("Xóa hợp đồng thành công!");
+                hideLoading();
+                setOpenDeleteDialog(false);
+                onClose(true); // Đóng dialog và tải lại danh sách
+            })
+            .catch((error) => {
+                console.error(error);
+                toast.error("Có lỗi xảy ra khi xóa hợp đồng!");
+                hideLoading();
+            });
     };
 
     const submitProgressUpdate = (stepNumber, progressData) => {
@@ -1497,33 +1521,46 @@ function DetailHopDongKhachHangDialog(props) {
 
                     </div>
 
-                    <div className="dialog-actions">
+                    <div className="dialog-actions" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                         <Button
-                            onClick={handleClose}
-                            variant="contained"
-                            color="error"
-                            sx={{
-                                whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                            onClick={() => {
+                                setDeleteConfirmInput("");
+                                setOpenDeleteDialog(true);
                             }}
-                        >Thoát</Button>
-
-                        <Button
-                            onClick={handlePrintHopDong}
-                            variant="contained"
-                            color="success"
-                            startIcon={<FontAwesomeIcon icon={faPrint} />}
+                            variant="outlined"
+                            color="error"
                             sx={{
                                 whiteSpace: 'nowrap'
                             }}
-                        >In hợp đồng</Button>
+                        >Xóa hợp đồng</Button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <Button
+                                onClick={handleClose}
+                                variant="contained"
+                                color="error"
+                                sx={{
+                                    whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                                }}
+                            >Thoát</Button>
 
-                        <Button
-                            onClick={() => onUpdateHopDong()}
-                            variant="contained"
-                            sx={{
-                                whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
-                            }}
-                        >Cập nhật hợp đồng</Button>
+                            <Button
+                                onClick={handlePrintHopDong}
+                                variant="contained"
+                                color="success"
+                                startIcon={<FontAwesomeIcon icon={faPrint} />}
+                                sx={{
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >In hợp đồng</Button>
+
+                            <Button
+                                onClick={() => onUpdateHopDong()}
+                                variant="contained"
+                                sx={{
+                                    whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                                }}
+                            >Cập nhật hợp đồng</Button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1683,6 +1720,46 @@ function DetailHopDongKhachHangDialog(props) {
                             }}
                         >
                             Xác nhận chuyển bước
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
+
+            {/* Dialog xác nhận xóa hợp đồng */}
+            <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)} maxWidth="sm" fullWidth>
+                <div style={{ padding: '24px', fontFamily: 'sans-serif' }}>
+                    <h3 style={{ margin: '0 0 16px 0', color: '#d32f2f', borderBottom: '1px solid #eee', paddingBottom: '8px', fontWeight: 'bold' }}>
+                        Xác nhận xóa hợp đồng
+                    </h3>
+                    <p style={{ fontSize: '0.95rem', color: '#333', lineHeight: '1.6', marginBottom: '16px' }}>
+                        Hành động này sẽ xóa hoàn toàn hợp đồng <strong>{maHopDong}</strong> cùng với lịch soạn đồ liên quan (nếu có). 
+                        Đây là hành động <strong>không thể hoàn tác</strong>.
+                    </p>
+                    <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
+                        Vui lòng nhập chính xác mã hợp đồng <strong>{maHopDong}</strong> để xác nhận:
+                    </p>
+                    <TextField
+                        label="Nhập mã hợp đồng"
+                        fullWidth
+                        variant="outlined"
+                        value={deleteConfirmInput}
+                        onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                        placeholder={maHopDong}
+                        size="small"
+                        error={deleteConfirmInput !== "" && deleteConfirmInput !== maHopDong}
+                        helperText={deleteConfirmInput !== "" && deleteConfirmInput !== maHopDong ? "Mã hợp đồng nhập vào không chính xác" : ""}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
+                        <Button variant="outlined" color="inherit" onClick={() => setOpenDeleteDialog(false)}>
+                            Hủy bỏ
+                        </Button>
+                        <Button
+                            variant="contained"
+                            color="error"
+                            disabled={deleteConfirmInput !== maHopDong}
+                            onClick={handleDeleteHopDong}
+                        >
+                            Xác nhận xóa
                         </Button>
                     </div>
                 </div>

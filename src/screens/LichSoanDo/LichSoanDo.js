@@ -46,6 +46,7 @@ function LichSoanDo() {
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedHD, setSelectedHD] = useState(null);
     const [dialogTab, setDialogTab] = useState(0);
+    const [isNew, setIsNew] = useState(false);
 
     // Form inputs state for selected contract
     const [ngaySoan, setNgaySoan] = useState('');
@@ -68,17 +69,33 @@ function LichSoanDo() {
     // Load data from APIs
     const loadData = () => {
         showLoading("Đang tải dữ liệu lịch soạn đồ...");
-        otherService.LIST_HOPDONG({})
-            .then(res => {
+        Promise.all([
+            otherService.LIST_HOPDONG({}),
+            otherService.findAllLichSoanDo({})
+        ])
+            .then(([resHD, resLSD]) => {
                 // Filter only Pre-Wedding (1) and Cho thuê trang phục (12)
-                const list = (res.data.hopDong || []).filter(hd => 
+                const list = (resHD.data.hopDong || []).filter(hd => 
                     Number(hd.dichVuChinh) === 1 || Number(hd.dichVuChinh) === 12
                 );
-                setHopDongs(list);
+                
+                const schedules = resLSD.data?.lichSoanDo || [];
+                const updatedList = list.map(hd => {
+                    const matchedSD = schedules.find(sd => 
+                        (sd.hopDongId === hd._id) || 
+                        (sd.hopDongId?._id === hd._id) ||
+                        (sd.maHopDong === hd.maHopDong)
+                    );
+                    return {
+                        ...hd,
+                        soanDo: matchedSD || null
+                    };
+                });
+                setHopDongs(updatedList);
             })
             .catch(err => {
                 console.error(err);
-                toast.error("Lỗi khi tải danh sách hợp đồng");
+                toast.error("Lỗi khi tải danh sách lịch soạn đồ");
             })
             .finally(() => hideLoading());
     };
@@ -171,9 +188,29 @@ function LichSoanDo() {
         });
     };
 
+    const handleAddNewVoucher = () => {
+        setSelectedHD(null);
+        setIsNew(true);
+        setDialogTab(0);
+        
+        // Reset all states
+        setNgaySoan('');
+        setNgayMuon('');
+        setNgayTra('');
+        setDatCoc(0);
+        setNguoiKiem('');
+        setNoiDung('');
+        setTrangThai('Chưa mượn');
+        setDsMuon([]);
+        setDsTra([]);
+        
+        setOpenDialog(true);
+    };
+
     // Handle opening details dialog
     const handleRowClick = (hd) => {
         setSelectedHD(hd);
+        setIsNew(false);
         setDialogTab(0);
         
         // Initialize form states
@@ -259,19 +296,18 @@ function LichSoanDo() {
         }
 
         showLoading("Đang cập nhật lịch soạn đồ...");
-        otherService.UPDATE_HOPDONG({
+        otherService.saveLichSoanDo({
+            hopDongId: selectedHD._id,
             maHopDong: selectedHD.maHopDong,
-            soanDo: {
-                ngaySoan,
-                ngayMuon,
-                ngayTra,
-                datCoc: Number(datCoc),
-                nguoiKiem,
-                noiDung,
-                trangThai: currentStatus,
-                dsMuon,
-                dsTra
-            }
+            ngaySoan,
+            ngayMuon,
+            ngayTra,
+            datCoc: Number(datCoc),
+            nguoiKiem,
+            noiDung,
+            trangThai: currentStatus,
+            dsMuon,
+            dsTra
         })
         .then(() => {
             toast.success("Cập nhật lịch soạn đồ thành công!");
@@ -538,8 +574,17 @@ function LichSoanDo() {
             `}</style>
 
             {/* HEADER & FILTERS */}
-            <div className="content-header">
-                <h2>QUẢN LÝ LỊCH SOẠN & MƯỢN TRẢ ĐỒ</h2>
+            <div className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <h2>QUẢN LÝ LỊCH SOẠN & MƯỢN TRẢ ĐỒ</h2>
+                    <Button 
+                        variant="contained" 
+                        color="primary"
+                        onClick={handleAddNewVoucher}
+                    >
+                        Thêm phiếu soạn trả
+                    </Button>
+                </div>
                 <div className="filters">
                     {/* Time Filter */}
                     <FormControl variant="outlined" size="small" style={{ width: 180 }}>
@@ -671,21 +716,69 @@ function LichSoanDo() {
                 fullWidth
             >
                 <DialogTitle style={{ borderBottom: '1px solid #eee', fontWeight: 'bold', color: '#1976d2' }}>
-                    QUẢN LÝ LỊCH SOẠN & MƯỢN TRẢ ĐỒ - HĐ: {selectedHD?.maHopDong}
+                    {isNew ? "TẠO PHIẾU SOẠN & MƯỢN TRẢ ĐỒ MỚI" : `QUẢN LÝ LỊCH SOẠN & MƯỢN TRẢ ĐỒ - HĐ: ${selectedHD?.maHopDong}`}
                 </DialogTitle>
                 <DialogContent dividers style={{ padding: '0px' }}>
-                    <Tabs
-                        value={dialogTab}
-                        onChange={(e, val) => setDialogTab(val)}
-                        indicatorColor="primary"
-                        textColor="primary"
-                        variant="fullWidth"
-                    >
-                        <Tab label="1. Lịch Mượn Đồ (Phiếu Mượn)" />
-                        <Tab label="2. Lịch Trả Đồ (Phiếu Trả)" disabled={dsMuon.length === 0} />
-                    </Tabs>
+                    {isNew && (
+                        <Box p={3} pb={2} style={{ borderBottom: '1px solid #eee', backgroundColor: '#f9f9f9' }}>
+                            <Autocomplete
+                                options={hopDongs}
+                                getOptionLabel={(option) => `HĐ: ${option.maHopDong} - ${option.khachHang1?.tenKhachHang || ''} (${getDichVuChinhLabel(option.dichVuChinh)})`}
+                                value={selectedHD}
+                                onChange={(event, newValue) => {
+                                    setSelectedHD(newValue);
+                                    if (newValue) {
+                                        const sd = newValue.soanDo || {};
+                                        setNgaySoan(sd.ngaySoan || '');
+                                        setNgayMuon(sd.ngayMuon || '');
+                                        setNgayTra(sd.ngayTra || '');
+                                        setDatCoc(sd.datCoc || 0);
+                                        setNguoiKiem(sd.nguoiKiem || '');
+                                        setNoiDung(sd.noiDung || '');
+                                        setTrangThai(sd.trangThai || 'Chưa mượn');
+                                        setDsMuon(sd.dsMuon || []);
+                                        setDsTra(sd.dsTra || (sd.dsMuon || []).map(item => ({
+                                            ...item,
+                                            trangThaiDo: 'Nguyên vẹn',
+                                            ghiChuTra: ''
+                                        })));
+                                    } else {
+                                        setNgaySoan('');
+                                        setNgayMuon('');
+                                        setNgayTra('');
+                                        setDatCoc(0);
+                                        setNguoiKiem('');
+                                        setNoiDung('');
+                                        setTrangThai('Chưa mượn');
+                                        setDsMuon([]);
+                                        setDsTra([]);
+                                    }
+                                }}
+                                renderInput={(params) => (
+                                    <TextField {...params} label="Chọn Hợp đồng liên kết" size="small" fullWidth required />
+                                )}
+                            />
+                        </Box>
+                    )}
 
-                    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+                    {!selectedHD ? (
+                        <Box p={4} textAlign="center" color="#777" fontSize="1.1rem">
+                            Vui lòng chọn một Hợp đồng ở trên để lập phiếu soạn đồ.
+                        </Box>
+                    ) : (
+                        <>
+                            <Tabs
+                                value={dialogTab}
+                                onChange={(e, val) => setDialogTab(val)}
+                                indicatorColor="primary"
+                                textColor="primary"
+                                variant="fullWidth"
+                            >
+                                <Tab label="1. Lịch Mượn Đồ (Phiếu Mượn)" />
+                                <Tab label="2. Lịch Trả Đồ (Phiếu Trả)" disabled={dsMuon.length === 0} />
+                            </Tabs>
+
+                            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
                         {dialogTab === 0 ? (
                             /* TAB 1: MUON DO */
                             <Box p={3} display="flex" flexDirection="column" gap={3}>
@@ -945,12 +1038,14 @@ function LichSoanDo() {
                             </Box>
                         )}
                     </LocalizationProvider>
+                        </>
+                    )}
                 </DialogContent>
                 <DialogActions style={{ padding: '16px 24px', borderTop: '1px solid #eee' }}>
                     <Button onClick={() => setOpenDialog(false)} color="inherit">
                         Hủy bỏ
                     </Button>
-                    <Button onClick={handleSave} variant="contained" color="primary">
+                    <Button onClick={handleSave} variant="contained" color="primary" disabled={!selectedHD}>
                         Lưu thay đổi
                     </Button>
                 </DialogActions>

@@ -21,20 +21,25 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 function DoanhThu() {
     const { showLoading, hideLoading } = useLoading();
     const [hopDongs, setHopDongs] = useState([]);
+    const [chiTieus, setChiTieus] = useState([]);
     const [period, setPeriod] = useState('month'); // 'day', 'week', 'month', 'year'
 
-    // Load data from contracts API
+    // Load data from contracts API and chiTieu API
     const loadData = () => {
         showLoading("Đang tải báo cáo doanh thu & KPI...");
-        otherService.LIST_HOPDONG({})
-            .then(res => {
-                setHopDongs(res.data.hopDong || []);
-            })
-            .catch(err => {
-                console.error(err);
-                toast.error("Lỗi khi tải dữ liệu báo cáo: " + err.message);
-            })
-            .finally(() => hideLoading());
+        Promise.all([
+            otherService.LIST_HOPDONG({}),
+            otherService.LIST_CHITIEU({})
+        ])
+        .then(([resHD, resCT]) => {
+            setHopDongs(resHD.data.hopDong || []);
+            setChiTieus(resCT.data.chiTieu || []);
+        })
+        .catch(err => {
+            console.error(err);
+            toast.error("Lỗi khi tải dữ liệu báo cáo: " + err.message);
+        })
+        .finally(() => hideLoading());
     };
 
     useEffect(() => {
@@ -115,16 +120,16 @@ function DoanhThu() {
                 }
             });
 
-            // 3. Calculate Cash Spent (Chi)
-            const expenses = hd.cacLuotChi || [];
-            expenses.forEach(e => {
-                if (e.date) {
-                    const expDate = new Date(e.date);
-                    if (expDate >= start && expDate <= end) {
-                        totalChi += Number(e.amount || 0);
-                    }
+        });
+
+        // 3. Calculate Cash Spent (Chi) from global chiTieus
+        chiTieus.forEach(e => {
+            if (e.date) {
+                const expDate = new Date(e.date);
+                if (expDate >= start && expDate <= end) {
+                    totalChi += Number(e.amount || 0);
                 }
-            });
+            }
         });
 
         // Convert KPI mapping to sorted array
@@ -174,17 +179,17 @@ function DoanhThu() {
                             }
                         }
                     });
-
-                    const expenses = hd.cacLuotChi || [];
-                    expenses.forEach(e => {
-                        if (e.date) {
-                            const date = new Date(e.date);
-                            if (date.toDateString() === now.toDateString() && date.getHours() >= slot.start && date.getHours() < slot.end) {
-                                chi += Number(e.amount || 0);
-                            }
-                        }
-                    });
                 });
+
+                chiTieus.forEach(e => {
+                    if (e.date) {
+                        const date = new Date(e.date);
+                        if (date.toDateString() === now.toDateString() && date.getHours() >= slot.start && date.getHours() < slot.end) {
+                            chi += Number(e.amount || 0);
+                        }
+                    }
+                });
+
                 data.push({ label: slot.label, thu, chi });
             });
 
@@ -212,16 +217,15 @@ function DoanhThu() {
                             }
                         }
                     });
+                });
 
-                    const expenses = hd.cacLuotChi || [];
-                    expenses.forEach(e => {
-                        if (e.date) {
-                            const eDate = new Date(e.date);
-                            if (eDate.toDateString() === dayDate.toDateString()) {
-                                chi += Number(e.amount || 0);
-                            }
+                chiTieus.forEach(e => {
+                    if (e.date) {
+                        const eDate = new Date(e.date);
+                        if (eDate.toDateString() === dayDate.toDateString()) {
+                            chi += Number(e.amount || 0);
                         }
-                    });
+                    }
                 });
 
                 data.push({ label: dayNamesShort[i], thu, chi });
@@ -251,16 +255,15 @@ function DoanhThu() {
                             }
                         }
                     });
+                });
 
-                    const expenses = hd.cacLuotChi || [];
-                    expenses.forEach(e => {
-                        if (e.date) {
-                            const date = new Date(e.date);
-                            if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear() && date.getDate() >= seg.start && date.getDate() <= seg.end) {
-                                chi += Number(e.amount || 0);
-                            }
+                chiTieus.forEach(e => {
+                    if (e.date) {
+                        const date = new Date(e.date);
+                        if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear() && date.getDate() >= seg.start && date.getDate() <= seg.end) {
+                            chi += Number(e.amount || 0);
                         }
-                    });
+                    }
                 });
 
                 data.push({ label: seg.label, thu, chi });
@@ -283,16 +286,15 @@ function DoanhThu() {
                             }
                         }
                     });
+                });
 
-                    const expenses = hd.cacLuotChi || [];
-                    expenses.forEach(e => {
-                        if (e.date) {
-                            const date = new Date(e.date);
-                            if (date.getMonth() === m && date.getFullYear() === now.getFullYear()) {
-                                chi += Number(e.amount || 0);
-                            }
+                chiTieus.forEach(e => {
+                    if (e.date) {
+                        const date = new Date(e.date);
+                        if (date.getMonth() === m && date.getFullYear() === now.getFullYear()) {
+                            chi += Number(e.amount || 0);
                         }
-                    });
+                    }
                 });
 
                 data.push({ label: monthLabels[m], thu, chi });
