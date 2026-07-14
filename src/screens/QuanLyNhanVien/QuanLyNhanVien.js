@@ -224,9 +224,9 @@ function QuanLyNhanVien() {
             </div>
 
             {/* EMPLOYEES TABLE */}
-            <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'hidden', marginTop: '20px' }}>
-                <Table>
-                    <TableHead style={{ backgroundColor: '#f5f5f5' }}>
+            <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'auto', marginTop: '20px', maxHeight: 'calc(100vh - 280px)' }}>
+                <Table stickyHeader>
+                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                         <TableRow>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '60px' }}>STT</TableCell>
                             <TableCell style={{ fontWeight: 'bold', width: '180px' }}>TÊN ĐĂNG NHẬP</TableCell>

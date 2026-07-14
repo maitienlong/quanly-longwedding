@@ -578,9 +578,9 @@ function DoanhThu() {
                         <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', color: '#2c3e50', fontWeight: 'bold' }}>
                             Xếp hạng KPI Nhân viên (Ký mới)
                         </h3>
-                        <TableContainer style={{ maxHeight: '290px' }}>
-                            <Table size="small">
-                                <TableHead style={{ backgroundColor: '#fafafa' }}>
+                        <TableContainer style={{ maxHeight: '290px', overflow: 'auto' }}>
+                            <Table stickyHeader size="small">
+                                <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                                     <TableRow>
                                         <TableCell align="center" style={{ fontWeight: 'bold', width: '70px' }}>Hạng</TableCell>
                                         <TableCell style={{ fontWeight: 'bold' }}>Nhân viên Sale</TableCell>

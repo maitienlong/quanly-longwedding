@@ -98,6 +98,8 @@ function ThemHopDongKHDialog(props) {
     const [nameKH2, setNameKH2] = useState("");
     const [addressKH1, setAddressKH1] = useState("");
     const [addressKH2, setAddressKH2] = useState("");
+    const [facebookKH1, setFacebookKH1] = useState("");
+    const [facebookKH2, setFacebookKH2] = useState("");
 
 
     // DU LIEU BAN DAU CHO HOP DONG
@@ -122,6 +124,8 @@ function ThemHopDongKHDialog(props) {
     const [diaDiemChup, setDiaDiemChup] = useState("");
     const [thoChupHinh, setThoChupHinh] = useState("");
     const [thoMakeUp, setThoMakeUp] = useState("");
+    const [thoChinhAnh, setThoChinhAnh] = useState("");
+    const [listStaff, setListStaff] = useState([]);
     const [chotLich, setChotLich] = useState("Chưa gọi điện");
     const [listHopDong, setListHopDong] = useState([]);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -149,6 +153,23 @@ function ThemHopDongKHDialog(props) {
                 hideLoading();
             });
     }, [showLoading, hideLoading]);
+
+    useEffect(() => {
+        otherService.findUsers({})
+            .then((res) => {
+                if (res.data && res.data.status === 'success') {
+                    setListStaff(res.data.data.users || []);
+                } else if (res.status === 'success') {
+                    setListStaff(res.data.users || []);
+                } else {
+                    setListStaff(res.data?.users || []);
+                }
+            })
+            .catch((err) => {
+                console.error("Lỗi khi tải danh sách nhân viên:", err);
+            });
+    }, []);
+
 
     useEffect(() => {
         if (open) {
@@ -338,6 +359,7 @@ function ThemHopDongKHDialog(props) {
         setDiaDiemChup("");
         setThoChupHinh("");
         setThoMakeUp("");
+        setThoChinhAnh("");
         setChotLich("Chưa gọi điện");
 
         // 2. Thông tin khách hàng 1
@@ -397,12 +419,14 @@ function ThemHopDongKHDialog(props) {
         setPhoneKH1(product.soDienThoai);
         setNameKH1(product.tenKhachHang);
         setAddressKH1(product.diaChi);
+        setFacebookKH1(product.facebookId || "");
         setShowSuggestionPhone1(false);
         setBtnAddKHShow1(false);
     }
     const clearPhoneKH1 = () => {
         setNameKH1("");
         setAddressKH1("");
+        setFacebookKH1("");
         setShowSuggestionPhone1(false);
         setBtnAddKHShow1(false);
     }
@@ -412,6 +436,7 @@ function ThemHopDongKHDialog(props) {
         setPhoneKH2(product.soDienThoai);
         setNameKH2(product.tenKhachHang);
         setAddressKH2(product.diaChi);
+        setFacebookKH2(product.facebookId || "");
         setShowSuggestionPhone2(false);
         setBtnAddKHShow2(false);
     }
@@ -419,6 +444,7 @@ function ThemHopDongKHDialog(props) {
     const clearPhoneKH2 = () => {
         setNameKH2("");
         setAddressKH2("");
+        setFacebookKH2("");
         setShowSuggestionPhone2(false);
         setBtnAddKHShow2(false);
     }
@@ -445,11 +471,25 @@ function ThemHopDongKHDialog(props) {
             });
     };
 
-    const onCreateNewCustomer = (index, soDienThoai, ten, diaChi) => {
+    const onCreateNewCustomer = (index, soDienThoai, ten, diaChi, facebookId) => {
+        if (!ten || !ten.trim()) {
+            toast.warning("Vui lòng nhập tên khách hàng!");
+            return;
+        }
+        if ((!soDienThoai || !soDienThoai.trim()) && (!facebookId || !facebookId.trim())) {
+            toast.warning("Vui lòng nhập Số điện thoại hoặc ID Facebook!");
+            return;
+        }
+        if (!diaChi || !diaChi.trim()) {
+            toast.warning("Vui lòng nhập địa chỉ khách hàng!");
+            return;
+        }
+
         otherService.createKhachHang({
             soDienThoai: soDienThoai,
             tenKhachHang: ten,
-            diaChi: diaChi
+            diaChi: diaChi,
+            facebookId: facebookId || undefined
         })
             .then((response) => {
                 toast.success("Tạo khách hàng mới thành công!");
@@ -458,6 +498,7 @@ function ThemHopDongKHDialog(props) {
                     setPhoneKH1(response.data.soDienThoai);
                     setNameKH1(response.data.tenKhachHang);
                     setAddressKH1(response.data.diaChi);
+                    setFacebookKH1(response.data.facebookId || "");
                     setShowSuggestionPhone1(false);
                     setBtnAddKHShow1(false);
                 } else {
@@ -465,6 +506,7 @@ function ThemHopDongKHDialog(props) {
                     setPhoneKH2(response.data.soDienThoai);
                     setNameKH2(response.data.tenKhachHang);
                     setAddressKH2(response.data.diaChi);
+                    setFacebookKH2(response.data.facebookId || "");
                     setShowSuggestionPhone2(false);
                     setBtnAddKHShow2(false);
                 }
@@ -473,6 +515,138 @@ function ThemHopDongKHDialog(props) {
                 toast.error("Có lỗi xảy ra khi tạo khách hàng mới!" + error);
             });
     }
+
+    const onChangeFacebookKH1 = (e) => {
+        let originalUrl = e.target.value;
+        let val = originalUrl;
+        if (val.includes('facebook.com') || val.includes('fb.com')) {
+            try {
+                const url = new URL(val.startsWith('http') ? val : `https://${val}`);
+                if (url.searchParams.has('id')) {
+                    val = url.searchParams.get('id');
+                } else {
+                    const pathParts = url.pathname.split('/').filter(Boolean);
+                    if (pathParts.length > 0) {
+                        val = pathParts[0];
+                    }
+                }
+            } catch (err) {
+                const match = val.match(/(?:facebook\.com|fb\.com)\/(?:profile\.php\?id=)?([^\/?&#]+)/i);
+                if (match && match[1]) {
+                    val = match[1];
+                }
+            }
+        }
+        setFacebookKH1(val);
+        if (val.length === 0) {
+            clearPhoneKH1();
+            return;
+        }
+
+        const checkCustomerExists1 = (searchId) => {
+            otherService.findKhachHang({ facebookId: searchId })
+                .then((response) => {
+                    setShowSuggestionPhone1(true);
+                    setSuggestionPhone1(response.data);
+                    setBtnAddKHShow1(response.data.length === 0);
+                })
+                .catch((error) => {
+                    clearPhoneKH1();
+                    setBtnAddKHShow1(true);
+                });
+        };
+
+        // Auto-fetch Facebook UID and name if it's a URL
+        if (originalUrl.includes('facebook.com') || originalUrl.includes('fb.com')) {
+            let fullUrl = originalUrl.startsWith('http') ? originalUrl : `https://${originalUrl}`;
+            otherService.getFacebookInfo({ url: fullUrl })
+                .then(res => {
+                    let finalId = val;
+                    if (res.data) {
+                        if (res.data.uid) {
+                            finalId = res.data.uid;
+                            setFacebookKH1(finalId);
+                        }
+                        if (res.data.name) {
+                            setNameKH1(res.data.name);
+                        }
+                    }
+                    checkCustomerExists1(finalId);
+                })
+                .catch(err => {
+                    console.log("Lỗi lấy thông tin FB:", err);
+                    checkCustomerExists1(val);
+                });
+        } else {
+            checkCustomerExists1(val);
+        }
+    };
+
+    const onChangeFacebookKH2 = (e) => {
+        let originalUrl = e.target.value;
+        let val = originalUrl;
+        if (val.includes('facebook.com') || val.includes('fb.com')) {
+            try {
+                const url = new URL(val.startsWith('http') ? val : `https://${val}`);
+                if (url.searchParams.has('id')) {
+                    val = url.searchParams.get('id');
+                } else {
+                    const pathParts = url.pathname.split('/').filter(Boolean);
+                    if (pathParts.length > 0) {
+                        val = pathParts[0];
+                    }
+                }
+            } catch (err) {
+                const match = val.match(/(?:facebook\.com|fb\.com)\/(?:profile\.php\?id=)?([^\/?&#]+)/i);
+                if (match && match[1]) {
+                    val = match[1];
+                }
+            }
+        }
+        setFacebookKH2(val);
+        if (val.length === 0) {
+            clearPhoneKH2();
+            return;
+        }
+
+        const checkCustomerExists2 = (searchId) => {
+            otherService.findKhachHang({ facebookId: searchId })
+                .then((response) => {
+                    setShowSuggestionPhone2(true);
+                    setSuggestionPhone2(response.data);
+                    setBtnAddKHShow2(response.data.length === 0);
+                })
+                .catch((error) => {
+                    clearPhoneKH2();
+                    setBtnAddKHShow2(true);
+                });
+        };
+
+        // Auto-fetch Facebook UID and name if it's a URL
+        if (originalUrl.includes('facebook.com') || originalUrl.includes('fb.com')) {
+            let fullUrl = originalUrl.startsWith('http') ? originalUrl : `https://${originalUrl}`;
+            otherService.getFacebookInfo({ url: fullUrl })
+                .then(res => {
+                    let finalId = val;
+                    if (res.data) {
+                        if (res.data.uid) {
+                            finalId = res.data.uid;
+                            setFacebookKH2(finalId);
+                        }
+                        if (res.data.name) {
+                            setNameKH2(res.data.name);
+                        }
+                    }
+                    checkCustomerExists2(finalId);
+                })
+                .catch(err => {
+                    console.log("Lỗi lấy thông tin FB:", err);
+                    checkCustomerExists2(val);
+                });
+        } else {
+            checkCustomerExists2(val);
+        }
+    };
 
     const checkNgayChupConflict = (selectedDateTimeStr, currentContractId = null) => {
         if (!selectedDateTimeStr) return null;
@@ -543,7 +717,8 @@ function ThemHopDongKHDialog(props) {
             },
             nguoiPhucVu: {
                 thoChupHinh,
-                thoMakeUp
+                thoMakeUp,
+                thoChinhAnh
             },
             nhanVienSale: nhanVienSale,
             giaiDoan: 1,
@@ -559,6 +734,16 @@ function ThemHopDongKHDialog(props) {
     }
 
 
+
+    const updateGioHangParam = (fieldName, value) => {
+        if (!Array.isArray(gioHang) || gioHang.length === 0) return;
+        const newGioHang = [...gioHang];
+        newGioHang[0] = {
+            ...newGioHang[0],
+            [fieldName]: value
+        };
+        setGioHang(newGioHang);
+    };
 
     const getAggregatedParams = () => {
         const totals = {
@@ -631,18 +816,22 @@ function ThemHopDongKHDialog(props) {
             <head>
                 <title>Hợp Đồng Dịch Vụ - ${maHopDong}</title>
                 <style>
-                    body { font-family: "Arial", "Helvetica", sans-serif; padding: 30px; line-height: 1.5; color: #333; }
-                    .header-sec { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
-                    .company-logo { font-size: 26px; font-weight: bold; letter-spacing: 1px; color: #111; }
-                    .company-info { text-align: right; font-size: 13px; color: #555; }
-                    .contract-title-sec { text-align: center; margin: 30px 0; }
-                    .title { font-size: 24px; font-weight: bold; margin: 0; text-transform: uppercase; color: #000; letter-spacing: 0.5px; }
-                    .date-line { font-style: italic; font-size: 14px; margin-top: 5px; color: #555; }
-                    .section-title { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-top: 25px; margin-bottom: 12px; border-left: 3px solid #333; padding-left: 8px; }
-                    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-                    .info-table td { padding: 6px 0; vertical-align: top; border: none; font-size: 14px; }
-                    .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
-                    .items-table th, .items-table td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
+                    @page {
+                        size: A4;
+                        margin: 6mm 10mm;
+                    }
+                    body { font-family: "Arial", "Helvetica", sans-serif; padding: 0; margin: 0; line-height: 1.25; color: #333; font-size: 11px; }
+                    .header-sec { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1.5px solid #333; padding-bottom: 6px; }
+                    .company-logo { font-size: 20px; font-weight: bold; color: #111; }
+                    .company-info { text-align: right; font-size: 11px; color: #555; }
+                    .contract-title-sec { text-align: center; margin: 8px 0; }
+                    .title { font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase; color: #000; letter-spacing: 0.5px; }
+                    .date-line { font-style: italic; font-size: 11px; margin-top: 3px; color: #555; }
+                    .section-title { font-size: 12px; font-weight: bold; text-transform: uppercase; margin-top: 8px; margin-bottom: 4px; border-left: 3px solid #333; padding-left: 6px; }
+                    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+                    .info-table td { padding: 3px 0; vertical-align: top; border: none; font-size: 11px; }
+                    .items-table { width: 100%; border-collapse: collapse; margin-top: 4px; margin-bottom: 6px; }
+                    .items-table th, .items-table td { border: 1px solid #ddd; padding: 5px; text-align: left; font-size: 11px; }
                     .items-table th { background-color: #f5f5f5; font-weight: bold; }
                     .items-table td.number, .items-table th.number { text-align: right; }
                     .items-table td.center, .items-table th.center { text-align: center; }
@@ -651,40 +840,40 @@ function ThemHopDongKHDialog(props) {
                     .params-grid {
                         display: grid;
                         grid-template-columns: 1fr 1fr 1fr;
-                        gap: 15px;
+                        gap: 6px 12px;
                         background: #f9f9f9;
-                        padding: 15px;
+                        padding: 8px 12px;
                         border: 1px solid #e0e0e0;
-                        border-radius: 6px;
-                        margin-top: 10px;
-                        margin-bottom: 20px;
+                        border-radius: 4px;
+                        margin-top: 4px;
+                        margin-bottom: 8px;
                     }
                     .param-item {
-                        font-size: 13px;
+                        font-size: 10.5px;
                     }
                     .param-item strong {
                         color: #111;
                     }
                     
-                    .summary-container { display: flex; justify-content: flex-end; margin-bottom: 25px; }
-                    .summary-table { width: 380px; border-collapse: collapse; }
-                    .summary-table td { padding: 6px 0; font-size: 14px; }
+                    .summary-container { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+                    .summary-table { width: 300px; border-collapse: collapse; }
+                    .summary-table td { padding: 3px 0; font-size: 11px; }
                     .summary-table td.label { text-align: left; color: #555; }
                     .summary-table td.value { text-align: right; font-weight: 500; }
-                    .summary-table tr.total td { font-weight: bold; font-size: 16px; border-top: 1px solid #333; padding-top: 8px; }
-                    .signatures { display: flex; justify-content: space-between; margin-top: 50px; font-size: 14px; text-align: center; page-break-inside: avoid; }
-                    .sig-box { width: 250px; }
-                    .sig-title { font-weight: bold; margin-bottom: 80px; }
+                    .summary-table tr.total td { font-weight: bold; font-size: 13px; border-top: 1px solid #333; padding-top: 4px; }
+                    .signatures { display: flex; justify-content: space-between; margin-top: 15px; font-size: 11px; text-align: center; page-break-inside: avoid; }
+                    .sig-box { width: 220px; }
+                    .sig-title { font-weight: bold; margin-bottom: 45px; }
                     .sig-name { font-weight: bold; }
-                    .terms { font-size: 12px; color: #666; margin-top: 40px; border-top: 1px dashed #ccc; padding-top: 15px; }
-                    .terms-title { font-weight: bold; margin-bottom: 5px; color: #444; }
-                    .terms p { margin: 4px 0; }
+                    .terms { font-size: 9.5px; color: #666; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 6px; }
+                    .terms-title { font-weight: bold; margin-bottom: 3px; color: #444; }
+                    .terms p { margin: 1px 0; }
                 </style>
             </head>
             <body>
                 <div class="header-sec" style="align-items: center;">
                     <div class="company-logo-sec">
-                        <img src="${window.location.origin}${logoVang}" alt="LONG WEDDING" style="height: 70px; object-fit: contain;" />
+                        <img src="${window.location.origin}${logoVang}" alt="LONG WEDDING" style="height: 50px; object-fit: contain;" />
                     </div>
                     <div class="company-info" style="text-align: right;">
                         <div>Website: <strong>longwedding.vn</strong></div>
@@ -826,6 +1015,10 @@ function ThemHopDongKHDialog(props) {
                     <p>1. Bên A cam kết thanh toán đầy đủ các khoản chi phí theo tiến độ đã thoả thuận trong hợp đồng.</p>
                     <p>2. Bên B cam kết thực hiện đúng, đầy đủ các dịch vụ chất lượng đã ký kết với khách hàng.</p>
                     <p>3. Mọi thay đổi về lịch trình hoặc dịch vụ cần được thông báo trước ít nhất 3 ngày.</p>
+                    <p>4. Trang phục không được để rượu vang đổ lên váy, nếu bị sẽ phải mua luôn váy.</p>
+                    <p>5. Tiền cọc không được hoàn trả bất kỳ hình thức nào.</p>
+                    <p>6. Hợp đồng được đồng bộ hóa trên đám mây, Quý khách có thể tra cứu trên website longwedding.vn.</p>
+                    <p>7. Mọi thắc mắc xin quý khách liên hệ về số hotline: 0868 66 3637</p>
                 </div>
             </body>
             </html>
@@ -941,9 +1134,14 @@ function ThemHopDongKHDialog(props) {
                                         <label>Địa chỉ</label>
                                     </div>
 
+                                    <div className="floating-label">
+                                        <input name="facebookKH1" value={facebookKH1} onChange={onChangeFacebookKH1} autoComplete="off" />
+                                        <label>Link / ID Facebook 1</label>
+                                    </div>
+
                                     {btnAddKHShow1 && (
                                         <Button
-                                            onClick={() => onCreateNewCustomer(1, phoneKH1, nameKH1, addressKH1)}
+                                            onClick={() => onCreateNewCustomer(1, phoneKH1, nameKH1, addressKH1, facebookKH1)}
                                             color="success"
                                             variant="contained"
                                             sx={{
@@ -982,9 +1180,13 @@ function ThemHopDongKHDialog(props) {
                                         <input name="diaChiCodau" value={addressKH2} onChange={(e) => { setAddressKH2(e.target.value) }} required />
                                         <label>Địa chỉ khách hàng 2</label>
                                     </div>
+                                    <div className="floating-label">
+                                        <input name="facebookKH2" value={facebookKH2} onChange={onChangeFacebookKH2} autoComplete="off" />
+                                        <label>Link / ID Facebook 2</label>
+                                    </div>
                                     {btnAddKHShow2 && (
                                         <Button
-                                            onClick={() => onCreateNewCustomer(2, phoneKH2, nameKH2, addressKH2)}
+                                            onClick={() => onCreateNewCustomer(2, phoneKH2, nameKH2, addressKH2, facebookKH2)}
                                             color="success"
                                             variant="contained"
                                             sx={{
@@ -1019,27 +1221,56 @@ function ThemHopDongKHDialog(props) {
                                     />
 
                                     <div className="floating-label">
-                                        <input type="text" name="nhanVienSale" value={nhanVienSale} onChange={(e) => setNhanVienSale(e.target.value)} />
+                                        <select name="nhanVienSale" value={nhanVienSale} onChange={(e) => setNhanVienSale(e.target.value)}>
+                                            <option value="0">Chưa phân công</option>
+                                            {listStaff.filter(s => s.positon === 'Nhân viên Sale').map(s => {
+                                                const name = s.fullname || s.username;
+                                                return <option key={s.username} value={name}>{name}</option>;
+                                            })}
+                                        </select>
                                         <label>Nhân viên sale</label>
                                     </div>
 
                                     <div className="floating-label">
-                                        <input type="text" name="thoChupHinh" value={thoChupHinh} onChange={(e) => setThoChupHinh(e.target.value)} />
+                                        <select name="thoChupHinh" value={thoChupHinh} onChange={(e) => setThoChupHinh(e.target.value)}>
+                                            <option value="">Chưa phân công</option>
+                                            {listStaff.filter(s => s.positon === 'Thợ chụp hình').map(s => {
+                                                const name = s.fullname || s.username;
+                                                return <option key={s.username} value={name}>{name}</option>;
+                                            })}
+                                        </select>
                                         <label>Thợ chụp hình</label>
                                     </div>
 
                                     <div className="floating-label">
-                                        <input type="text" name="thoMakeUp" value={thoMakeUp} onChange={(e) => setThoMakeUp(e.target.value)} />
+                                        <select name="thoMakeUp" value={thoMakeUp} onChange={(e) => setThoMakeUp(e.target.value)}>
+                                            <option value="">Chưa phân công</option>
+                                            {listStaff.filter(s => s.positon === 'Thợ trang điểm').map(s => {
+                                                const name = s.fullname || s.username;
+                                                return <option key={s.username} value={name}>{name}</option>;
+                                            })}
+                                        </select>
                                         <label>Thợ Make-up</label>
                                     </div>
 
                                     <div className="floating-label">
-                                        <select name="chotLich" value={chotLich} onChange={(e) => setChotLich(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '4px', border: '1px solid #ccc', padding: '0 8px', fontSize: '0.85rem' }}>
+                                        <select name="chotLich" value={chotLich} onChange={(e) => setChotLich(e.target.value)}>
                                             <option value="Chưa gọi điện">Chưa gọi điện</option>
                                             <option value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</option>
                                             <option value="Đã chốt lịch">Đã chốt lịch</option>
                                         </select>
-                                        <label style={{ top: '-10px', fontSize: '0.8rem', color: '#1976d2' }}>Chốt lịch</label>
+                                        <label>Chốt lịch</label>
+                                    </div>
+
+                                    <div className="floating-label">
+                                        <select name="thoChinhAnh" value={thoChinhAnh} onChange={(e) => setThoChinhAnh(e.target.value)}>
+                                            <option value="">Chưa phân công</option>
+                                            {listStaff.filter(s => s.positon === 'Thợ chỉnh ảnh').map(s => {
+                                                const name = s.fullname || s.username;
+                                                return <option key={s.username} value={name}>{name}</option>;
+                                            })}
+                                        </select>
+                                        <label>Thợ chỉnh ảnh</label>
                                     </div>
                                 </div>
                             </div>
@@ -1130,65 +1361,6 @@ function ThemHopDongKHDialog(props) {
                                         </div>
                                     </div>
                                 </div>
-
-                                {(() => {
-                                    const totals = getAggregatedParams();
-                                    return (
-                                        <>
-                                            <div className="package-parameters-title" style={{ marginTop: '25px' }}>Tổng hợp dịch vụ trong hợp đồng</div>
-                                            <div className="summary-parameters-grid">
-                                                <div className="form-group-summary">
-                                                    <label>SL ảnh chỉnh sửa</label>
-                                                    <div className="summary-value-box">{totals.soLuongAnhChinhSua}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>SL ảnh 16x21</label>
-                                                    <div className="summary-value-box">{totals.soLuongAnh16x21}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>SL ảnh 20x30</label>
-                                                    <div className="summary-value-box">{totals.soLuongAnh20x30}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>SL ảnh 60x90</label>
-                                                    <div className="summary-value-box">{totals.soLuongAnh60x90}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>Trang điểm ngày ăn hỏi</label>
-                                                    <div className="summary-value-box">{totals.trangDiemNgayAnHoi}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>Trang điểm ngày cưới</label>
-                                                    <div className="summary-value-box">{totals.trangDiemNgayCuoi}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>Trang phục bê lễ</label>
-                                                    <div className="summary-value-box">{totals.trangPhucChoDoiBeLe}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>TP cô dâu ngày ăn hỏi</label>
-                                                    <div className="summary-value-box">{totals.trangPhucCoDauNgayAnHoi}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>TP chú rể ngày ăn hỏi</label>
-                                                    <div className="summary-value-box">{totals.trangPhucChuReNgayAnHoi}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>Váy cưới ngày cưới (giá trị)</label>
-                                                    <div className="summary-value-box">{totals.trangPhucVayCuoiNgayCuoi}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>Vest chú rể ngày cưới</label>
-                                                    <div className="summary-value-box">{totals.trangPhucVestChuReNgayCuoi}</div>
-                                                </div>
-                                                <div className="form-group-summary">
-                                                    <label>Hoa cầm tay</label>
-                                                    <div className="summary-value-box">{totals.hoaCamTay}</div>
-                                                </div>
-                                            </div>
-                                        </>
-                                    );
-                                })()}
                             </div>
                         </div>
 
@@ -1222,7 +1394,7 @@ function ThemHopDongKHDialog(props) {
                             </div>
 
                             {/* ===== TABLE ===== */}
-                            <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
+                            <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', maxHeight: '250px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px', marginBottom: '15px' }}>
                                 <table className="product-table">
                                     <thead>
                                         <tr>
@@ -1276,6 +1448,147 @@ function ThemHopDongKHDialog(props) {
                                     </tbody>
                                 </table>
                             </div>
+
+                            {(() => {
+                                const hasItems = Array.isArray(gioHang) && gioHang.length > 0;
+                                const firstItem = hasItems ? gioHang[0] : {};
+
+                                return (
+                                    <>
+                                        <div className="package-parameters-title" style={{ marginTop: '25px' }}>Tổng hợp dịch vụ trong hợp đồng</div>
+                                        <div className="summary-parameters-grid">
+                                            <div className="form-group-summary">
+                                                <label>SL ảnh chỉnh sửa</label>
+                                                <input
+                                                    type="number"
+                                                    className="summary-value-input"
+                                                    value={firstItem.soLuongAnhChinhSua ?? 0}
+                                                    onChange={(e) => updateGioHangParam("soLuongAnhChinhSua", Number(e.target.value) || 0)}
+                                                    disabled={!hasItems}
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>SL ảnh 16x21</label>
+                                                <input
+                                                    type="number"
+                                                    className="summary-value-input"
+                                                    value={firstItem.soLuongAnh16x21 ?? 0}
+                                                    onChange={(e) => updateGioHangParam("soLuongAnh16x21", Number(e.target.value) || 0)}
+                                                    disabled={!hasItems}
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>SL ảnh 20x30</label>
+                                                <input
+                                                    type="number"
+                                                    className="summary-value-input"
+                                                    value={firstItem.soLuongAnh20x30 ?? 0}
+                                                    onChange={(e) => updateGioHangParam("soLuongAnh20x30", Number(e.target.value) || 0)}
+                                                    disabled={!hasItems}
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>SL ảnh 60x90</label>
+                                                <input
+                                                    type="number"
+                                                    className="summary-value-input"
+                                                    value={firstItem.soLuongAnh60x90 ?? 0}
+                                                    onChange={(e) => updateGioHangParam("soLuongAnh60x90", Number(e.target.value) || 0)}
+                                                    disabled={!hasItems}
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>Trang điểm ngày ăn hỏi</label>
+                                                <input
+                                                    type="text"
+                                                    className="summary-value-input"
+                                                    value={firstItem.trangDiemNgayAnHoi ?? ""}
+                                                    onChange={(e) => updateGioHangParam("trangDiemNgayAnHoi", e.target.value)}
+                                                    disabled={!hasItems}
+                                                    placeholder="Không có"
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>Trang điểm ngày cưới</label>
+                                                <input
+                                                    type="text"
+                                                    className="summary-value-input"
+                                                    value={firstItem.trangDiemNgayCuoi ?? ""}
+                                                    onChange={(e) => updateGioHangParam("trangDiemNgayCuoi", e.target.value)}
+                                                    disabled={!hasItems}
+                                                    placeholder="Không có"
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>Trang phục bê lễ</label>
+                                                <input
+                                                    type="text"
+                                                    className="summary-value-input"
+                                                    value={firstItem.trangPhucChoDoiBeLe ?? ""}
+                                                    onChange={(e) => updateGioHangParam("trangPhucChoDoiBeLe", e.target.value)}
+                                                    disabled={!hasItems}
+                                                    placeholder="Không có"
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>TP cô dâu ngày ăn hỏi</label>
+                                                <input
+                                                    type="text"
+                                                    className="summary-value-input"
+                                                    value={firstItem.trangPhucCoDauNgayAnHoi ?? ""}
+                                                    onChange={(e) => updateGioHangParam("trangPhucCoDauNgayAnHoi", e.target.value)}
+                                                    disabled={!hasItems}
+                                                    placeholder="Không có"
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>TP chú rể ngày ăn hỏi</label>
+                                                <input
+                                                    type="text"
+                                                    className="summary-value-input"
+                                                    value={firstItem.trangPhucChuReNgayAnHoi ?? ""}
+                                                    onChange={(e) => updateGioHangParam("trangPhucChuReNgayAnHoi", e.target.value)}
+                                                    disabled={!hasItems}
+                                                    placeholder="Không có"
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>Váy cưới ngày cưới (giá trị)</label>
+                                                <input
+                                                    type="text"
+                                                    className="summary-value-input"
+                                                    value={firstItem.trangPhucVayCuoiNgayCuoi ?? ""}
+                                                    onChange={(e) => updateGioHangParam("trangPhucVayCuoiNgayCuoi", e.target.value)}
+                                                    disabled={!hasItems}
+                                                    placeholder="Không có"
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>Vest chú rể ngày cưới</label>
+                                                <input
+                                                    type="text"
+                                                    className="summary-value-input"
+                                                    value={firstItem.trangPhucVestChuReNgayCuoi ?? ""}
+                                                    onChange={(e) => updateGioHangParam("trangPhucVestChuReNgayCuoi", e.target.value)}
+                                                    disabled={!hasItems}
+                                                    placeholder="Không có"
+                                                />
+                                            </div>
+                                            <div className="form-group-summary">
+                                                <label>Hoa cầm tay</label>
+                                                <input
+                                                    type="text"
+                                                    className="summary-value-input"
+                                                    value={firstItem.hoaCamTay ?? ""}
+                                                    onChange={(e) => updateGioHangParam("hoaCamTay", e.target.value)}
+                                                    disabled={!hasItems}
+                                                    placeholder="Không có"
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
 

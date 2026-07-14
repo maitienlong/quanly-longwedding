@@ -100,17 +100,17 @@ const QuanLyKho = () => {
             </div>
 
 
-            <TableContainer component={Paper}>
-                <Table aria-label="simple table">
-                    <TableHead>
+            <TableContainer component={Paper} style={{ maxHeight: 'calc(100vh - 280px)', overflow: 'auto' }}>
+                <Table stickyHeader aria-label="simple table">
+                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                         <TableRow>
-                            <TableCell style={{ width: 20 }}>STT</TableCell>
-                            <TableCell style={{ width: 20 }}>ID</TableCell>
-                            <TableCell style={{ width: 100 }}>DỊCH VỤ</TableCell>
-                            <TableCell style={{ width: 100 }}>GIÁ THÀNH</TableCell>
-                            <TableCell style={{ width: 100 }}>GIÁ THUÊ</TableCell>
-                            <TableCell style={{ width: 20 }}>TỒN KHO</TableCell>
-                            <TableCell align="center" style={{ width: 100 }}>MÔ TẢ</TableCell>
+                            <TableCell align="center" style={{ width: '5%' }}>STT</TableCell>
+                            <TableCell style={{ width: '15%' }}>ID</TableCell>
+                            <TableCell style={{ width: '25%' }}>DỊCH VỤ</TableCell>
+                            <TableCell style={{ width: '15%' }}>GIÁ THÀNH</TableCell>
+                            <TableCell style={{ width: '15%' }}>GIÁ THUÊ</TableCell>
+                            <TableCell align="center" style={{ width: '10%' }}>TỒN KHO</TableCell>
+                            <TableCell style={{ width: '15%' }}>MÔ TẢ</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -130,15 +130,15 @@ const QuanLyKho = () => {
                                 selected={selectedService?.maDichVu === data.maDichVu}
                                 onClick={() => setSelectedService(data)}
                             >
-                                <TableCell component="th" scope="row" style={{ width: 20 }}>
+                                <TableCell align="center" component="th" scope="row">
                                     {index + 1}
                                 </TableCell>
-                                <TableCell style={{ width: 20 }}>{data.maDichVu}</TableCell>
-                                <TableCell style={{ width: 100 }}>{data.tenDichVu}</TableCell>
-                                <TableCell style={{ width: 100 }}>{data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : '0 đ'}</TableCell>
-                                <TableCell style={{ width: 100 }}>{data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : '0 đ'}</TableCell>
-                                <TableCell style={{ width: 20 }}>{data.tonKhoDichVu}</TableCell>
-                                <TableCell style={{ width: 100 }}>{data.moTaDichVu}</TableCell>
+                                <TableCell>{data.maDichVu}</TableCell>
+                                <TableCell>{data.tenDichVu}</TableCell>
+                                <TableCell>{data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : '0 đ'}</TableCell>
+                                <TableCell>{data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : '0 đ'}</TableCell>
+                                <TableCell align="center">{data.tonKhoDichVu}</TableCell>
+                                <TableCell>{data.moTaDichVu}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

@@ -633,9 +633,9 @@ function LichSoanDo() {
             </div>
 
             {/* CONTRACT LIST TABLE */}
-            <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'hidden' }}>
-                <Table>
-                    <TableHead style={{ backgroundColor: '#f5f5f5' }}>
+            <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
+                <Table stickyHeader>
+                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                         <TableRow>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '60px' }}>STT</TableCell>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '120px' }}>MÃ SỐ HĐ</TableCell>

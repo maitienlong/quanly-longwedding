@@ -26,6 +26,7 @@ const appService = {
    findUsers: (params) => axiosClient.post(ENDPOINTS.AUTH.LIST, params),
    updateKhachHang: (params) => axiosClient.post(ENDPOINTS.KHACHHANG.UPDATE, params),
    removeKhachHang: (params) => axiosClient.post(ENDPOINTS.KHACHHANG.REMOVE, params),
+   getFacebookInfo: (params) => axiosClient.post(ENDPOINTS.KHACHHANG.GET_FACEBOOK_INFO, params),
    saveLichSoanDo: (params) => axiosClient.post(ENDPOINTS.LICH_SOAN_DO.SAVE, params),
    findAllLichSoanDo: (params) => axiosClient.post(ENDPOINTS.LICH_SOAN_DO.FIND_ALL, params),
    findByContractLichSoanDo: (params) => axiosClient.post(ENDPOINTS.LICH_SOAN_DO.FIND_BY_CONTRACT, params),

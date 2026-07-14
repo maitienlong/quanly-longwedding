@@ -28,7 +28,8 @@ export const ENDPOINTS = {
     FIND: "/khachHang/find",
     CREATE: "/khachHang/create",
     UPDATE: "/khachHang/update",
-    REMOVE: "/khachHang/remove"
+    REMOVE: "/khachHang/remove",
+    GET_FACEBOOK_INFO: "/khachHang/get-facebook-info"
   },
   CHITIEU: {
     CREATE: "/chiTieu/create",

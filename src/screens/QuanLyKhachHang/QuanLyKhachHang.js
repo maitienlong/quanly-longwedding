@@ -44,6 +44,7 @@ function QuanLyKhachHang() {
     const [gioiTinh, setGioiTinh] = useState('Nam');
     const [diaChi, setDiaChi] = useState('');
     const [ngayCapCCCD, setNgayCapCCCD] = useState('');
+    const [facebookId, setFacebookId] = useState('');
 
     const commonHeight = 40;
 
@@ -91,6 +92,7 @@ function QuanLyKhachHang() {
         setGioiTinh('Nam');
         setDiaChi('');
         setNgayCapCCCD('');
+        setFacebookId('');
     };
 
     const handleCreateCustomer = () => {
@@ -98,8 +100,8 @@ function QuanLyKhachHang() {
             toast.warning("Vui lòng nhập họ và tên khách hàng!");
             return;
         }
-        if (!soDienThoai.trim()) {
-            toast.warning("Vui lòng nhập số điện thoại!");
+        if (!soDienThoai.trim() && !facebookId.trim()) {
+            toast.warning("Vui lòng nhập Số điện thoại hoặc ID Facebook!");
             return;
         }
         if (!diaChi.trim()) {
@@ -115,7 +117,8 @@ function QuanLyKhachHang() {
             ngaySinhNhat: ngaySinhNhat.trim() || undefined,
             gioiTinh: gioiTinh,
             diaChi: diaChi.trim(),
-            ngayCapCCCD: ngayCapCCCD.trim() || undefined
+            ngayCapCCCD: ngayCapCCCD.trim() || undefined,
+            facebookId: facebookId.trim() || undefined
         };
 
         showLoading("Đang khởi tạo khách hàng...");
@@ -142,6 +145,7 @@ function QuanLyKhachHang() {
         setGioiTinh(customer.gioiTinh || 'Nam');
         setDiaChi(customer.diaChi || '');
         setNgayCapCCCD(customer.ngayCapCCCD || '');
+        setFacebookId(customer.facebookId || '');
         setOpenEditDialog(true);
     };
 
@@ -150,8 +154,8 @@ function QuanLyKhachHang() {
             toast.warning("Vui lòng nhập họ và tên khách hàng!");
             return;
         }
-        if (!soDienThoai.trim()) {
-            toast.warning("Vui lòng nhập số điện thoại!");
+        if (!soDienThoai.trim() && !facebookId.trim()) {
+            toast.warning("Vui lòng nhập Số điện thoại hoặc ID Facebook!");
             return;
         }
         if (!diaChi.trim()) {
@@ -168,7 +172,8 @@ function QuanLyKhachHang() {
             ngaySinhNhat: ngaySinhNhat.trim(),
             gioiTinh: gioiTinh,
             diaChi: diaChi.trim(),
-            ngayCapCCCD: ngayCapCCCD.trim()
+            ngayCapCCCD: ngayCapCCCD.trim(),
+            facebookId: facebookId.trim()
         };
 
         showLoading("Đang cập nhật khách hàng...");
@@ -205,6 +210,49 @@ function QuanLyKhachHang() {
                 toast.error("Lỗi khi xóa khách hàng: " + err.message);
                 hideLoading();
             });
+    };
+
+    const handleFacebookLinkChange = (e) => {
+        let originalUrl = e.target.value;
+        let val = originalUrl;
+        if (val.includes('facebook.com') || val.includes('fb.com')) {
+            try {
+                const url = new URL(val.startsWith('http') ? val : `https://${val}`);
+                if (url.searchParams.has('id')) {
+                    val = url.searchParams.get('id');
+                } else {
+                    const pathParts = url.pathname.split('/').filter(Boolean);
+                    if (pathParts.length > 0) {
+                        val = pathParts[0];
+                    }
+                }
+            } catch (err) {
+                const match = val.match(/(?:facebook\.com|fb\.com)\/(?:profile\.php\?id=)?([^\/?&#]+)/i);
+                if (match && match[1]) {
+                    val = match[1];
+                }
+            }
+        }
+        setFacebookId(val);
+        
+        // Auto-fetch Facebook UID and name if we have a valid URL
+        if (originalUrl.includes('facebook.com') || originalUrl.includes('fb.com')) {
+             let fullUrl = originalUrl.startsWith('http') ? originalUrl : `https://${originalUrl}`;
+             otherService.getFacebookInfo({ url: fullUrl })
+                 .then(res => {
+                     if (res.data) {
+                         // Convert username to UID if available
+                         if (res.data.uid) {
+                             setFacebookId(res.data.uid);
+                         }
+                         // Only overwrite if the name field is currently empty
+                         if (res.data.name && (!tenKhachHang || tenKhachHang.trim() === '')) {
+                             setTenKhachHang(res.data.name);
+                         }
+                     }
+                 })
+                 .catch(err => console.log("Lỗi lấy thông tin FB:", err));
+        }
     };
 
     return (
@@ -248,9 +296,9 @@ function QuanLyKhachHang() {
             </div>
 
             {/* CUSTOMERS TABLE */}
-            <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'hidden', marginTop: '20px' }}>
-                <Table>
-                    <TableHead style={{ backgroundColor: '#f5f5f5' }}>
+            <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'auto', marginTop: '20px', maxHeight: 'calc(100vh - 280px)' }}>
+                <Table stickyHeader>
+                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                         <TableRow>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '60px' }}>STT</TableCell>
                             <TableCell style={{ fontWeight: 'bold', width: '200px' }}>HỌ VÀ TÊN</TableCell>
@@ -273,7 +321,14 @@ function QuanLyKhachHang() {
                             customers.map((cust, idx) => (
                                 <TableRow key={cust._id} className="quanlykhachhang-row">
                                     <TableCell align="center">{idx + 1}</TableCell>
-                                    <TableCell style={{ fontWeight: '500' }}>{cust.tenKhachHang}</TableCell>
+                                    <TableCell style={{ fontWeight: '500' }}>
+                                        {cust.tenKhachHang}
+                                        {cust.facebookId && (
+                                            <a href={`https://facebook.com/${cust.facebookId}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: '#1877f2' }} title="Mở Facebook khách hàng">
+                                                <i className="fa-brands fa-facebook"></i>
+                                            </a>
+                                        )}
+                                    </TableCell>
                                     <TableCell>{cust.soDienThoai}</TableCell>
                                     <TableCell align="center">{cust.ngaySinhNhat || '-'}</TableCell>
                                     <TableCell align="center">{cust.gioiTinh || '-'}</TableCell>
@@ -389,6 +444,15 @@ function QuanLyKhachHang() {
                             onChange={(e) => setMaDangNhap(e.target.value)}
                             placeholder="Ví dụ: longwedding123 (mặc định abcd1234)"
                         />
+                        
+                        <TextField
+                            label="Link Facebook / ID Facebook"
+                            size="small"
+                            fullWidth
+                            value={facebookId}
+                            onChange={handleFacebookLinkChange}
+                            placeholder="Dán link facebook vào đây"
+                        />
                     </Box>
                 </DialogContent>
                 <DialogActions style={{ padding: '16px 24px', borderTop: '1px solid #eee' }}>
@@ -468,6 +532,15 @@ function QuanLyKhachHang() {
                             fullWidth
                             value={maDangNhap}
                             onChange={(e) => setMaDangNhap(e.target.value)}
+                        />
+                        
+                        <TextField
+                            label="Link Facebook / ID Facebook"
+                            size="small"
+                            fullWidth
+                            value={facebookId}
+                            onChange={handleFacebookLinkChange}
+                            placeholder="Dán link facebook vào đây"
                         />
                     </Box>
                 </DialogContent>

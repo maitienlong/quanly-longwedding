@@ -145,6 +145,35 @@ function LichCuaHang() {
         localStorage.setItem('showLunarCalendar', showLunar);
     }, [showLunar]);
 
+    const [listStaff, setListStaff] = useState([]);
+    const [listDichVu, setListDichVu] = useState([]);
+    const [newlyAddedPhotos, setNewlyAddedPhotos] = useState([]);
+    const [selectedDichVuOption, setSelectedDichVuOption] = useState(null);
+
+    useEffect(() => {
+        otherService.findUsers({})
+            .then((res) => {
+                if (res.data && res.data.status === 'success') {
+                    setListStaff(res.data.data.users || []);
+                } else if (res.status === 'success') {
+                    setListStaff(res.data.users || []);
+                } else {
+                    setListStaff(res.data?.users || []);
+                }
+            })
+            .catch((err) => {
+                console.error("Lỗi khi tải danh sách nhân viên:", err);
+            });
+
+        otherService.findDichVu()
+            .then((response) => {
+                setListDichVu(response.data.dichVu || []);
+            })
+            .catch((error) => {
+                console.error("Lỗi khi tải danh sách dịch vụ:", error);
+            });
+    }, []);
+
     // Tab quản lý
     const [activeTab, setActiveTab] = useState('chupHinh'); // 'chupHinh', 'hauKy', hoặc 'anHoiVaCuoi'
 
@@ -164,6 +193,13 @@ function LichCuaHang() {
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [sendData, setSendData] = useState({});
 
+    // Dialog thanh toán khi hoàn thành hợp đồng
+    const [openPaymentDialog, setOpenPaymentDialog] = useState(false);
+    const [paymentContract, setPaymentContract] = useState(null);
+    const [paymentAmount, setPaymentAmount] = useState(0);
+    const [paymentMethod, setPaymentMethod] = useState("Tiền mặt");
+    const [paymentNote, setPaymentNote] = useState("Thanh toán hoàn thành hợp đồng");
+
     // dialog cập nhật lịch chụp cho Tab Chụp Hình
     const [openChupHinhDialog, setOpenChupHinhDialog] = useState(false);
     const [selectedChupHinhContract, setSelectedChupHinhContract] = useState(null);
@@ -171,6 +207,8 @@ function LichCuaHang() {
     const [confirmDiaDiem, setConfirmDiaDiem] = useState("");
     const [confirmChotLich, setConfirmChotLich] = useState("Chưa gọi điện");
     const [confirmLinkAnh, setConfirmLinkAnh] = useState("");
+    const [confirmThoChupHinh, setConfirmThoChupHinh] = useState("");
+    const [confirmThoMakeUp, setConfirmThoMakeUp] = useState("");
 
     // dialog cập nhật lịch hậu kỳ cho Tab Hậu Kỳ
     const [openHauKyDialog, setOpenHauKyDialog] = useState(false);
@@ -247,6 +285,8 @@ function LichCuaHang() {
             setConfirmDiaDiem(hd.cacNgay?.diaDiemChup || "");
             setConfirmChotLich(hd.cacNgay?.chotLich || "Chưa gọi điện");
             setConfirmLinkAnh(hd.linkAnhGoc || "");
+            setConfirmThoChupHinh(hd.nguoiPhucVu?.thoChupHinh || "");
+            setConfirmThoMakeUp(hd.nguoiPhucVu?.thoMakeUp || "");
             setOpenChupHinhDialog(true);
         } else if (activeTab === 'hauKy') {
             setSelectedHauKyContract(hd);
@@ -267,9 +307,23 @@ function LichCuaHang() {
     const handleUpdateChupHinh = (shouldTransitionToHauKy = false) => {
         if (!selectedChupHinhContract) return;
 
-        if (shouldTransitionToHauKy && !confirmLinkAnh.trim()) {
-            toast.error("Vui lòng nhập đường dẫn ảnh gốc (link ảnh) trước khi chuyển sang hậu kỳ!");
-            return;
+        if (shouldTransitionToHauKy) {
+            if (!confirmThoChupHinh) {
+                toast.error("Vui lòng chọn thợ chụp hình trước khi chuyển sang hậu kỳ!");
+                return;
+            }
+            if (!confirmThoMakeUp) {
+                toast.error("Vui lòng chọn thợ makeup trước khi chuyển sang hậu kỳ!");
+                return;
+            }
+            if (!confirmDiaDiem || !confirmDiaDiem.trim()) {
+                toast.error("Vui lòng nhập địa điểm chụp trước khi chuyển sang hậu kỳ!");
+                return;
+            }
+            if (!confirmLinkAnh || !confirmLinkAnh.trim()) {
+                toast.error("Vui lòng nhập đường dẫn ảnh gốc (link ảnh) trước khi chuyển sang hậu kỳ!");
+                return;
+            }
         }
 
         showLoading(shouldTransitionToHauKy ? "Đang chuyển trạng thái sang hậu kỳ..." : "Đang cập nhật lịch chụp...");
@@ -289,6 +343,11 @@ function LichCuaHang() {
                 })(),
                 diaDiemChup: confirmDiaDiem,
                 chotLich: confirmChotLich
+            },
+            nguoiPhucVu: {
+                ...selectedChupHinhContract.nguoiPhucVu,
+                thoChupHinh: confirmThoChupHinh,
+                thoMakeUp: confirmThoMakeUp
             },
             linkAnhGoc: confirmLinkAnh
         };
@@ -312,8 +371,92 @@ function LichCuaHang() {
             });
     };
 
+    const triggerCompleteContract = (contract) => {
+        const conLai = contract?.thanhToan?.conLai || 0;
+        if (conLai > 0) {
+            setPaymentContract(contract);
+            setPaymentAmount(conLai);
+            setPaymentMethod("Tiền mặt");
+            setPaymentNote("Thanh toán hoàn thành hợp đồng");
+            setOpenPaymentDialog(true);
+        } else {
+            showLoading("Đang chuyển trạng thái sang hoàn thành...");
+            otherService.UPDATE_HOPDONG({
+                maHopDong: contract.maHopDong,
+                giaiDoan: 5
+            })
+            .then(() => {
+                toast.success("Hợp đồng đã hoàn thành!");
+                setOpenHauKyDialog(false);
+                setOpenInAnhViewDialog(false);
+                setSelectedHauKyContract(null);
+                setSelectedInAnhContract(null);
+                loadHopDong(activeTab, selectedTime?.id, searchInput);
+                hideLoading();
+            })
+            .catch((error) => {
+                console.error(error);
+                toast.error("Có lỗi xảy ra: " + (error.response?.data?.message || error.message));
+                hideLoading();
+            });
+        }
+    };
+
+    const handleConfirmPaymentAndComplete = () => {
+        if (!paymentContract) return;
+
+        if (paymentAmount <= 0) {
+            toast.error("Vui lòng nhập số tiền thanh toán hợp lệ!");
+            return;
+        }
+
+        showLoading("Đang thực hiện thanh toán và hoàn thành...");
+
+        const cacLuotThanhToan = [...(paymentContract?.thanhToan?.cacLuotThanhToan || [])];
+        cacLuotThanhToan.push({
+            id: `TT-${paymentContract.maHopDong}-${Date.now()}`,
+            khachHang: paymentContract.khachHang1?.tenKhachHang || "Khách hàng",
+            amount: Number(paymentAmount),
+            date: new Date().toISOString(),
+            method: paymentMethod,
+            noiDung: paymentNote || "Thanh toán hoàn thành hợp đồng"
+        });
+
+        const payload = {
+            maHopDong: paymentContract.maHopDong,
+            giaiDoan: 5,
+            thanhToan: {
+                ...paymentContract.thanhToan,
+                cacLuotThanhToan: cacLuotThanhToan
+            }
+        };
+
+        otherService.UPDATE_HOPDONG(payload)
+            .then((response) => {
+                toast.success("Thanh toán thành công và hợp đồng đã hoàn thành!");
+                setOpenPaymentDialog(false);
+                setPaymentContract(null);
+                setOpenHauKyDialog(false);
+                setOpenInAnhViewDialog(false);
+                setSelectedHauKyContract(null);
+                setSelectedInAnhContract(null);
+                loadHopDong(activeTab, selectedTime?.id, searchInput);
+                hideLoading();
+            })
+            .catch((error) => {
+                console.error(error);
+                toast.error("Có lỗi xảy ra: " + (error.response?.data?.message || error.message));
+                hideLoading();
+            });
+    };
+
     const handleUpdateHauKy = (targetStage = null) => {
         if (!selectedHauKyContract) return;
+
+        if (targetStage === 5) {
+            triggerCompleteContract(selectedHauKyContract);
+            return;
+        }
 
         if (targetStage === 4 && !confirmLinkAnhChinhSua.trim()) {
             toast.error("Vui lòng nhập đường dẫn ảnh chỉnh sửa trước khi chuyển sang in ảnh!");
@@ -347,6 +490,23 @@ function LichCuaHang() {
             payload.giaiDoan = targetStage;
             if (targetStage === 4) {
                 payload.danhSachAnhIn = tempDanhSachAnhIn;
+                if (newlyAddedPhotos.length > 0) {
+                    const originalCart = [...(selectedHauKyContract?.gioHang || [])];
+                    newlyAddedPhotos.forEach(newPhoto => {
+                        const existingIndex = originalCart.findIndex(item => 
+                            (item.dichVu?._id || item.dichVu || item._id) === newPhoto.dichVu
+                        );
+                        if (existingIndex > -1) {
+                            originalCart[existingIndex] = {
+                                ...originalCart[existingIndex],
+                                soLuong: (originalCart[existingIndex].soLuong || 0) + newPhoto.soLuong
+                            };
+                        } else {
+                            originalCart.push(newPhoto);
+                        }
+                    });
+                    payload.gioHang = originalCart;
+                }
             }
         }
 
@@ -987,7 +1147,7 @@ function LichCuaHang() {
 
             {/* ===== NỘI DUNG LỊCH LÀM VIỆC ===== */}
             {viewMode === 'list' ? (
-                <TableContainer component={Paper} style={{ overflowX: 'auto' }}>
+                <TableContainer component={Paper} style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
                     <style>{`
                         .fixed-layout-table {
                             table-layout: fixed !important;
@@ -1000,8 +1160,8 @@ function LichCuaHang() {
                             white-space: normal !important;
                         }
                     `}</style>
-                    <Table aria-label="simple table" className="fixed-layout-table">
-                        <TableHead>
+                    <Table stickyHeader aria-label="simple table" className="fixed-layout-table">
+                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                             {activeTab === 'chupHinh' ? (
                                 <TableRow>
                                     <TableCell align='center' style={{ width: 40 }}>STT</TableCell>
@@ -1287,7 +1447,49 @@ function LichCuaHang() {
                             </Select>
                         </FormControl>
 
+                        <FormControl fullWidth variant="outlined">
+                            <InputLabel id="confirm-tho-chup-label">Thợ chụp hình</InputLabel>
+                            <Select
+                                labelId="confirm-tho-chup-label"
+                                value={confirmThoChupHinh}
+                                onChange={(e) => setConfirmThoChupHinh(e.target.value)}
+                                label="Thợ chụp hình"
+                            >
+                                <MenuItem value="">Chưa phân công</MenuItem>
+                                {(() => {
+                                    const staff = listStaff.filter(s => s.positon === 'Thợ chụp hình');
+                                    const names = staff.map(s => s.fullname || s.username);
+                                    if (confirmThoChupHinh && !names.includes(confirmThoChupHinh)) {
+                                        names.push(confirmThoChupHinh);
+                                    }
+                                    return names.map((name, i) => (
+                                        <MenuItem key={i} value={name}>{name}</MenuItem>
+                                    ));
+                                })()}
+                            </Select>
+                        </FormControl>
 
+                        <FormControl fullWidth variant="outlined">
+                            <InputLabel id="confirm-tho-makeup-label">Thợ makeup</InputLabel>
+                            <Select
+                                labelId="confirm-tho-makeup-label"
+                                value={confirmThoMakeUp}
+                                onChange={(e) => setConfirmThoMakeUp(e.target.value)}
+                                label="Thợ makeup"
+                            >
+                                <MenuItem value="">Chưa phân công</MenuItem>
+                                {(() => {
+                                    const staff = listStaff.filter(s => s.positon === 'Thợ trang điểm');
+                                    const names = staff.map(s => s.fullname || s.username);
+                                    if (confirmThoMakeUp && !names.includes(confirmThoMakeUp)) {
+                                        names.push(confirmThoMakeUp);
+                                    }
+                                    return names.map((name, i) => (
+                                        <MenuItem key={i} value={name}>{name}</MenuItem>
+                                    ));
+                                })()}
+                            </Select>
+                        </FormControl>
 
                         <TextField
                             label="Địa điểm chụp"
@@ -1327,13 +1529,27 @@ function LichCuaHang() {
                 </DialogTitle>
                 <DialogContent dividers>
                     <Box display="flex" flexDirection="column" gap={2} mt={1}>
-                        <TextField
-                            label="Thợ chỉnh ảnh"
-                            variant="outlined"
-                            fullWidth
-                            value={confirmThoChinhAnh}
-                            onChange={(e) => setConfirmThoChinhAnh(e.target.value)}
-                        />
+                        <FormControl fullWidth variant="outlined">
+                            <InputLabel id="confirm-tho-chinh-anh-label">Thợ chỉnh ảnh</InputLabel>
+                            <Select
+                                labelId="confirm-tho-chinh-anh-label"
+                                value={confirmThoChinhAnh}
+                                onChange={(e) => setConfirmThoChinhAnh(e.target.value)}
+                                label="Thợ chỉnh ảnh"
+                            >
+                                <MenuItem value="">Chưa phân công</MenuItem>
+                                {(() => {
+                                    const staff = listStaff.filter(s => s.positon === 'Thợ chỉnh ảnh');
+                                    const names = staff.map(s => s.fullname || s.username);
+                                    if (confirmThoChinhAnh && !names.includes(confirmThoChinhAnh)) {
+                                        names.push(confirmThoChinhAnh);
+                                    }
+                                    return names.map((name, i) => (
+                                        <MenuItem key={i} value={name}>{name}</MenuItem>
+                                    ));
+                                })()}
+                            </Select>
+                        </FormControl>
 
                         <TextField
                             label="Ngày bắt đầu hậu kỳ"
@@ -1385,9 +1601,38 @@ function LichCuaHang() {
                                 toast.error("Vui lòng nhập đường dẫn ảnh chỉnh sửa trước khi chuyển sang in ảnh!");
                                 return;
                             }
-                            setTempDanhSachAnhIn(selectedHauKyContract?.danhSachAnhIn || []);
+                            
+                            let initialList = [];
+                            if (selectedHauKyContract?.danhSachAnhIn && selectedHauKyContract.danhSachAnhIn.length > 0) {
+                                initialList = [...selectedHauKyContract.danhSachAnhIn];
+                            } else if (selectedHauKyContract && Array.isArray(selectedHauKyContract.gioHang)) {
+                                let q16x21 = 0;
+                                let q20x30 = 0;
+                                let q60x90 = 0;
+                                
+                                selectedHauKyContract.gioHang.forEach(item => {
+                                    const qty = item.soLuong || 1;
+                                    q16x21 += (Number(item.soLuongAnh16x21) || 0) * qty;
+                                    q20x30 += (Number(item.soLuongAnh20x30) || 0) * qty;
+                                    q60x90 += (Number(item.soLuongAnh60x90) || 0) * qty;
+                                });
+                                
+                                if (q16x21 > 0) {
+                                    initialList.push({ kichThuoc: "16x21", soLuong: q16x21 });
+                                }
+                                if (q20x30 > 0) {
+                                    initialList.push({ kichThuoc: "20x30", soLuong: q20x30 });
+                                }
+                                if (q60x90 > 0) {
+                                    initialList.push({ kichThuoc: "60x90", soLuong: q60x90 });
+                                }
+                            }
+                            
+                            setTempDanhSachAnhIn(initialList);
                             setTempKichThuoc("");
                             setTempSoLuong(1);
+                            setNewlyAddedPhotos([]);
+                            setSelectedDichVuOption(null);
                             setOpenInAnhInputDialog(true);
                         }} variant="contained" color="warning">
                             Chuyển sang in ảnh
@@ -1407,45 +1652,98 @@ function LichCuaHang() {
                 <DialogContent dividers>
                     <Box display="flex" flexDirection="column" gap={2} mt={1}>
                         <p style={{ fontSize: '0.9rem', color: '#555', margin: 0 }}>
-                            Nhập danh sách kích thước và số lượng ảnh cần in ấn:
+                            Chọn dịch vụ ảnh từ danh sách hoặc nhập kích thước tự do:
                         </p>
-                        <Box display="flex" gap={1}>
-                            <TextField
-                                label="Kích thước (ví dụ: 60x90, 30x45)"
-                                variant="outlined"
-                                value={tempKichThuoc}
-                                onChange={(e) => setTempKichThuoc(e.target.value)}
-                                size="small"
-                                style={{ flex: 2 }}
-                            />
-                            <TextField
-                                label="Số lượng"
-                                type="number"
-                                variant="outlined"
-                                value={tempSoLuong}
-                                onChange={(e) => setTempSoLuong(Math.max(1, parseInt(e.target.value) || 1))}
-                                size="small"
-                                style={{ flex: 1 }}
-                                inputProps={{ min: 1 }}
-                            />
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                onClick={() => {
-                                    if (!tempKichThuoc.trim()) {
-                                        toast.warning("Vui lòng nhập kích thước!");
-                                        return;
+                        <Box display="flex" flexDirection="column" gap={1.5}>
+                            <Autocomplete
+                                options={listDichVu}
+                                getOptionLabel={(option) => `${option.tenDichVu} (${option.maDichVu}) - ${Number(option.giaChoThueDichVu || 0).toLocaleString("vi-VN")}đ`}
+                                value={selectedDichVuOption}
+                                onChange={(event, newValue) => {
+                                    setSelectedDichVuOption(newValue);
+                                    if (newValue) {
+                                        setTempKichThuoc(newValue.tenDichVu);
                                     }
-                                    setTempDanhSachAnhIn([
-                                        ...tempDanhSachAnhIn,
-                                        { kichThuoc: tempKichThuoc.trim(), soLuong: tempSoLuong }
-                                    ]);
-                                    setTempKichThuoc("");
-                                    setTempSoLuong(1);
                                 }}
-                            >
-                                Thêm
-                            </Button>
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="Tìm kiếm dịch vụ ảnh"
+                                        variant="outlined"
+                                        size="small"
+                                    />
+                                )}
+                                fullWidth
+                            />
+                            <Box display="flex" gap={1}>
+                                <TextField
+                                    label="Kích thước / Tên dịch vụ ảnh"
+                                    variant="outlined"
+                                    value={tempKichThuoc}
+                                    onChange={(e) => setTempKichThuoc(e.target.value)}
+                                    size="small"
+                                    style={{ flex: 2 }}
+                                />
+                                <TextField
+                                    label="Số lượng"
+                                    type="number"
+                                    variant="outlined"
+                                    value={tempSoLuong}
+                                    onChange={(e) => setTempSoLuong(Math.max(1, parseInt(e.target.value) || 1))}
+                                    size="small"
+                                    style={{ flex: 1 }}
+                                    inputProps={{ min: 1 }}
+                                />
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={() => {
+                                        if (!tempKichThuoc.trim()) {
+                                            toast.warning("Vui lòng nhập kích thước hoặc chọn dịch vụ!");
+                                            return;
+                                        }
+                                        setTempDanhSachAnhIn([
+                                            ...tempDanhSachAnhIn,
+                                            {
+                                                kichThuoc: tempKichThuoc.trim(),
+                                                soLuong: tempSoLuong,
+                                                dichVuId: selectedDichVuOption?._id || null,
+                                                donGia: selectedDichVuOption?.giaChoThueDichVu || 0
+                                            }
+                                        ]);
+                                        if (selectedDichVuOption) {
+                                            setNewlyAddedPhotos([
+                                                ...newlyAddedPhotos,
+                                                {
+                                                    dichVu: selectedDichVuOption._id,
+                                                    tenDichVuSnapshot: selectedDichVuOption.tenDichVu,
+                                                    maDichVu: selectedDichVuOption.maDichVu,
+                                                    donGia: Number(selectedDichVuOption.giaChoThueDichVu) || 0,
+                                                    soLuong: tempSoLuong,
+                                                    loaiDichVu: selectedDichVuOption.loaiDichVu,
+                                                    soLuongAnhChinhSua: Number(selectedDichVuOption.soLuongAnhChinhSua) || 0,
+                                                    soLuongAnh16x21: Number(selectedDichVuOption.soLuongAnh16x21) || 0,
+                                                    soLuongAnh20x30: Number(selectedDichVuOption.soLuongAnh20x30) || 0,
+                                                    soLuongAnh60x90: Number(selectedDichVuOption.soLuongAnh60x90) || 0,
+                                                    trangDiemNgayAnHoi: selectedDichVuOption.trangDiemNgayAnHoi || "",
+                                                    trangDiemNgayCuoi: selectedDichVuOption.trangDiemNgayCuoi || "",
+                                                    trangPhucChoDoiBeLe: selectedDichVuOption.trangPhucChoDoiBeLe || "",
+                                                    trangPhucCoDauNgayAnHoi: selectedDichVuOption.trangPhucCoDauNgayAnHoi || "",
+                                                    trangPhucChuReNgayAnHoi: selectedDichVuOption.trangPhucChuReNgayAnHoi || "",
+                                                    trangPhucVayCuoiNgayCuoi: selectedDichVuOption.trangPhucVayCuoiNgayCuoi || "",
+                                                    trangPhucVestChuReNgayCuoi: selectedDichVuOption.trangPhucVestChuReNgayCuoi || "",
+                                                    hoaCamTay: selectedDichVuOption.hoaCamTay || ""
+                                                }
+                                            ]);
+                                        }
+                                        setTempKichThuoc("");
+                                        setTempSoLuong(1);
+                                        setSelectedDichVuOption(null);
+                                    }}
+                                >
+                                    Thêm
+                                </Button>
+                            </Box>
                         </Box>
 
                         <Box style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '8px' }}>
@@ -1472,7 +1770,11 @@ function LichCuaHang() {
                                                         size="small"
                                                         color="error"
                                                         onClick={() => {
+                                                            const itemToDelete = tempDanhSachAnhIn[idx];
                                                             setTempDanhSachAnhIn(tempDanhSachAnhIn.filter((_, i) => i !== idx));
+                                                            if (itemToDelete.dichVuId) {
+                                                                setNewlyAddedPhotos(newlyAddedPhotos.filter(p => p.dichVu !== itemToDelete.dichVuId));
+                                                            }
                                                         }}
                                                     >
                                                         Xóa
@@ -1570,23 +1872,7 @@ function LichCuaHang() {
                         </Button>
                         <Button
                             onClick={() => {
-                                showLoading("Đang chuyển trạng thái sang hoàn thành...");
-                                otherService.UPDATE_HOPDONG({
-                                    maHopDong: selectedInAnhContract.maHopDong,
-                                    giaiDoan: 5
-                                })
-                                .then(() => {
-                                    toast.success("Hợp đồng đã hoàn thành!");
-                                    setOpenInAnhViewDialog(false);
-                                    setSelectedInAnhContract(null);
-                                    loadHopDong(activeTab, selectedTime?.id, searchInput);
-                                    hideLoading();
-                                })
-                                .catch((error) => {
-                                    console.error(error);
-                                    toast.error("Có lỗi xảy ra: " + (error.response?.data?.message || error.message));
-                                    hideLoading();
-                                });
+                                triggerCompleteContract(selectedInAnhContract);
                             }}
                             variant="contained"
                             color="success"
@@ -1594,6 +1880,60 @@ function LichCuaHang() {
                             Bàn giao & Hoàn thành
                         </Button>
                     </Box>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog Thanh toán khi hoàn thành */}
+            <Dialog open={openPaymentDialog} onClose={() => setOpenPaymentDialog(false)} maxWidth="xs" fullWidth>
+                <DialogTitle style={{ fontWeight: 'bold', color: '#e74c3c' }}>
+                    HỢP ĐỒNG CHƯA THANH TOÁN HẾT
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Box display="flex" flexDirection="column" gap={2} mt={1}>
+                        <p style={{ margin: 0, fontSize: '0.95rem' }}>
+                            Hợp đồng <strong>{paymentContract?.maHopDong}</strong> còn lại: <strong style={{ color: 'red' }}>{Number(paymentContract?.thanhToan?.conLai || 0).toLocaleString("vi-VN")}đ</strong> chưa thanh toán.
+                        </p>
+                        <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>
+                            Vui lòng nhập số tiền thanh toán để hoàn thành hợp đồng:
+                        </p>
+                        <TextField
+                            label="Số tiền thanh toán"
+                            type="number"
+                            variant="outlined"
+                            fullWidth
+                            value={paymentAmount}
+                            onChange={(e) => setPaymentAmount(Math.max(0, Number(e.target.value) || 0))}
+                            inputProps={{ max: paymentContract?.thanhToan?.conLai || 0 }}
+                        />
+                        <FormControl fullWidth variant="outlined">
+                            <InputLabel id="payment-method-label">Phương thức thanh toán</InputLabel>
+                            <Select
+                                labelId="payment-method-label"
+                                value={paymentMethod}
+                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                label="Phương thức thanh toán"
+                            >
+                                <MenuItem value="Tiền mặt">Tiền mặt</MenuItem>
+                                <MenuItem value="Chuyển khoản">Chuyển khoản</MenuItem>
+                                <MenuItem value="Thẻ">Thẻ</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <TextField
+                            label="Nội dung thanh toán"
+                            variant="outlined"
+                            fullWidth
+                            value={paymentNote}
+                            onChange={(e) => setPaymentNote(e.target.value)}
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions style={{ padding: '16px 24px' }}>
+                    <Button onClick={() => setOpenPaymentDialog(false)} color="inherit">
+                        Hủy
+                    </Button>
+                    <Button onClick={handleConfirmPaymentAndComplete} variant="contained" color="success">
+                        Thanh toán & Hoàn thành
+                    </Button>
                 </DialogActions>
             </Dialog>
 

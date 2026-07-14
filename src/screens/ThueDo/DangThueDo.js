@@ -93,13 +93,16 @@ const SubmitButton = styled.button`
 
 
 const TableContainer = styled.div`
-  overflow-x: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: calc(100vh - 280px);
 `;
 
 const StyledTable = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  table-layout: fixed;
 `;
 
 const Th = styled.th`
@@ -108,6 +111,9 @@ const Th = styled.th`
   border: 1px solid #ccc;
   text-align: center;
   font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 `;
 
 const Td = styled.td`

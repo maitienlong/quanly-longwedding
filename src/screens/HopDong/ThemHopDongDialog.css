@@ -177,6 +177,25 @@ h4 {
   box-sizing: border-box;
 }
 
+.floating-label select {
+  width: 100%;
+  padding: 12px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 1rem;
+  outline: none;
+  background-color: #fff;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  height: 46px; /* Match standard input height */
+}
+
+.floating-label select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.1);
+}
+
+
 .floating-label label {
   position: absolute;
   top: -10px;

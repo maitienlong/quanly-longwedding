@@ -226,19 +226,19 @@ function HopDongKhachHang() {
             </div>
 
             {/* ===== DANH SÁCH HỢP ĐỒNG ===== */}
-            <TableContainer component={Paper}>
-                <Table aria-label="simple table">
+            <TableContainer component={Paper} style={{ maxHeight: 'calc(100vh - 280px)', overflow: 'auto' }}>
+                <Table stickyHeader aria-label="simple table">
 
-                    <TableHead>
+                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                         <TableRow>
-                            <TableCell align='center' style={{ width: 20 }}>STT</TableCell>
-                            <TableCell align='center' style={{ width: 20 }}>MÃ SỐ HĐ</TableCell>
-                            <TableCell align='center' style={{ width: 100 }}>TÊN KHÁCH HÀNG</TableCell>
-                            <TableCell style={{ width: 100 }}>LIÊN HỆ</TableCell>
-                            <TableCell align='center' style={{ width: 100 }}>DỊCH VỤ</TableCell>
-                            <TableCell align='center' style={{ width: 20 }}>TRẠNG THÁI</TableCell>
-                            <TableCell align='center' style={{ width: 100 }}>NGÀY HỢP ĐỒNG</TableCell>
-                            <TableCell align='center' style={{ width: 100 }}>NGÀY CHỤP</TableCell>
+                            <TableCell align='center' style={{ width: '5%' }}>STT</TableCell>
+                            <TableCell align='center' style={{ width: '10%' }}>MÃ SỐ HĐ</TableCell>
+                            <TableCell style={{ width: '20%' }}>TÊN KHÁCH HÀNG</TableCell>
+                            <TableCell style={{ width: '15%' }}>LIÊN HỆ</TableCell>
+                            <TableCell align='center' style={{ width: '15%' }}>DỊCH VỤ</TableCell>
+                            <TableCell align='center' style={{ width: '15%' }}>TRẠNG THÁI</TableCell>
+                            <TableCell align='center' style={{ width: '10%' }}>NGÀY HỢP ĐỒNG</TableCell>
+                            <TableCell align='center' style={{ width: '10%' }}>NGÀY CHỤP</TableCell>
                         </TableRow>
                     </TableHead>
 
@@ -261,9 +261,9 @@ function HopDongKhachHang() {
                                         handleClickOpenDetailDialog();
                                     }}
                                 >
-                                    <TableCell align='center' style={{ width: 20 }}>{index + 1}</TableCell>
-                                    <TableCell align='center' style={{ width: 20 }}>{hd.maHopDong}</TableCell>
-                                    <TableCell align='left' style={{ width: 100 }}>
+                                    <TableCell align='center'>{index + 1}</TableCell>
+                                    <TableCell align='center'>{hd.maHopDong}</TableCell>
+                                    <TableCell align='left'>
                                         {hd.khachHang1?.tenKhachHang}
                                         {hd.khachHang2?.tenKhachHang && (
                                             <>
@@ -273,7 +273,7 @@ function HopDongKhachHang() {
                                             </>
                                         )}
                                     </TableCell>
-                                    <TableCell align='left' style={{ width: 100 }}>
+                                    <TableCell align='left'>
                                         {hd.khachHang1?.soDienThoai}
                                         {hd.khachHang2?.soDienThoai && (
                                             <>
@@ -282,9 +282,9 @@ function HopDongKhachHang() {
                                             </>
                                         )}
                                     </TableCell>
-                                    <TableCell align='center' style={{ width: 100 }}>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
-                                    <TableCell align='center' style={{ width: 20 }}><span style={{ fontWeight: '600', fontSize: '0.85rem' }}>{convertTrangThai(hd.giaiDoan)}</span></TableCell>
-                                    <TableCell align='center' style={{ width: 100 }}>
+                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
+                                    <TableCell align='center'><span style={{ fontWeight: '600', fontSize: '0.85rem' }}>{convertTrangThai(hd.giaiDoan)}</span></TableCell>
+                                    <TableCell align='center'>
                                         {hd.ngayHopDong ? (
                                             <>
                                                 <div>{formatDate(hd.ngayHopDong)}</div>
@@ -294,7 +294,7 @@ function HopDongKhachHang() {
                                             </>
                                         ) : "-"}
                                     </TableCell>
-                                    <TableCell align='center' style={{ width: 100 }}>
+                                    <TableCell align='center'>
                                         {hd.cacNgay?.ngayChup ? (
                                             <>
                                                 <div>{formatDate(hd.cacNgay.ngayChup)}</div>
