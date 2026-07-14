@@ -19,6 +19,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import { formatDate } from '../utils/convertDate';
 import logoVang from '../../assets/logo/BETA-1 VANG@4x.png';
+import { formatLunarDateFull } from '../../utils/lunarDateUtils';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faFileContract,
@@ -1163,6 +1164,11 @@ function DetailHopDongKhachHangDialog(props) {
                                                 format="DD/MM/YYYY HH:mm"
                                             />
                                         </LocalizationProvider>
+                                        {ngayChup && (
+                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                Âm lịch: {formatLunarDateFull(ngayChup)}
+                                            </div>
+                                        )}
 
                                         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
                                             <DateTimePicker
@@ -1179,11 +1185,21 @@ function DetailHopDongKhachHangDialog(props) {
                                                 format="DD/MM/YYYY HH:mm"
                                             />
                                         </LocalizationProvider>
+                                        {ngayAnHoi && (
+                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                Âm lịch: {formatLunarDateFull(ngayAnHoi)}
+                                            </div>
+                                        )}
 
                                         <div className="floating-label" style={{ marginTop: '5px' }}>
                                             <input type="date" name="ngayChinhAnh" value={ngayChinhAnh} onChange={(e) => setNgayChinhAnh(e.target.value)} />
                                             <label>Ngày bắt đầu hậu kỳ</label>
                                         </div>
+                                        {ngayChinhAnh && (
+                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                Âm lịch: {formatLunarDateFull(ngayChinhAnh)}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -1202,6 +1218,11 @@ function DetailHopDongKhachHangDialog(props) {
                                                 format="DD/MM/YYYY HH:mm"
                                             />
                                         </LocalizationProvider>
+                                        {ngayCuoi && (
+                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                Âm lịch: {formatLunarDateFull(ngayCuoi)}
+                                            </div>
+                                        )}
 
                                         <div className="floating-label" style={{ marginTop: '0px' }}>
                                             <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />
@@ -1212,6 +1233,11 @@ function DetailHopDongKhachHangDialog(props) {
                                             <input type="date" name="ngayTraAnh" value={ngayTraAnh} onChange={(e) => setNgayTraAnh(e.target.value)} />
                                             <label>Ngày trả ảnh</label>
                                         </div>
+                                        {ngayTraAnh && (
+                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                Âm lịch: {formatLunarDateFull(ngayTraAnh)}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

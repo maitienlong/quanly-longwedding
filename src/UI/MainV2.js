@@ -11,17 +11,15 @@ import DoanhThu from "../screens/DoanhThu/DoanhThu";
 import QuanLyKho from "../screens/QuanLyKho/QuanLyKho";
 import QuanLyNhanVien from "../screens/QuanLyNhanVien/QuanLyNhanVien";
 import QuanLyKhachHang from "../screens/QuanLyKhachHang/QuanLyKhachHang";
-import { Routes, Route, Link } from 'react-router-dom';
+import QuanLyWebsite from "../screens/QuanLyWebsite/QuanLyWebsite";
+import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../screens/Login/AuthContext/AuthContext';
 import { toast } from 'sonner';
 
 function MainV2() {
     const navigate = useNavigate();
     const [showDialog, setShowDialog] = useState(false);
-    const [user, setUser] = useState(
-        localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null
-    );
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
 
     const [ctime, setTime] = useState(new Date().toLocaleTimeString());
     const [cdate, setDate] = useState(new Date().toLocaleDateString());
@@ -40,6 +38,38 @@ function MainV2() {
         logout();
         toast.success("Đăng xuất thành công!");
         navigate('/login');
+    };
+
+    // Hàm kiểm tra quyền truy cập route/chức năng
+    const hasAccess = (path) => {
+        const role = user?.positon || "";
+        if (role === "Quản lý") return true;
+
+        if (role === "Nhân viên Sale") {
+            return [
+                "/hop-dong-khach-hang",
+                "/lich-cua-hang",
+                "/lich-soan-do",
+                "/quan-ly-kho",
+                "/quan-ly-khach-hang",
+                "/quan-ly-website"
+            ].includes(path);
+        }
+
+        if (["Thợ chụp hình", "Thợ trang điểm", "Thợ chỉnh ảnh"].includes(role)) {
+            return ["/lich-cua-hang"].includes(path);
+        }
+
+        return false;
+    };
+
+    // Xác định trang đích mặc định của user dựa trên chức vụ
+    const getDefaultPath = () => {
+        const role = user?.positon || "";
+        if (role === "Quản lý" || role === "Nhân viên Sale") {
+            return "/hop-dong-khach-hang";
+        }
+        return "/lich-cua-hang";
     };
 
     return (
@@ -67,14 +97,33 @@ function MainV2() {
 
                     <nav className="sidebar-nav">
                         <ul>
-                            <li><Link to="/hop-dong-khach-hang"><i className="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
-                            <li><Link to="/lich-cua-hang"><i className="fa-solid fa-calendar-days"></i> LỊCH CỬA HÀNG</Link></li>
-                            <li><Link to="/lich-soan-do"><i className="fa-solid fa-shirt"></i> LỊCH SOẠN ĐỒ</Link></li>
-                            <li><Link to="/quan-ly-chi-tieu"><i className="fa-solid fa-cash-register"></i> QUẢN LÝ CHI TIÊU</Link></li>
-                            <li><Link to="/bao-cao-doanh-thu"><i className="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
-                            <li><Link to="/quan-ly-kho"><i className="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
-                            <li><Link to="/quan-ly-nhan-vien"><i className="fa-solid fa-users-gear"></i> QUẢN LÝ NHÂN VIÊN</Link></li>
-                            <li><Link to="/quan-ly-khach-hang"><i className="fa-solid fa-users"></i> QUẢN LÝ KHÁCH HÀNG</Link></li>
+                            {hasAccess("/hop-dong-khach-hang") && (
+                                <li><Link to="/hop-dong-khach-hang"><i className="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
+                            )}
+                            {hasAccess("/lich-cua-hang") && (
+                                <li><Link to="/lich-cua-hang"><i className="fa-solid fa-calendar-days"></i> LỊCH CỬA HÀNG</Link></li>
+                            )}
+                            {hasAccess("/lich-soan-do") && (
+                                <li><Link to="/lich-soan-do"><i className="fa-solid fa-shirt"></i> LỊCH SOẠN ĐỒ</Link></li>
+                            )}
+                            {hasAccess("/quan-ly-chi-tieu") && (
+                                <li><Link to="/quan-ly-chi-tieu"><i className="fa-solid fa-cash-register"></i> QUẢN LÝ CHI TIÊU</Link></li>
+                            )}
+                            {hasAccess("/bao-cao-doanh-thu") && (
+                                <li><Link to="/bao-cao-doanh-thu"><i className="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
+                            )}
+                            {hasAccess("/quan-ly-kho") && (
+                                <li><Link to="/quan-ly-kho"><i className="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
+                            )}
+                            {hasAccess("/quan-ly-nhan-vien") && (
+                                <li><Link to="/quan-ly-nhan-vien"><i className="fa-solid fa-users-gear"></i> QUẢN LÝ NHÂN VIÊN</Link></li>
+                            )}
+                            {hasAccess("/quan-ly-khach-hang") && (
+                                <li><Link to="/quan-ly-khach-hang"><i className="fa-solid fa-users"></i> QUẢN LÝ KHÁCH HÀNG</Link></li>
+                            )}
+                            {hasAccess("/quan-ly-website") && (
+                                <li><Link to="/quan-ly-website"><i className="fa-solid fa-globe"></i> QUẢN LÝ WEBSITE</Link></li>
+                            )}
                         </ul>
                     </nav>
 
@@ -83,7 +132,7 @@ function MainV2() {
                         <i className="fa-solid fa-user-circle"></i>
                         <div className="user-info">
                             <p className="user-name">{user?.fullname || "Người dùng"}</p>
-                            <p className="user-role">{user?.positon || "Chức vụ"}</p>
+                            <p className="user-role">{user?.positon || user?.position || "Chức vụ"}</p>
                         </div>
                     </div>
                 </aside>
@@ -95,14 +144,17 @@ function MainV2() {
 
                     <div className="content-wrapper">
                         <Routes>
-                            <Route path="/hop-dong-khach-hang" element={<HopDongKhachHang />} />
-                            <Route path="/lich-cua-hang" element={<LichCuaHang />} />
-                            <Route path="/quan-ly-chi-tieu" element={<QuanLyChiTieu />} />
-                            <Route path="/lich-soan-do" element={<LichSoanDo />} />
-                            <Route path="/bao-cao-doanh-thu" element={<DoanhThu />} />
-                            <Route path="/quan-ly-kho" element={<QuanLyKho />} />
-                            <Route path="/quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
-                            <Route path="/quan-ly-khach-hang" element={<QuanLyKhachHang />} />
+                            <Route path="/" element={<Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/hop-dong-khach-hang" element={hasAccess("/hop-dong-khach-hang") ? <HopDongKhachHang /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/lich-cua-hang" element={hasAccess("/lich-cua-hang") ? <LichCuaHang /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/quan-ly-chi-tieu" element={hasAccess("/quan-ly-chi-tieu") ? <QuanLyChiTieu /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/lich-soan-do" element={hasAccess("/lich-soan-do") ? <LichSoanDo /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/bao-cao-doanh-thu" element={hasAccess("/bao-cao-doanh-thu") ? <DoanhThu /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/quan-ly-kho" element={hasAccess("/quan-ly-kho") ? <QuanLyKho /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/quan-ly-nhan-vien" element={hasAccess("/quan-ly-nhan-vien") ? <QuanLyNhanVien /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/quan-ly-khach-hang" element={hasAccess("/quan-ly-khach-hang") ? <QuanLyKhachHang /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/quan-ly-website" element={hasAccess("/quan-ly-website") ? <QuanLyWebsite /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="*" element={<Navigate to={getDefaultPath()} replace />} />
                         </Routes>
                     </div>
 
@@ -128,7 +180,7 @@ function MainV2() {
                         />
                         <h2>{user?.fullname || "Tên người dùng"}</h2>
                         <p><strong>Ngày sinh:</strong> {user?.birthday || "01/01/1990"}</p>
-                        <p><strong>Chức vụ:</strong> {user?.position || "Nhân viên"}</p>
+                        <p><strong>Chức vụ:</strong> {user?.positon || user?.position || "Nhân viên"}</p>
 
                         <button className="logout-btn" onClick={handleLogout}>
                             Đăng xuất

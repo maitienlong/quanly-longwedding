@@ -11,3 +11,8 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Fix Mui Input/TextField width bug (caused by global input[type="text"] styles) */
+.MuiInputBase-root input {
+  width: 100% !important;
+}

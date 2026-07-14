@@ -14,7 +14,6 @@ import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import DetailHopDongKhachHangDialog from '../HopDong/DetailHopDongKhachHangDialog';
 
-// Import các components dialog của Material UI
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -27,6 +26,12 @@ import MenuItem from '@mui/material/MenuItem';
 import Box from '@mui/material/Box';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import Tooltip from '@mui/material/Tooltip';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
+
+import { formatLunarDateShort, getDetailedLunarInfo, convertLunarToSolar } from '../../utils/lunarDateUtils';
 
 const getDichVuChinhLabel = (id) => {
     const options = {
@@ -114,6 +119,31 @@ function LichCuaHang() {
     const todayDate = new Date();
     const [currentMonth, setCurrentMonth] = useState(todayDate.getMonth()); // 0 - 11
     const [currentYear, setCurrentYear] = useState(todayDate.getFullYear());
+
+    // Lịch âm
+    const [showLunar, setShowLunar] = useState(() => {
+        const saved = localStorage.getItem('showLunarCalendar');
+        return saved !== null ? saved === 'true' : true;
+    });
+
+    // Dialog tra cứu lịch âm
+    const [openLunarLookup, setOpenLunarLookup] = useState(false);
+    const [lookupSolarDate, setLookupSolarDate] = useState(() => {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    });
+
+    // State tra cứu ngược âm sang dương
+    const [lookupLunarDay, setLookupLunarDay] = useState(1);
+    const [lookupLunarMonth, setLookupLunarMonth] = useState(1);
+    const [lookupLunarYear, setLookupLunarYear] = useState(todayDate.getFullYear());
+    const [lookupLunarLeap, setLookupLunarLeap] = useState(false);
+    const [lookupTab, setLookupTab] = useState(0); // 0: Solar -> Lunar, 1: Lunar -> Solar
+
+    useEffect(() => {
+        localStorage.setItem('showLunarCalendar', showLunar);
+    }, [showLunar]);
 
     // Tab quản lý
     const [activeTab, setActiveTab] = useState('chupHinh'); // 'chupHinh', 'hauKy', hoặc 'anHoiVaCuoi'
@@ -586,7 +616,19 @@ function LichCuaHang() {
                     <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 'bold', color: '#1976d2' }}>
                         Tháng {currentMonth + 1} năm {currentYear}
                     </h3>
-                    <Box width="100px"></Box> {/* Giữ cân bằng layout */}
+                    <Box display="flex" alignItems="center">
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={showLunar}
+                                    onChange={(e) => setShowLunar(e.target.checked)}
+                                    color="primary"
+                                    size="small"
+                                />
+                            }
+                            label={<span style={{ fontSize: '0.85rem', fontWeight: '500', color: '#5f6368' }}>Lịch âm</span>}
+                        />
+                    </Box>
                 </Box>
 
                 {/* Lưới ngày và thứ */}
@@ -616,85 +658,121 @@ function LichCuaHang() {
                     {daysGrid.map((day, idx) => {
                         const dayEvents = getEventsForDay(day.date);
                         const isDayToday = isToday(day.date);
-                        
+                        const lunarInfo = getDetailedLunarInfo(day.date);
+
                         let dayLabel = `${day.dayNum}`;
                         if (day.dayNum === 1) {
                             dayLabel = `1 thg ${day.monthNum + 1}`;
                         }
-                        
-                        return (
-                            <Box 
-                                key={idx}
-                                borderRight="1px solid #dadce0"
-                                borderBottom="1px solid #dadce0"
-                                padding="8px"
-                                backgroundColor={day.isCurrentMonth ? '#fff' : '#f8f9fa'}
-                                display="flex"
-                                flexDirection="column"
-                                style={{ minHeight: '130px', position: 'relative' }}
-                            >
-                                {/* Ngày số */}
-                                <Box display="flex" justifyContent="flex-start" mb={1}>
-                                    {isDayToday ? (
-                                        <span style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            backgroundColor: '#1a73e8',
-                                            color: '#fff',
-                                            width: '28px',
-                                            height: '28px',
-                                            borderRadius: '50%',
-                                            fontSize: '0.85rem',
-                                            fontWeight: 'bold'
-                                        }}>
-                                            {day.dayNum}
-                                        </span>
-                                    ) : (
-                                        <span style={{
-                                            fontSize: '0.85rem',
-                                            fontWeight: day.isCurrentMonth ? '600' : 'normal',
-                                            color: day.isCurrentMonth ? (day.date.getDay() === 0 ? '#d32f2f' : '#3c4043') : '#70757a',
-                                            padding: '4px'
-                                        }}>
-                                            {dayLabel}
-                                        </span>
-                                    )}
-                                </Box>
 
-                                {/* Sự kiện trong ngày */}
-                                <Box 
-                                    flexGrow={1} 
-                                    display="flex" 
-                                    flexDirection="column" 
-                                    gap="5px"
-                                    style={{ overflowY: 'auto', maxHeight: '110px' }}
-                                >
-                                    {dayEvents.map((evt, eIdx) => (
-                                        <div
-                                            key={eIdx}
-                                            onClick={() => handleRowClick(evt.contract)}
-                                            style={{
-                                                backgroundColor: getEventBackground(evt.type),
-                                                color: getEventTextColor(evt.type),
-                                                borderLeft: `4px solid ${evt.color}`,
-                                                padding: '4px 8px',
-                                                borderRadius: '4px',
-                                                fontSize: '0.75rem',
-                                                fontWeight: '600',
-                                                cursor: 'pointer',
-                                                whiteSpace: 'nowrap',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                            }}
-                                            className="calendar-event-badge"
-                                            title={evt.label}
-                                        >
-                                            {evt.label}
-                                        </div>
-                                    ))}
-                                </Box>
+                        const tooltipTitle = lunarInfo ? (
+                            <Box style={{ padding: '8px', fontSize: '0.8rem', lineHeight: '1.4' }}>
+                                <div style={{ fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '4px', marginBottom: '6px', fontSize: '0.85rem' }}>
+                                    {lunarInfo.solarStr}
+                                </div>
+                                <div><strong>Âm lịch:</strong> {lunarInfo.fullLunarStr}</div>
+                                <div><strong>Can Chi:</strong> Ngày {lunarInfo.dayName}, tháng {lunarInfo.monthName}, năm {lunarInfo.yearName}</div>
+                                <div><strong>Tiết khí:</strong> {lunarInfo.solarTerm || 'Không có'}</div>
+                                <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px' }}>
+                                    <strong>Giờ hoàng đạo:</strong>
+                                    <div style={{ color: '#ffb74d', marginTop: '2px' }}>{lunarInfo.luckyHoursStr || 'Không có'}</div>
+                                </div>
                             </Box>
+                        ) : "";
+
+                        return (
+                            <Tooltip key={idx} title={tooltipTitle} arrow enterDelay={400} placement="top">
+                                <Box 
+                                    borderRight="1px solid #dadce0"
+                                    borderBottom="1px solid #dadce0"
+                                    padding="8px"
+                                    backgroundColor={day.isCurrentMonth ? '#fff' : '#f8f9fa'}
+                                    display="flex"
+                                    flexDirection="column"
+                                    style={{ minHeight: '130px', position: 'relative' }}
+                                >
+                                    {/* Ngày số & Ngày âm */}
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} width="100%">
+                                        <Box display="flex" alignItems="center">
+                                            {isDayToday ? (
+                                                <span style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    backgroundColor: '#1a73e8',
+                                                    color: '#fff',
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    borderRadius: '50%',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: 'bold'
+                                                }}>
+                                                    {day.dayNum}
+                                                </span>
+                                            ) : (
+                                                <span style={{
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: day.isCurrentMonth ? '600' : 'normal',
+                                                    color: day.isCurrentMonth ? (day.date.getDay() === 0 ? '#d32f2f' : '#3c4043') : '#70757a',
+                                                    padding: '4px'
+                                                }}>
+                                                    {dayLabel}
+                                                </span>
+                                            )}
+                                        </Box>
+
+                                        {showLunar && lunarInfo && (
+                                            <span style={{
+                                                fontSize: '0.72rem',
+                                                color: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? '#e67e22' : '#7f8c8d',
+                                                fontWeight: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? 'bold' : 'normal',
+                                                backgroundColor: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? '#fff3e0' : 'transparent',
+                                                padding: '1px 4px',
+                                                borderRadius: '4px',
+                                                border: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? '1px solid #ffe0b2' : 'none'
+                                            }}>
+                                                {lunarInfo.lunarDay === 1 
+                                                    ? `${lunarInfo.lunarDay}/${lunarInfo.lunarMonth}${lunarInfo.isLeapMonth ? 'N' : ''}` 
+                                                    : lunarInfo.lunarDay
+                                                }
+                                            </span>
+                                        )}
+                                    </Box>
+
+                                    {/* Sự kiện trong ngày */}
+                                    <Box 
+                                        flexGrow={1} 
+                                        display="flex" 
+                                        flexDirection="column" 
+                                        gap="5px"
+                                        style={{ overflowY: 'auto', maxHeight: '110px' }}
+                                    >
+                                        {dayEvents.map((evt, eIdx) => (
+                                            <div
+                                                key={eIdx}
+                                                onClick={() => handleRowClick(evt.contract)}
+                                                style={{
+                                                    backgroundColor: getEventBackground(evt.type),
+                                                    color: getEventTextColor(evt.type),
+                                                    borderLeft: `4px solid ${evt.color}`,
+                                                    padding: '4px 8px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: '600',
+                                                    cursor: 'pointer',
+                                                    whiteSpace: 'nowrap',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                }}
+                                                className="calendar-event-badge"
+                                                title={evt.label}
+                                            >
+                                                {evt.label}
+                                            </div>
+                                        ))}
+                                    </Box>
+                                </Box>
+                            </Tooltip>
                         );
                     })}
                 </Box>
@@ -895,6 +973,15 @@ function LichCuaHang() {
                             Lịch tháng
                         </ToggleButton>
                     </ToggleButtonGroup>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={() => setOpenLunarLookup(true)}
+                        sx={{ height: commonHeight, textTransform: 'none', fontWeight: 'bold' }}
+                    >
+                        <i className="fa-solid fa-circle-info" style={{ marginRight: '6px' }}></i>
+                        Tra cứu Lịch Âm
+                    </Button>
                 </Stack>
             </div>
 
@@ -989,7 +1076,14 @@ function LichCuaHang() {
                                                     color: isOverdue ? '#e53e3e' : 'inherit', 
                                                     fontWeight: isOverdue ? 'bold' : 'normal' 
                                                 }}>
-                                                    {formatDateTime(hd.cacNgay?.ngayChup) || "Chưa cập nhật"}
+                                                    {hd.cacNgay?.ngayChup ? (
+                                                        <>
+                                                            <div>{formatDateTime(hd.cacNgay.ngayChup)}</div>
+                                                            <div style={{ fontSize: '0.75rem', color: '#7f8c8d', marginTop: '3px' }}>
+                                                                (Âm: {formatLunarDateShort(hd.cacNgay.ngayChup)})
+                                                            </div>
+                                                        </>
+                                                    ) : "Chưa cập nhật"}
                                                     {isOverdue && (
                                                         <span style={{ display: 'block', fontSize: '0.75rem', color: '#e53e3e', fontWeight: 'bold', marginTop: '2px' }}>
                                                             (Trễ lịch)
@@ -1037,13 +1131,27 @@ function LichCuaHang() {
                                                         color: isPastToday(hd.cacNgay?.ngayAnHoi, hd.giaiDoan, activeTab) ? '#e53e3e' : 'inherit', 
                                                         fontWeight: isPastToday(hd.cacNgay?.ngayAnHoi, hd.giaiDoan, activeTab) ? 'bold' : 'normal' 
                                                     }}>
-                                                        {formatDateTime(hd.cacNgay?.ngayAnHoi) || "-"}
+                                                        {hd.cacNgay?.ngayAnHoi ? (
+                                                            <>
+                                                                <div>{formatDateTime(hd.cacNgay.ngayAnHoi)}</div>
+                                                                <div style={{ fontSize: '0.75rem', color: '#7f8c8d', marginTop: '3px' }}>
+                                                                    (Âm: {formatLunarDateShort(hd.cacNgay.ngayAnHoi)})
+                                                                </div>
+                                                            </>
+                                                        ) : "-"}
                                                     </TableCell>
                                                     <TableCell align='center' style={{ 
                                                         color: isPastToday(hd.cacNgay?.ngayCuoi, hd.giaiDoan, activeTab) ? '#e53e3e' : 'inherit', 
                                                         fontWeight: isPastToday(hd.cacNgay?.ngayCuoi, hd.giaiDoan, activeTab) ? 'bold' : 'normal' 
                                                     }}>
-                                                        {formatDateTime(hd.cacNgay?.ngayCuoi) || "-"}
+                                                        {hd.cacNgay?.ngayCuoi ? (
+                                                            <>
+                                                                <div>{formatDateTime(hd.cacNgay.ngayCuoi)}</div>
+                                                                <div style={{ fontSize: '0.75rem', color: '#7f8c8d', marginTop: '3px' }}>
+                                                                    (Âm: {formatLunarDateShort(hd.cacNgay.ngayCuoi)})
+                                                                </div>
+                                                            </>
+                                                        ) : "-"}
                                                     </TableCell>
                                                 </>
                                             )}
@@ -1486,6 +1594,225 @@ function LichCuaHang() {
                             Bàn giao & Hoàn thành
                         </Button>
                     </Box>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog Tra cứu Lịch Âm */}
+            <Dialog 
+                open={openLunarLookup} 
+                onClose={() => setOpenLunarLookup(false)} 
+                maxWidth="sm" 
+                fullWidth
+            >
+                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2', textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                    TRA CỨU & ĐỔI LỊCH ÂM DƯƠNG
+                </DialogTitle>
+                <DialogContent>
+                    {/* Tabs điều hướng tự chế cực đẹp */}
+                    <Box display="flex" justifyContent="center" gap={1} my={2}>
+                        <Button 
+                            variant={lookupTab === 0 ? "contained" : "outlined"} 
+                            color="primary"
+                            onClick={() => setLookupTab(0)}
+                            style={{ flex: 1, textTransform: 'none', fontWeight: 'bold' }}
+                        >
+                            Dương lịch ➔ Âm lịch
+                        </Button>
+                        <Button 
+                            variant={lookupTab === 1 ? "contained" : "outlined"} 
+                            color="primary"
+                            onClick={() => setLookupTab(1)}
+                            style={{ flex: 1, textTransform: 'none', fontWeight: 'bold' }}
+                        >
+                            Âm lịch ➔ Dương lịch
+                        </Button>
+                    </Box>
+
+                    {lookupTab === 0 ? (
+                        /* CHUYỂN DƯƠNG SANG ÂM */
+                        <Box display="flex" flexDirection="column" gap={2.5} mt={1}>
+                            <TextField
+                                label="Chọn ngày Dương lịch"
+                                type="date"
+                                variant="outlined"
+                                fullWidth
+                                value={lookupSolarDate}
+                                onChange={(e) => setLookupSolarDate(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                            />
+
+                            {(() => {
+                                const details = getDetailedLunarInfo(lookupSolarDate);
+                                if (!details) {
+                                    return <p style={{ textAlign: 'center', color: '#999' }}>Vui lòng chọn ngày hợp lệ.</p>;
+                                }
+                                return (
+                                    <Box 
+                                        p={2} 
+                                        style={{ 
+                                            backgroundColor: '#f8f9fa', 
+                                            borderRadius: '8px', 
+                                            border: '1px solid #e0e0e0',
+                                            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+                                        }}
+                                    >
+                                        <h4 style={{ margin: '0 0 12px 0', color: '#1976d2', borderBottom: '1px solid #ddd', paddingBottom: '6px' }}>
+                                            KẾT QUẢ TRA CỨU
+                                        </h4>
+                                        <Box display="flex" flexDirection="column" gap={1.2} style={{ fontSize: '0.95rem' }}>
+                                            <div>
+                                                <strong>Dương lịch:</strong> <span style={{ color: '#2c3e50', fontWeight: '600' }}>{details.solarStr}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Âm lịch:</strong> <span style={{ color: '#e67e22', fontWeight: 'bold' }}>{details.fullLunarStr}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Can Chi:</strong> Ngày <strong>{details.dayName}</strong>, tháng <strong>{details.monthName}</strong>, năm <strong>{details.yearName}</strong>
+                                            </div>
+                                            <div>
+                                                <strong>Tiết khí:</strong> <span style={{ color: '#16a34a', fontWeight: '500' }}>{details.solarTerm || 'Không có'}</span>
+                                            </div>
+                                            <div style={{ borderTop: '1px dotted #ccc', paddingTop: '10px', marginTop: '4px' }}>
+                                                <strong>Giờ hoàng đạo (Giờ lành):</strong>
+                                                <div style={{ color: '#d35400', marginTop: '4px', fontWeight: '500', lineHeight: '1.4' }}>
+                                                    {details.luckyHoursStr || 'Không có'}
+                                                </div>
+                                            </div>
+                                        </Box>
+                                    </Box>
+                                );
+                            })()}
+                        </Box>
+                    ) : (
+                        /* CHUYỂN ÂM SANG DƯƠNG */
+                        <Box display="flex" flexDirection="column" gap={2.5} mt={1}>
+                            <Box display="flex" gap={1.5}>
+                                <FormControl style={{ flex: 1 }}>
+                                    <InputLabel id="lunar-day-label">Ngày Âm</InputLabel>
+                                    <Select
+                                        labelId="lunar-day-label"
+                                        value={lookupLunarDay}
+                                        label="Ngày Âm"
+                                        onChange={(e) => setLookupLunarDay(e.target.value)}
+                                    >
+                                        {Array.from({ length: 30 }, (_, i) => i + 1).map(d => (
+                                            <MenuItem key={d} value={d}>{d}</MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                <FormControl style={{ flex: 1 }}>
+                                    <InputLabel id="lunar-month-label">Tháng Âm</InputLabel>
+                                    <Select
+                                        labelId="lunar-month-label"
+                                        value={lookupLunarMonth}
+                                        label="Tháng Âm"
+                                        onChange={(e) => setLookupLunarMonth(e.target.value)}
+                                    >
+                                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                            <MenuItem key={m} value={m}>{m}</MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                <TextField
+                                    label="Năm Âm"
+                                    type="number"
+                                    style={{ flex: 1.2 }}
+                                    value={lookupLunarYear}
+                                    onChange={(e) => setLookupLunarYear(parseInt(e.target.value) || new Date().getFullYear())}
+                                    inputProps={{ min: 1900, max: 2100 }}
+                                />
+                            </Box>
+
+                            <Box display="flex" alignItems="center">
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox 
+                                            checked={lookupLunarLeap} 
+                                            onChange={(e) => setLookupLunarLeap(e.target.checked)} 
+                                            color="primary"
+                                        />
+                                    }
+                                    label={<span style={{ fontSize: '0.9rem' }}>Tháng âm lịch nhuận</span>}
+                                />
+                            </Box>
+
+                            {(() => {
+                                const solarDateObj = convertLunarToSolar(lookupLunarDay, lookupLunarMonth, lookupLunarYear, lookupLunarLeap);
+                                if (!solarDateObj) {
+                                    return (
+                                        <Box p={2} style={{ backgroundColor: '#fff5f5', borderRadius: '8px', border: '1px solid #fed7d7', textAlign: 'center', color: '#c53030' }}>
+                                            Ngày âm lịch này không hợp lệ cho năm đã chọn. Vui lòng kiểm tra lại.
+                                        </Box>
+                                    );
+                                }
+                                
+                                const details = getDetailedLunarInfo(solarDateObj);
+                                if (!details) return null;
+
+                                return (
+                                    <Box 
+                                        p={2} 
+                                        style={{ 
+                                            backgroundColor: '#f8f9fa', 
+                                            borderRadius: '8px', 
+                                            border: '1px solid #e0e0e0',
+                                            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+                                        }}
+                                    >
+                                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} style={{ borderBottom: '1px solid #ddd', paddingBottom: '6px' }}>
+                                            <h4 style={{ margin: 0, color: '#1976d2' }}>
+                                                KẾT QUẢ ĐỔI NGÀY
+                                            </h4>
+                                            <Button 
+                                                variant="contained" 
+                                                color="success" 
+                                                size="small"
+                                                onClick={() => {
+                                                    // Đổi lịch tháng dương lịch sang tháng của ngày này
+                                                    setCurrentMonth(solarDateObj.getMonth());
+                                                    setCurrentYear(solarDateObj.getFullYear());
+                                                    setViewMode('calendar');
+                                                    setOpenLunarLookup(false);
+                                                    toast.success(`Đã chuyển lịch sang ${details.solarStr}`);
+                                                }}
+                                                style={{ textTransform: 'none', fontWeight: 'bold' }}
+                                            >
+                                                <i className="fa-solid fa-calendar-check" style={{ marginRight: '6px' }}></i>
+                                                Xem trên lịch
+                                            </Button>
+                                        </Box>
+                                        <Box display="flex" flexDirection="column" gap={1.2} style={{ fontSize: '0.95rem' }}>
+                                            <div>
+                                                <strong>Dương lịch tương ứng:</strong> <span style={{ color: '#1976d2', fontWeight: 'bold' }}>{details.solarStr}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Âm lịch:</strong> <span style={{ color: '#e67e22', fontWeight: '600' }}>{details.fullLunarStr}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Can Chi:</strong> Ngày <strong>{details.dayName}</strong>, tháng <strong>{details.monthName}</strong>, năm <strong>{details.yearName}</strong>
+                                            </div>
+                                            <div>
+                                                <strong>Tiết khí:</strong> <span style={{ color: '#16a34a', fontWeight: '500' }}>{details.solarTerm || 'Không có'}</span>
+                                            </div>
+                                            <div style={{ borderTop: '1px dotted #ccc', paddingTop: '10px', marginTop: '4px' }}>
+                                                <strong>Giờ hoàng đạo (Giờ lành):</strong>
+                                                <div style={{ color: '#d35400', marginTop: '4px', fontWeight: '500', lineHeight: '1.4' }}>
+                                                    {details.luckyHoursStr || 'Không có'}
+                                                </div>
+                                            </div>
+                                        </Box>
+                                    </Box>
+                                );
+                            })()}
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions style={{ padding: '16px 24px', borderTop: '1px solid #eee' }}>
+                    <Button onClick={() => setOpenLunarLookup(false)} color="inherit" variant="outlined" style={{ fontWeight: 'bold' }}>
+                        Đóng
+                    </Button>
                 </DialogActions>
             </Dialog>
         </div>

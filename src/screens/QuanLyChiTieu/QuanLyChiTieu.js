@@ -29,9 +29,12 @@ import InputLabel from '@mui/material/InputLabel';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { useAuth } from '../Login/AuthContext/AuthContext';
 
 function QuanLyChiTieu() {
     const { showLoading, hideLoading } = useLoading();
+    const { user } = useAuth();
+    const loggedInUserFullname = user?.fullname || '';
     const [hopDongs, setHopDongs] = useState([]);
     const [expensesList, setExpensesList] = useState([]);
     
@@ -50,6 +53,12 @@ function QuanLyChiTieu() {
     const [lyDoChi, setLyDoChi] = useState('');
     const [soTien, setSoTien] = useState('');
     const [nguoiChi, setNguoiChi] = useState('');
+
+    useEffect(() => {
+        if (user?.fullname) {
+            setNguoiChi(user.fullname);
+        }
+    }, [user]);
     const [ghiChu, setGhiChu] = useState('');
 
     // Selected expense for editing/deleting
@@ -135,7 +144,7 @@ function QuanLyChiTieu() {
         setDonViNhan('');
         setLyDoChi('');
         setSoTien('');
-        setNguoiChi('');
+        setNguoiChi(loggedInUserFullname);
         setGhiChu('');
         setSelectedExpense(null);
     };

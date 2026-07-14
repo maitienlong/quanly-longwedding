@@ -31,9 +31,12 @@ import Tab from '@mui/material/Tab';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { useAuth } from '../Login/AuthContext/AuthContext';
 
 function LichSoanDo() {
     const { showLoading, hideLoading } = useLoading();
+    const { user } = useAuth();
+    const loggedInUserFullname = user?.fullname || '';
     const [hopDongs, setHopDongs] = useState([]);
     const [trangPhucList, setTrangPhucList] = useState([]);
     
@@ -198,7 +201,7 @@ function LichSoanDo() {
         setNgayMuon('');
         setNgayTra('');
         setDatCoc(0);
-        setNguoiKiem('');
+        setNguoiKiem(loggedInUserFullname);
         setNoiDung('');
         setTrangThai('Chưa mượn');
         setDsMuon([]);
@@ -219,7 +222,7 @@ function LichSoanDo() {
         setNgayMuon(sd.ngayMuon || '');
         setNgayTra(sd.ngayTra || '');
         setDatCoc(sd.datCoc || 0);
-        setNguoiKiem(sd.nguoiKiem || '');
+        setNguoiKiem(sd.nguoiKiem || loggedInUserFullname);
         setNoiDung(sd.noiDung || '');
         setTrangThai(sd.trangThai || 'Chưa mượn');
         setDsMuon(sd.dsMuon || []);
@@ -733,7 +736,7 @@ function LichSoanDo() {
                                         setNgayMuon(sd.ngayMuon || '');
                                         setNgayTra(sd.ngayTra || '');
                                         setDatCoc(sd.datCoc || 0);
-                                        setNguoiKiem(sd.nguoiKiem || '');
+                                        setNguoiKiem(sd.nguoiKiem || loggedInUserFullname);
                                         setNoiDung(sd.noiDung || '');
                                         setTrangThai(sd.trangThai || 'Chưa mượn');
                                         setDsMuon(sd.dsMuon || []);

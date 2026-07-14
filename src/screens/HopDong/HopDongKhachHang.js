@@ -4,6 +4,7 @@ import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
 import ThemHopDongKHDialog from './ThemHopDongKHDialog';
 import { formatDate } from '../utils/convertDate';
+import { formatLunarDateShort } from '../../utils/lunarDateUtils';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -283,8 +284,26 @@ function HopDongKhachHang() {
                                     </TableCell>
                                     <TableCell align='center' style={{ width: 100 }}>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
                                     <TableCell align='center' style={{ width: 20 }}><span style={{ fontWeight: '600', fontSize: '0.85rem' }}>{convertTrangThai(hd.giaiDoan)}</span></TableCell>
-                                    <TableCell align='center' style={{ width: 100 }}>{formatDate(hd.ngayHopDong)}</TableCell>
-                                    <TableCell align='center' style={{ width: 100 }}>{formatDate(hd.cacNgay?.ngayChup) || "Đang cập nhật"}</TableCell>
+                                    <TableCell align='center' style={{ width: 100 }}>
+                                        {hd.ngayHopDong ? (
+                                            <>
+                                                <div>{formatDate(hd.ngayHopDong)}</div>
+                                                <div style={{ fontSize: '0.75rem', color: '#7f8c8d', marginTop: '3px' }}>
+                                                    (Âm: {formatLunarDateShort(hd.ngayHopDong)})
+                                                </div>
+                                            </>
+                                        ) : "-"}
+                                    </TableCell>
+                                    <TableCell align='center' style={{ width: 100 }}>
+                                        {hd.cacNgay?.ngayChup ? (
+                                            <>
+                                                <div>{formatDate(hd.cacNgay.ngayChup)}</div>
+                                                <div style={{ fontSize: '0.75rem', color: '#7f8c8d', marginTop: '3px' }}>
+                                                    (Âm: {formatLunarDateShort(hd.cacNgay.ngayChup)})
+                                                </div>
+                                            </>
+                                        ) : "Đang cập nhật"}
+                                    </TableCell>
                                 </TableRow>
                             ))
                         ) : (

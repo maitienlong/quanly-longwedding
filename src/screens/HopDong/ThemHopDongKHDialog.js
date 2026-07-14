@@ -18,6 +18,7 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import logoVang from '../../assets/logo/BETA-1 VANG@4x.png';
+import { formatLunarDateFull } from '../../utils/lunarDateUtils';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPrint, faCircleCheck } from '@fortawesome/free-solid-svg-icons';
 
@@ -344,7 +345,7 @@ function ThemHopDongKHDialog(props) {
         setPhoneKH1("");
         setNameKH1("");
         setAddressKH1("");
-        setBtnAddKHShow1(true);
+        setBtnAddKHShow1(false);
         setShowSuggestionPhone1(false);
 
         // 3. Thông tin khách hàng 2
@@ -352,7 +353,7 @@ function ThemHopDongKHDialog(props) {
         setPhoneKH2("");
         setNameKH2("");
         setAddressKH2("");
-        setBtnAddKHShow2(true);
+        setBtnAddKHShow2(false);
         setShowSuggestionPhone2(false);
 
         // 4. Giỏ hàng và tiền bạc
@@ -380,10 +381,12 @@ function ThemHopDongKHDialog(props) {
             .then((response) => {
                 setShowSuggestionPhone1(true);
                 setSuggestionPhone1(response.data);
-                setBtnAddKHShow1(false);
+                // Hiển thị nút Tạo mới nếu không tìm thấy khách hàng nào
+                setBtnAddKHShow1(response.data.length === 0);
             })
             .catch((error) => {
                 clearPhoneKH1();
+                setBtnAddKHShow1(true);
             });
 
 
@@ -401,7 +404,7 @@ function ThemHopDongKHDialog(props) {
         setNameKH1("");
         setAddressKH1("");
         setShowSuggestionPhone1(false);
-        setBtnAddKHShow1(true);
+        setBtnAddKHShow1(false);
     }
 
     const handleSelectProductPhone2 = (product) => {
@@ -417,7 +420,7 @@ function ThemHopDongKHDialog(props) {
         setNameKH2("");
         setAddressKH2("");
         setShowSuggestionPhone2(false);
-        setBtnAddKHShow2(true);
+        setBtnAddKHShow2(false);
     }
 
     const onChangePhoneKH2 = (e) => {
@@ -433,10 +436,12 @@ function ThemHopDongKHDialog(props) {
             .then((response) => {
                 setShowSuggestionPhone2(true);
                 setSuggestionPhone2(response.data);
-                setBtnAddKHShow2(false);
+                // Hiển thị nút Tạo mới nếu không tìm thấy khách hàng nào
+                setBtnAddKHShow2(response.data.length === 0);
             })
             .catch((error) => {
                 clearPhoneKH2();
+                setBtnAddKHShow2(true);
             });
     };
 
@@ -1069,6 +1074,11 @@ function ThemHopDongKHDialog(props) {
                                                 format="DD/MM/YYYY HH:mm"
                                             />
                                         </LocalizationProvider>
+                                        {ngayChup && (
+                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500' }}>
+                                                Âm lịch: {formatLunarDateFull(ngayChup)}
+                                            </div>
+                                        )}
                                         
                                         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
                                             <DateTimePicker
@@ -1085,6 +1095,11 @@ function ThemHopDongKHDialog(props) {
                                                 format="DD/MM/YYYY HH:mm"
                                             />
                                         </LocalizationProvider>
+                                        {ngayAnHoi && (
+                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500' }}>
+                                                Âm lịch: {formatLunarDateFull(ngayAnHoi)}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -1103,6 +1118,11 @@ function ThemHopDongKHDialog(props) {
                                                 format="DD/MM/YYYY HH:mm"
                                             />
                                         </LocalizationProvider>
+                                        {ngayCuoi && (
+                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500' }}>
+                                                Âm lịch: {formatLunarDateFull(ngayCuoi)}
+                                            </div>
+                                        )}
 
                                         <div className="floating-label" style={{ marginTop: '0px' }}>
                                             <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />
