@@ -23,6 +23,13 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import MenuItem from '@mui/material/MenuItem';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Grid';
+
 import Select from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
@@ -32,6 +39,8 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useAuth } from '../Login/AuthContext/AuthContext';
 
 function QuanLyChiTieu() {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { showLoading, hideLoading } = useLoading();
     const { user } = useAuth();
     const loggedInUserFullname = user?.fullname || '';
@@ -384,7 +393,7 @@ function QuanLyChiTieu() {
     const filteredExpenses = getFilteredExpenses();
 
     return (
-        <div className="hopdongkhachhang" style={{ padding: '20px' }}>
+        <div className="hopdongkhachhang" style={{ padding: isMobile ? '10px' : '20px', height: isMobile ? 'calc(100vh - 145px)' : 'auto', display: isMobile ? 'flex' : 'block', flexDirection: 'column' }}>
             <style>{`
                 .QuanLyChiTieu-header {
                     display: flex;
@@ -410,51 +419,150 @@ function QuanLyChiTieu() {
 
             {/* HEADER & FILTERS */}
             <div className="QuanLyChiTieu-header">
-                <h2>QUẢN LÝ CHI TIÊU CỬA HÀNG</h2>
-                <div className="QuanLyChiTieu-filters">
-                    {/* Add Button */}
-                    <Button
-                        variant="contained"
-                        color="primary"
+                <h2 style={{ fontSize: isMobile ? '1.25rem' : '1.8rem', fontWeight: 'bold', color: '#0d1b3f', textAlign: 'center', textTransform: 'uppercase', marginBottom: isMobile ? '16px' : '0' }}>QUẢN LÝ CHI TIÊU</h2>
+                <Stack 
+                    spacing={2} 
+                    direction={isMobile ? 'column' : 'row'} 
+                    sx={{ width: '100%', mb: 2 }}
+                >
+                    <TextField
+                        label="Tìm kiếm (Mã HĐ, Lý do, Người nhận...)"
+                        variant="outlined"
+                        size={isMobile ? "small" : "medium"}
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        InputProps={{
+                            sx: { height: isMobile ? 42 : commonHeight }
+                        }}
+                        sx={{ width: isMobile ? '100%' : 280, order: isMobile ? 1 : 3 }}
+                    />
+                    
+                    <Stack direction="row" spacing={2} sx={{ width: isMobile ? '100%' : 'auto', order: isMobile ? 2 : 1 }}>
+                        <FormControl variant="outlined" size={isMobile ? "small" : "medium"} sx={{ flex: 1, minWidth: isMobile ? 0 : 220 }}>
+                            <InputLabel>Thời gian chi</InputLabel>
+                            <Select
+                                value={timeFilter}
+                                onChange={(e) => setTimeFilter(e.target.value)}
+                                label="Thời gian chi"
+                                sx={{ height: isMobile ? 42 : commonHeight }}
+                            >
+                                <MenuItem value="all">Tất cả thời gian</MenuItem>
+                                <MenuItem value="today">Hôm nay</MenuItem>
+                                <MenuItem value="week">Tuần này</MenuItem>
+                                <MenuItem value="month">Tháng này</MenuItem>
+                                <MenuItem value="year">Năm nay</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Stack>
+
+                    {!isMobile && (
+                        <Button
+                            onClick={() => {
+                                resetForm();
+                                setOpenAddDialog(true);
+                            }}
+                            variant="contained"
+                            sx={{
+                                height: commonHeight, 
+                                whiteSpace: 'nowrap',  
+                                order: 4
+                            }}
+                        >Thêm Chi Tiêu</Button>
+                    )}
+                </Stack>
+                {isMobile && (
+                    <div 
+                        style={{ 
+                            width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#1976d2', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                            color: 'white', fontSize: '24px', opacity: 0.8,
+                            boxShadow: '0 4px 8px rgba(0,0,0,0.2)', position: 'fixed', bottom: '90px', right: '20px', zIndex: 1000, cursor: 'pointer'
+                        }}
                         onClick={() => {
                             resetForm();
                             setOpenAddDialog(true);
                         }}
-                        startIcon={<i className="fa-solid fa-plus"></i>}
-                        style={{ height: '40px' }}
                     >
-                        Thêm Chi Tiêu
-                    </Button>
-
-                    {/* Time period filter */}
-                    <FormControl variant="outlined" size="small" style={{ width: 180 }}>
-                        <InputLabel>Thời gian chi</InputLabel>
-                        <Select
-                            value={timeFilter}
-                            onChange={(e) => setTimeFilter(e.target.value)}
-                            label="Thời gian chi"
-                        >
-                            <MenuItem value="all">Tất cả thời gian</MenuItem>
-                            <MenuItem value="today">Hôm nay</MenuItem>
-                            <MenuItem value="week">Tuần này</MenuItem>
-                            <MenuItem value="month">Tháng này</MenuItem>
-                            <MenuItem value="year">Năm nay</MenuItem>
-                        </Select>
-                    </FormControl>
-
-                    {/* Search Field */}
-                    <TextField
-                        label="Tìm kiếm (Mã HĐ, Lý do, Người nhận...)"
-                        variant="outlined"
-                        size="small"
-                        value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
-                        style={{ width: 280 }}
-                    />
-                </div>
+                        <i className="fa-solid fa-plus"></i>
+                    </div>
+                )}
             </div>
 
             {/* EXPENSES LIST TABLE */}
+            {isMobile ? (
+                <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
+                    <Stack spacing={2}>
+                    {filteredExpenses.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
+                            Không tìm thấy giao dịch chi tiêu nào.
+                        </div>
+                    ) : (
+                        filteredExpenses.map((exp, idx) => (
+                            <Card key={exp._id || idx} sx={{ mb: 2, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>
+                                        {exp.maHopDong === 'CH-CHUNG' ? 'CHUNG' : exp.maHopDong}
+                                    </Typography>
+                                    <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 'bold' }}>
+                                        {formatDate(exp.date)}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ p: 2 }}>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Khách hàng / Mục</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                                {exp.khachHangLabel}
+                                            </Typography>
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Đơn vị nhận</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{exp.receiver}</Typography>
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Lý do chi</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{exp.reason}</Typography>
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Người chi</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{exp.creator || '-'}</Typography>
+                                        </Grid>
+                                        <Grid item xs={12}>
+                                            <Typography variant="caption" color="text.secondary">Số tiền</Typography>
+                                            <Typography variant="body2" color="error.main" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
+                                                {Number(exp.amount).toLocaleString('vi-VN')} đ
+                                            </Typography>
+                                        </Grid>
+                                        <Grid item xs={12}>
+                                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    onClick={() => handlePrintPhieuChi(exp)}
+                                                    startIcon={<i className="fa-solid fa-print"></i>}
+                                                >
+                                                    In
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="error"
+                                                    onClick={() => handleDeleteExpense(exp)}
+                                                    startIcon={<i className="fa-solid fa-trash"></i>}
+                                                >
+                                                    Xóa
+                                                </Button>
+                                            </Stack>
+                                        </Grid>
+                                    </Grid>
+                                </Box>
+                            </Card>
+                        ))
+                    )}
+                    </Stack>
+                </div>
+            ) : (
             <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
                 <Table stickyHeader>
                     <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
@@ -525,6 +633,7 @@ function QuanLyChiTieu() {
                     </TableBody>
                 </Table>
             </TableContainer>
+            )}
 
             {/* DIALOG ADD EXPENDITURE */}
             <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)} maxWidth="sm" fullWidth>

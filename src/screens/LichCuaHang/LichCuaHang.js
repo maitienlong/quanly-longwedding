@@ -13,6 +13,12 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import DetailHopDongKhachHangDialog from '../HopDong/DetailHopDongKhachHangDialog';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Grid';
 
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -112,6 +118,8 @@ const isPastToday = (dateString, giaiDoan, tab) => {
 };
 
 function LichCuaHang() {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [hopDong, setHopDong] = useState([]);
     const { showLoading, hideLoading } = useLoading();
 
@@ -988,14 +996,17 @@ function LichCuaHang() {
     };
 
     return (
-        <div className="hopdongkhachhang">
+        <div className="hopdongkhachhang" style={{ padding: isMobile ? '10px' : '20px', height: isMobile ? 'calc(100vh - 145px)' : 'auto', display: isMobile ? 'flex' : 'block', flexDirection: 'column' }}>
             {/* Tab Container */}
             <div style={{ 
                 display: 'flex', 
-                gap: '15px', 
+                gap: '10px', 
                 marginBottom: '20px', 
                 borderBottom: '2px solid #e0e0e0', 
-                paddingBottom: '10px' 
+                paddingBottom: '10px',
+                overflowX: 'auto',
+                whiteSpace: 'nowrap',
+                WebkitOverflowScrolling: 'touch'
             }}>
                 <button
                     onClick={() => {
@@ -1084,60 +1095,70 @@ function LichCuaHang() {
             </div>
  
             <div className="content-header">
-                <h2>{activeTab === 'chupHinh' ? 'LỊCH LÀM VIỆC CHỤP HÌNH' : activeTab === 'hauKy' ? 'LỊCH LÀM VIỆC HẬU KỲ' : activeTab === 'inAnh' ? 'LỊCH LÀM VIỆC IN ẢNH' : 'LỊCH LÀM VIỆC ĂN HỎI & CƯỚI'}</h2>
-                <Stack spacing={2} direction="row" alignItems="center">
-                    {viewMode === 'list' && (
-                        <Autocomplete
-                            disablePortal
-                            options={locThoiGian}
-                            value={selectedTime}
-                            onChange={(event, newValue) => {
-                                setSelectedTime(newValue || locThoiGian[0]);
-                            }}
-                            getOptionLabel={(option) => option.label}
-                            isOptionEqualToValue={(option, value) => option.id === value.id}
-                            sx={{ width: 220, height: commonHeight }}
-                            renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" />}
-                        />
-                    )}
- 
+                <h2 style={{ marginBottom: isMobile ? '12px' : 0 }}>{activeTab === 'chupHinh' ? 'LỊCH LÀM VIỆC CHỤP HÌNH' : activeTab === 'hauKy' ? 'LỊCH LÀM VIỆC HẬU KỲ' : activeTab === 'inAnh' ? 'LỊCH LÀM VIỆC IN ẢNH' : 'LỊCH ĂN HỎI & CƯỚI'}</h2>
+                <Stack 
+                    spacing={2} 
+                    direction={{ xs: 'column', md: 'row' }} 
+                    alignItems={{ xs: 'stretch', md: 'center' }}
+                    sx={{ width: '100%' }}
+                >
                     <TextField
                         id="outlined-basic"
                         label="Tìm kiếm (Mã HĐ, SĐT, Tên)"
                         variant="outlined"
+                        size={isMobile ? "small" : "medium"}
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         InputProps={{
-                            sx: { height: commonHeight }
+                            sx: { height: isMobile ? 42 : commonHeight }
                         }}
-                        sx={{ width: 280 }}
+                        sx={{ width: isMobile ? '100%' : 280, order: isMobile ? 1 : 2 }}
                     />
-
-                    <ToggleButtonGroup
-                        value={viewMode}
-                        exclusive
-                        onChange={(event, nextView) => {
-                            if (nextView !== null) {
-                                setViewMode(nextView);
-                            }
-                        }}
-                        aria-label="view mode selector"
-                        sx={{ height: commonHeight, backgroundColor: '#fff' }}
-                    >
-                        <ToggleButton value="list" aria-label="list view" title="Dạng danh sách">
-                            <i className="fa-solid fa-list" style={{ marginRight: '6px' }}></i>
-                            Danh sách
-                        </ToggleButton>
-                        <ToggleButton value="calendar" aria-label="calendar view" title="Dạng lịch tháng">
-                            <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px' }}></i>
-                            Lịch tháng
-                        </ToggleButton>
-                    </ToggleButtonGroup>
+                    
+                    <Stack direction="row" spacing={2} sx={{ width: isMobile ? '100%' : 'auto', order: isMobile ? 2 : 1 }}>
+                        {viewMode === 'list' && (
+                            <Autocomplete
+                                disablePortal
+                                options={locThoiGian}
+                                value={selectedTime}
+                                onChange={(event, newValue) => {
+                                    setSelectedTime(newValue || locThoiGian[0]);
+                                }}
+                                getOptionLabel={(option) => option.label}
+                                isOptionEqualToValue={(option, value) => option.id === value.id}
+                                size={isMobile ? "small" : "medium"}
+                                sx={{ flex: 1, minWidth: isMobile ? 0 : 220 }}
+                                renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" sx={{ '& .MuiInputBase-root': { height: isMobile ? 42 : commonHeight } }} />}
+                            />
+                        )}
+                        <ToggleButtonGroup
+                            value={viewMode}
+                            exclusive
+                            size={isMobile ? "small" : "medium"}
+                            onChange={(event, nextView) => {
+                                if (nextView !== null) {
+                                    setViewMode(nextView);
+                                }
+                            }}
+                            aria-label="view mode selector"
+                            sx={{ height: isMobile ? 42 : commonHeight, backgroundColor: '#fff', flex: isMobile && viewMode !== 'list' ? 1 : 'unset' }}
+                        >
+                            <ToggleButton value="list" aria-label="list view" title="Dạng danh sách">
+                                <i className="fa-solid fa-list" style={{ marginRight: '6px' }}></i>
+                                {!isMobile && "Danh sách"}
+                            </ToggleButton>
+                            <ToggleButton value="calendar" aria-label="calendar view" title="Dạng lịch tháng">
+                                <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px' }}></i>
+                                {!isMobile && "Lịch tháng"}
+                            </ToggleButton>
+                        </ToggleButtonGroup>
+                    </Stack>
                     <Button
                         variant="outlined"
                         color="primary"
                         onClick={() => setOpenLunarLookup(true)}
-                        sx={{ height: commonHeight, textTransform: 'none', fontWeight: 'bold' }}
+                        size={isMobile ? "small" : "medium"}
+                        sx={{ height: isMobile ? 42 : commonHeight, textTransform: 'none', fontWeight: 'bold', order: 3 }}
                     >
                         <i className="fa-solid fa-circle-info" style={{ marginRight: '6px' }}></i>
                         Tra cứu Lịch Âm
@@ -1147,6 +1168,147 @@ function LichCuaHang() {
 
             {/* ===== NỘI DUNG LỊCH LÀM VIỆC ===== */}
             {viewMode === 'list' ? (
+                isMobile ? (
+                    (() => {
+                        if (!filteredHopDong || filteredHopDong.length === 0) {
+                            return (
+                                <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
+                                    Không có dữ liệu lịch làm việc.
+                                </div>
+                            );
+                        }
+                
+                        return (
+                            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
+                                <Stack spacing={2}>
+                                {filteredHopDong.map((hd, index) => {
+                                    const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? hd.cacNgay?.ngayChinhAnh : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
+                                    const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab);
+                
+                                    return (
+                                        <Card 
+                                            key={index} 
+                                            onClick={() => handleRowClick(hd)}
+                                            sx={{ 
+                                                cursor: "pointer",
+                                                borderLeft: isOverdue ? '4px solid #e53e3e' : '4px solid transparent',
+                                                backgroundColor: isOverdue ? '#fff5f5' : '#fff',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                            }}
+                                        >
+                                            <CardContent>
+                                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                                    <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                                                        Mã HĐ: {hd.maHopDong}
+                                                    </Typography>
+                                                    {renderTrangThaiBadge(hd.giaiDoan)}
+                                                </Box>
+                
+                                                <Grid container spacing={1} mt={1}>
+                                                    <Grid item xs={4}><Typography variant="body2" color="textSecondary">Khách hàng:</Typography></Grid>
+                                                    <Grid item xs={8}>
+                                                        <Typography variant="body2" fontWeight="bold">
+                                                            {hd.khachHang1?.tenKhachHang}
+                                                            {hd.khachHang2?.tenKhachHang && ` / ${hd.khachHang2.tenKhachHang}`}
+                                                        </Typography>
+                                                    </Grid>
+                
+                                                    <Grid item xs={4}><Typography variant="body2" color="textSecondary">Liên hệ:</Typography></Grid>
+                                                    <Grid item xs={8}>
+                                                        <Typography variant="body2" fontWeight="500">
+                                                            {hd.khachHang1?.soDienThoai}
+                                                            {hd.khachHang2?.soDienThoai && ` / ${hd.khachHang2.soDienThoai}`}
+                                                        </Typography>
+                                                    </Grid>
+                
+                                                    <Grid item xs={4}><Typography variant="body2" color="textSecondary">Dịch vụ:</Typography></Grid>
+                                                    <Grid item xs={8}>
+                                                        <Typography variant="body2" fontWeight="500">{getDichVuChinhLabel(hd.dichVuChinh)}</Typography>
+                                                    </Grid>
+                
+                                                    {activeTab === 'chupHinh' && (
+                                                        <>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày chụp:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? 'error' : 'textPrimary'}>
+                                                                    {hd.cacNgay?.ngayChup ? `${formatDateTime(hd.cacNgay.ngayChup)}` : "Chưa cập nhật"}
+                                                                    {isOverdue && " (Trễ lịch)"}
+                                                                </Typography>
+                                                            </Grid>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Địa điểm:</Typography></Grid>
+                                                            <Grid item xs={8}><Typography variant="body2">{hd.cacNgay?.diaDiemChup || "Chưa cập nhật"}</Typography></Grid>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ekip:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2">
+                                                                    {(() => {
+                                                                        const parts = [];
+                                                                        if (hd.nguoiPhucVu?.thoChupHinh) parts.push(`Chụp: ${hd.nguoiPhucVu.thoChupHinh}`);
+                                                                        if (hd.nguoiPhucVu?.thoMakeUp) parts.push(`Make: ${hd.nguoiPhucVu.thoMakeUp}`);
+                                                                        return parts.join(" + ") || "Chưa giao ekip";
+                                                                    })()}
+                                                                </Typography>
+                                                            </Grid>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Chốt lịch:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" color={hd.cacNgay?.chotLich === "Đã chốt lịch" || hd.cacNgay?.chotLich === "Đã gọi điện xác nhận" ? "success.main" : "warning.main"}>
+                                                                    {hd.cacNgay?.chotLich || "Chưa gọi điện"}
+                                                                </Typography>
+                                                            </Grid>
+                                                        </>
+                                                    )}
+                
+                                                    {activeTab === 'hauKy' && (
+                                                        <>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày hậu kỳ:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? 'error' : 'textPrimary'}>
+                                                                    {formatDateOnly(hd.cacNgay?.ngayChinhAnh) || "Chưa cập nhật"}
+                                                                    {isOverdue && " (Trễ lịch)"}
+                                                                </Typography>
+                                                            </Grid>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Thợ chỉnh:</Typography></Grid>
+                                                            <Grid item xs={8}><Typography variant="body2">{hd.nguoiPhucVu?.thoChinhAnh || "Chưa giao"}</Typography></Grid>
+                                                        </>
+                                                    )}
+                
+                                                    {activeTab === 'inAnh' && (
+                                                        <>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày trả ảnh:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? 'error' : 'textPrimary'}>
+                                                                    {formatDateOnly(hd.cacNgay?.ngayTraAnh) || "Chưa cập nhật"}
+                                                                    {isOverdue && " (Trễ lịch)"}
+                                                                </Typography>
+                                                            </Grid>
+                                                        </>
+                                                    )}
+                
+                                                    {activeTab === 'anHoiVaCuoi' && (
+                                                        <>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày ăn hỏi:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" fontWeight="bold">
+                                                                    {hd.cacNgay?.ngayAnHoi ? `${formatDateTime(hd.cacNgay.ngayAnHoi)}` : "-"}
+                                                                </Typography>
+                                                            </Grid>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày cưới:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" fontWeight="bold">
+                                                                    {hd.cacNgay?.ngayCuoi ? `${formatDateTime(hd.cacNgay.ngayCuoi)}` : "-"}
+                                                                </Typography>
+                                                            </Grid>
+                                                        </>
+                                                    )}
+                                                </Grid>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                                </Stack>
+                            </div>
+                        );
+                    })()
+                ) : (
                 <TableContainer component={Paper} style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
                     <style>{`
                         .fixed-layout-table {
@@ -1415,6 +1577,7 @@ function LichCuaHang() {
                         </TableBody>
                     </Table>
                 </TableContainer>
+                )
             ) : (
                 renderMonthlyCalendar()
             )}

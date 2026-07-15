@@ -1,4 +1,11 @@
 import React from 'react';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
 
 import styled from "styled-components";
 
@@ -125,10 +132,18 @@ const Td = styled.td`
 `;
 
 const DangThueDo = () => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+    const mockData = [
+        { stt: 1, maHD: 'QG125-004', khachHang: 'KIỀN NHANH', sdt: '0862180822', trangThai: 'PTS', daThu: '5,900,000', conLai: '-3,800,000' },
+        { stt: 2, maHD: 'QG125-004', khachHang: 'KIỀN NHANH', sdt: '0862180822', trangThai: 'PTS', daThu: '5,900,000', conLai: '-3,800,000' },
+        { stt: 3, maHD: 'QG125-004', khachHang: 'KIỀN NHANH', sdt: '0862180822', trangThai: 'PTS', daThu: '5,900,000', conLai: '-3,800,000' }
+    ];
 
     return (
-        <div className="TabDangThucHien">
-            <div className='tabdangthuchien-filter'>
+        <div className="TabDangThucHien" style={{ padding: isMobile ? '10px' : '20px' }}>
+            <div className='tabdangthuchien-filter' style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
                 <CustomInput type="text" class="form-control" id="formGroupExampleInput" placeholder="Họ và tên, SĐT" />
 
                 <CustomSelect class="form-select" aria-label="Default select example">
@@ -163,6 +178,42 @@ const DangThueDo = () => {
 
                 <SubmitButton type="submit"><i class="fa fa-search" aria-hidden="true"></i> Tìm kiếm</SubmitButton>
             </div>
+            
+            {isMobile ? (
+                <Stack spacing={2}>
+                    {mockData.map((item, idx) => (
+                        <Card key={idx} sx={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                            <CardContent>
+                                <Typography variant="subtitle1" fontWeight="bold" color="primary" mb={1}>
+                                    Mã HĐ: {item.maHD}
+                                </Typography>
+                                <Grid container spacing={1}>
+                                    <Grid item xs={5}><Typography variant="body2" color="textSecondary">Khách hàng:</Typography></Grid>
+                                    <Grid item xs={7}><Typography variant="body2" fontWeight="bold">{item.khachHang}</Typography></Grid>
+                                    
+                                    <Grid item xs={5}><Typography variant="body2" color="textSecondary">Số điện thoại:</Typography></Grid>
+                                    <Grid item xs={7}><Typography variant="body2">{item.sdt}</Typography></Grid>
+                                    
+                                    <Grid item xs={5}><Typography variant="body2" color="textSecondary">Trạng thái:</Typography></Grid>
+                                    <Grid item xs={7}>
+                                        <Typography variant="body2" sx={{ 
+                                            backgroundColor: '#002f6c', color: 'white', px: 1, py: 0.5, borderRadius: '4px', display: 'inline-block' 
+                                        }}>
+                                            {item.trangThai}
+                                        </Typography>
+                                    </Grid>
+                                    
+                                    <Grid item xs={5}><Typography variant="body2" color="textSecondary">Đã thu:</Typography></Grid>
+                                    <Grid item xs={7}><Typography variant="body2" color="success.main" fontWeight="bold">{item.daThu}</Typography></Grid>
+                                    
+                                    <Grid item xs={5}><Typography variant="body2" color="textSecondary">Còn lại:</Typography></Grid>
+                                    <Grid item xs={7}><Typography variant="body2" color="error.main" fontWeight="bold">{item.conLai}</Typography></Grid>
+                                </Grid>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </Stack>
+            ) : (
             <TableContainer>
                 <StyledTable>
                     <thead>
@@ -293,6 +344,7 @@ const DangThueDo = () => {
                     </tbody>
                 </StyledTable>
             </TableContainer>
+            )}
         </div>
     );
 };

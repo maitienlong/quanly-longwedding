@@ -28,6 +28,7 @@ import {
     faPrint,
     faCircleCheck
 } from '@fortawesome/free-solid-svg-icons';
+import MobileAccordion from '../../components/MobileAccordion';
 
 const getDichVuChinhLabel = (id) => {
     const options = {
@@ -1047,7 +1048,7 @@ function DetailHopDongKhachHangDialog(props) {
             maxWidth="xl"
         >
             <div className="dialog-overlay">
-                <div className="dialog large">
+                <div className="mobile-dark-theme dialog large">
 
                     <button className="close-btn" onClick={handleClose}>×</button>
                     <h3 className="dialog-title">CHI TIẾT HỢP ĐỒNG: <span style={{ color: '#d4af37' }}>{maHopDong}</span></h3>
@@ -1088,8 +1089,7 @@ function DetailHopDongKhachHangDialog(props) {
                     <div className="dialog-content">
                         <div className="right-column">
                             <div className="dialog-section-khachhang">
-                                <div className="dialog-section-khachhang-item">
-                                    <h4>Thông tin khách hàng 1</h4>
+                                <MobileAccordion title="Thông tin khách hàng 1" className="dialog-section-khachhang-item">
                                     <div className="floating-label">
                                         <input name="phoneKH1" value={phoneKH1} disabled />
                                         <label>Phone khách hàng 1</label>
@@ -1120,10 +1120,9 @@ function DetailHopDongKhachHangDialog(props) {
                                         />
                                         <label>Link / ID Facebook 1</label>
                                     </div>
-                                </div>
+                                </MobileAccordion>
 
-                                <div className="dialog-section-khachhang-item">
-                                    <h4>Thông tin khách hàng 2</h4>
+                                <MobileAccordion title="Thông tin khách hàng 2" className="dialog-section-khachhang-item" defaultExpanded={false}>
                                     <div className="floating-label">
                                         <input name="phoneKH2" value={phoneKH2} disabled />
                                         <label>Phone khách hàng 2</label>
@@ -1154,14 +1153,13 @@ function DetailHopDongKhachHangDialog(props) {
                                         />
                                         <label>Link / ID Facebook 2</label>
                                     </div>
-                                </div>
+                                </MobileAccordion>
 
                             </div>
 
 
 
-                            <div className="dialog-section">
-                                <h4>Thông tin hợp đồng</h4>
+                            <MobileAccordion title="Thông tin hợp đồng" className="dialog-section">
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                     <div className="floating-label">
                                         <input name="maHopDong" value={maHopDong} disabled />
@@ -1250,10 +1248,9 @@ function DetailHopDongKhachHangDialog(props) {
                                         <label>Thợ chỉnh ảnh</label>
                                     </div>
                                 </div>
-                            </div>
+                            </MobileAccordion>
 
-                            <div className="dialog-section" style={{ marginTop: '20px' }}>
-                                <h4>Thông tin chung & Lịch trình</h4>
+                            <MobileAccordion title="Thông tin chung & Lịch trình" className="dialog-section" style={{ marginTop: '20px' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                                         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
@@ -1358,11 +1355,10 @@ function DetailHopDongKhachHangDialog(props) {
                                         )}
                                     </div>
                                 </div>
-                            </div>
+                            </MobileAccordion>
 
                             {(linkAnhGoc || linkAnhChinhSua || (danhSachAnhIn && danhSachAnhIn.length > 0)) && (
-                                <div className="dialog-section" style={{ marginTop: '20px' }}>
-                                    <h4>Thông tin tiến trình</h4>
+                                <MobileAccordion title="Thông tin tiến trình" className="dialog-section" style={{ marginTop: '20px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 15px', backgroundColor: '#fcfcfc', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
                                         {linkAnhGoc && (
                                             <div>
@@ -1402,12 +1398,12 @@ function DetailHopDongKhachHangDialog(props) {
                                             </div>
                                         )}
                                     </div>
-                                </div>
+                                </MobileAccordion>
                             )}
                         </div>
 
                         <div className="left-column">
-                            <h4>Sản phẩm</h4>
+                            <MobileAccordion title="Sản phẩm & Dịch vụ" className="dialog-section-sanpham">
 
                             <div className="product-search-container" ref={searchRef}>
                                 <AppSearchInput
@@ -1630,12 +1626,12 @@ function DetailHopDongKhachHangDialog(props) {
                                     </>
                                 );
                             })()}
+                            </MobileAccordion>
                         </div>
                     </div>
 
                     {/* === DƯỚI CÙNG: THANH TOÁN === */}
-                    <div className="dialog-section payment">
-                        <h4>Thông tin thanh toán</h4>
+                    <MobileAccordion title="Thông tin thanh toán" className="dialog-section payment">
                         <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', flexWrap: 'wrap', width: '100%' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 2, minWidth: '350px' }}>
                                 <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1.2em', color: 'green', margin: '0 0 10px 0' }}>Lịch sử thanh toán</p>
@@ -1744,8 +1740,7 @@ function DetailHopDongKhachHangDialog(props) {
                                 </p>
                             </div>
                         </div>
-
-                    </div>
+                    </MobileAccordion>
 
                     <div className="dialog-actions" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                         <Button

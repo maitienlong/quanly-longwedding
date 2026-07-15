@@ -16,6 +16,17 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import Card from '@mui/material/Card';
+import Typography from '@mui/material/Typography';
+import Fab from '@mui/material/Fab';
+import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
+import Grid from '@mui/material/Grid';
+import AddIcon from '@mui/icons-material/Add';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import IconButton from '@mui/material/IconButton';
 import DetailHopDongKhachHangDialog from './DetailHopDongKhachHangDialog';
 
 const getDichVuChinhLabel = (id) => {
@@ -38,6 +49,8 @@ const getDichVuChinhLabel = (id) => {
 };
 
 function HopDongKhachHang() {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [hopDong, setHopDong] = useState([]);
     const { showLoading, hideLoading } = useLoading();
 
@@ -174,71 +187,144 @@ function HopDongKhachHang() {
         <div className="hopdongkhachhang">
             <div className="content-header">
                 <h2>QUẢN LÝ HỢP ĐỒNG KHÁCH HÀNG</h2>
-                <Stack spacing={2} direction="row">
-
-                    <Autocomplete
-                        disablePortal
-                        options={locThoiGian}
-                        value={selectedTime}
-                        onChange={(event, newValue) => {
-                            setSelectedTime(newValue || locThoiGian[0]);
-                        }}
-                        getOptionLabel={(option) => option.label}
-                        isOptionEqualToValue={(option, value) => option.id === value.id}
-                        sx={{ width: 220, height: commonHeight }}
-                        renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" />}
-                    />
-
-                    <Autocomplete
-                        disablePortal
-                        options={locTrangThai}
-                        value={selectedStatus}
-                        onChange={(event, newValue) => {
-                            setSelectedStatus(newValue || locTrangThai[0]);
-                        }}
-                        getOptionLabel={(option) => option.label}
-                        isOptionEqualToValue={(option, value) => option.id === value.id}
-                        sx={{ width: 220, height: commonHeight }}
-                        renderInput={(params) => <TextField {...params} label="Lọc theo trạng thái" />}
-                    />
-
+                <Stack 
+                    spacing={2} 
+                    direction={isMobile ? 'column' : 'row'} 
+                    sx={{ width: '100%', mb: 2 }}
+                >
                     <TextField
                         id="outlined-basic"
                         label="Tìm kiếm (Mã HĐ, SĐT, Tên)"
                         variant="outlined"
+                        size={isMobile ? "small" : "medium"}
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         InputProps={{
-                            sx: { height: commonHeight }
+                            sx: { height: isMobile ? 42 : commonHeight }
                         }}
-                        sx={{ width: 280 }}
+                        sx={{ width: isMobile ? '100%' : 280, order: isMobile ? 1 : 3 }}
                     />
+                    
+                    <Stack direction="row" spacing={2} sx={{ width: isMobile ? '100%' : 'auto', order: isMobile ? 2 : 1 }}>
+                        <Autocomplete
+                            disablePortal
+                            options={locThoiGian}
+                            value={selectedTime}
+                            onChange={(event, newValue) => {
+                                setSelectedTime(newValue || locThoiGian[0]);
+                            }}
+                            getOptionLabel={(option) => option.label}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                            size={isMobile ? "small" : "medium"}
+                            sx={{ flex: 1, minWidth: isMobile ? 0 : 220 }}
+                            renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" sx={{ '& .MuiInputBase-root': { height: isMobile ? 42 : commonHeight } }} />}
+                        />
 
-                    <Button
-                        onClick={handleClickOpenDialog}
-                        variant="contained"
-                        sx={{
-                            height: commonHeight, // Ép chiều cao bằng với các input trên
-                            whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
-                        }}
-                    >Thêm Hợp Đồng</Button>
+                        <Autocomplete
+                            disablePortal
+                            options={locTrangThai}
+                            value={selectedStatus}
+                            onChange={(event, newValue) => {
+                                setSelectedStatus(newValue || locTrangThai[0]);
+                            }}
+                            getOptionLabel={(option) => option.label}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                            size={isMobile ? "small" : "medium"}
+                            sx={{ flex: 1, minWidth: isMobile ? 0 : 220 }}
+                            renderInput={(params) => <TextField {...params} label="Lọc theo trạng thái" sx={{ '& .MuiInputBase-root': { height: isMobile ? 42 : commonHeight } }} />}
+                        />
+                    </Stack>
+
+                    {!isMobile && (
+                        <Button
+                            onClick={handleClickOpenDialog}
+                            variant="contained"
+                            sx={{
+                                height: commonHeight, // Ép chiều cao bằng với các input trên
+                                whiteSpace: 'nowrap',  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                                order: 4
+                            }}
+                        >Thêm Hợp Đồng</Button>
+                    )}
                 </Stack>
             </div>
 
             {/* ===== DANH SÁCH HỢP ĐỒNG ===== */}
-            <TableContainer component={Paper} style={{ maxHeight: 'calc(100vh - 280px)', overflow: 'auto' }}>
+            {isMobile ? (
+                <Box sx={{ pb: 10 }}>
+                    {hopDong && hopDong.length > 0 ? (
+                        filteredHopDong.map((hd, index) => (
+                            <Card 
+                                key={index} 
+                                sx={{ mb: 2, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}
+                                onClick={() => {
+                                    setSendData(hd);
+                                    handleClickOpenDetailDialog();
+                                }}
+                            >
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                                        {hd.maHopDong}
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Chip 
+                                            label={convertTrangThai(hd.giaiDoan)} 
+                                            size="small" 
+                                            sx={{ 
+                                                bgcolor: hd.giaiDoan === 5 ? '#2e7d32' : (hd.giaiDoan === 1 ? '#9e9e9e' : '#ed6c02'), 
+                                                color: '#fff',
+                                                fontWeight: 'bold',
+                                                fontSize: '0.75rem',
+                                                height: '24px'
+                                            }} 
+                                        />
+                                        <IconButton size="small" sx={{ padding: 0 }}>
+                                            <MoreHorizIcon />
+                                        </IconButton>
+                                    </Box>
+                                </Box>
+                                <Box sx={{ p: 2 }}>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Khách hàng</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{hd.khachHang1?.tenKhachHang}</Typography>
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Liên hệ</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{hd.khachHang1?.soDienThoai}</Typography>
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Dịch vụ</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{getDichVuChinhLabel(hd.dichVuChinh)}</Typography>
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Ngày HĐ</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                                {hd.ngayHopDong ? formatDate(hd.ngayHopDong) : "-"}
+                                            </Typography>
+                                        </Grid>
+                                    </Grid>
+                                </Box>
+                            </Card>
+                        ))
+                    ) : (
+                        <Typography sx={{ textAlign: 'center', mt: 4 }}>Không có dữ liệu hợp đồng khách hàng.</Typography>
+                    )}
+                </Box>
+            ) : (
+                <TableContainer component={Paper} style={{ maxHeight: 'calc(100vh - 280px)', overflow: 'auto' }}>
                 <Table stickyHeader aria-label="simple table">
 
                     <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                         <TableRow>
-                            <TableCell align='center' style={{ width: '5%' }}>STT</TableCell>
-                            <TableCell align='center' style={{ width: '10%' }}>MÃ SỐ HĐ</TableCell>
-                            <TableCell style={{ width: '20%' }}>TÊN KHÁCH HÀNG</TableCell>
-                            <TableCell style={{ width: '15%' }}>LIÊN HỆ</TableCell>
-                            <TableCell align='center' style={{ width: '15%' }}>DỊCH VỤ</TableCell>
-                            <TableCell align='center' style={{ width: '15%' }}>TRẠNG THÁI</TableCell>
-                            <TableCell align='center' style={{ width: '10%' }}>NGÀY HỢP ĐỒNG</TableCell>
-                            <TableCell align='center' style={{ width: '10%' }}>NGÀY CHỤP</TableCell>
+                            <TableCell align='center' style={{ minWidth: 60, width: '5%' }}>STT</TableCell>
+                            <TableCell align='center' style={{ minWidth: 100, width: '10%' }}>MÃ SỐ HĐ</TableCell>
+                            <TableCell style={{ minWidth: 200, width: '20%' }}>TÊN KHÁCH HÀNG</TableCell>
+                            <TableCell style={{ minWidth: 150, width: '15%' }}>LIÊN HỆ</TableCell>
+                            <TableCell align='center' style={{ minWidth: 150, width: '15%' }}>DỊCH VỤ</TableCell>
+                            <TableCell align='center' style={{ minWidth: 120, width: '15%' }}>TRẠNG THÁI</TableCell>
+                            <TableCell align='center' style={{ minWidth: 150, width: '10%' }}>NGÀY HỢP ĐỒNG</TableCell>
+                            <TableCell align='center' style={{ minWidth: 150, width: '10%' }}>NGÀY CHỤP</TableCell>
                         </TableRow>
                     </TableHead>
 
@@ -314,6 +400,26 @@ function HopDongKhachHang() {
                     </TableBody>
                 </Table>
             </TableContainer>
+            )}
+
+            {isMobile && (
+                <Fab 
+                    color="primary" 
+                    sx={{ 
+                        position: 'fixed', 
+                        bottom: 70, 
+                        right: 16, 
+                        zIndex: 1000,
+                        opacity: 0.5,
+                        '&:hover': {
+                            opacity: 1
+                        }
+                    }}
+                    onClick={handleClickOpenDialog}
+                >
+                    <AddIcon />
+                </Fab>
+            )}
 
             <DetailHopDongKhachHangDialog
                 data={sendData}

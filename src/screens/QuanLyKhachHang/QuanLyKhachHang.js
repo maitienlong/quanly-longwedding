@@ -24,8 +24,17 @@ import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Grid';
+import Chip from '@mui/material/Chip';
 
 function QuanLyKhachHang() {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { showLoading, hideLoading } = useLoading();
     const [customers, setCustomers] = useState([]);
     const [keyword, setKeyword] = useState('');
@@ -256,46 +265,154 @@ function QuanLyKhachHang() {
     };
 
     return (
-        <div className="quanlykhachhang-container" style={{ padding: '20px' }}>
+        <div className="quanlykhachhang-container" style={{ padding: isMobile ? '10px' : '20px', height: isMobile ? 'calc(100vh - 145px)' : 'auto', display: isMobile ? 'flex' : 'block', flexDirection: 'column' }}>
+            {/* HEADER & FILTERS */}
             <div className="quanlykhachhang-header">
-                <h2>QUẢN LÝ KHÁCH HÀNG</h2>
-                <div className="quanlykhachhang-filters">
-                    {/* Add button */}
-                    <Button
-                        variant="contained"
-                        color="primary"
+                <h2 style={{ fontSize: isMobile ? '1.25rem' : '1.8rem', fontWeight: 'bold', color: '#0d1b3f', textAlign: 'center', textTransform: 'uppercase', marginBottom: isMobile ? '16px' : '0' }}>QUẢN LÝ KHÁCH HÀNG</h2>
+                <Stack 
+                    spacing={2} 
+                    direction={isMobile ? 'column' : 'row'} 
+                    sx={{ width: '100%', mb: 2 }}
+                >
+                    <div style={{ display: 'flex', gap: '10px', width: isMobile ? '100%' : 'auto', flex: 1, order: isMobile ? 1 : 3 }}>
+                        <TextField
+                            label="Tìm kiếm khách hàng..."
+                            variant="outlined"
+                            size={isMobile ? "small" : "medium"}
+                            value={keyword}
+                            onChange={(e) => setKeyword(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            style={{ flexGrow: 1 }}
+                            InputProps={{
+                                sx: { height: isMobile ? 42 : commonHeight }
+                            }}
+                        />
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={handleSearch}
+                            style={{ height: isMobile ? 42 : commonHeight }}
+                        >
+                            Tìm
+                        </Button>
+                    </div>
+
+                    {!isMobile && (
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={() => {
+                                resetForm();
+                                setOpenAddDialog(true);
+                            }}
+                            startIcon={<i className="fa-solid fa-user-plus"></i>}
+                            style={{ height: commonHeight, whiteSpace: 'nowrap', order: 4 }}
+                        >
+                            Thêm Khách Hàng
+                        </Button>
+                    )}
+                </Stack>
+                {isMobile && (
+                    <div 
+                        style={{ 
+                            width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#1976d2', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                            color: 'white', fontSize: '24px', opacity: 0.8,
+                            boxShadow: '0 4px 8px rgba(0,0,0,0.2)', position: 'fixed', bottom: '90px', right: '20px', zIndex: 1000, cursor: 'pointer'
+                        }}
                         onClick={() => {
                             resetForm();
                             setOpenAddDialog(true);
                         }}
-                        startIcon={<i className="fa-solid fa-user-plus"></i>}
-                        style={{ height: '40px' }}
                     >
-                        Thêm Khách Hàng
-                    </Button>
-
-                    {/* Search Field */}
-                    <TextField
-                        label="Tìm kiếm khách hàng..."
-                        variant="outlined"
-                        size="small"
-                        value={keyword}
-                        onChange={(e) => setKeyword(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        style={{ width: 280 }}
-                    />
-                    <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={handleSearch}
-                        style={{ height: '40px' }}
-                    >
-                        Tìm kiếm
-                    </Button>
-                </div>
+                        <i className="fa-solid fa-user-plus"></i>
+                    </div>
+                )}
             </div>
 
             {/* CUSTOMERS TABLE */}
+            {isMobile ? (
+                <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
+                    <Stack spacing={2}>
+                    {customers.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
+                            Không tìm thấy thông tin khách hàng nào.
+                        </div>
+                    ) : (
+                        customers.map((cust, idx) => (
+                            <Card key={cust._id} sx={{ mb: 2, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>
+                                        {cust.tenKhachHang}
+                                        {cust.facebookId && (
+                                            <a href={`https://facebook.com/${cust.facebookId}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: '#1877f2' }} title="Mở Facebook khách hàng">
+                                                <i className="fa-brands fa-facebook"></i>
+                                            </a>
+                                        )}
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Chip 
+                                            label={cust.soHopDong > 0 ? `${cust.soHopDong} hợp đồng` : 'Chưa có HĐ'} 
+                                            size="small" 
+                                            sx={{ 
+                                                bgcolor: cust.soHopDong > 0 ? '#2e7d32' : '#9e9e9e', 
+                                                color: '#fff',
+                                                fontWeight: 'bold',
+                                                fontSize: '0.75rem',
+                                                height: '24px'
+                                            }} 
+                                        />
+                                    </Box>
+                                </Box>
+                                <Box sx={{ p: 2 }}>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Số điện thoại</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{cust.soDienThoai}</Typography>
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Ngày sinh</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{cust.ngaySinhNhat || '-'}</Typography>
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Giới tính</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{cust.gioiTinh || '-'}</Typography>
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <Typography variant="caption" color="text.secondary">Địa chỉ</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{cust.diaChi}</Typography>
+                                        </Grid>
+                                        <Grid item xs={12}>
+                                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    onClick={() => handleOpenEdit(cust)}
+                                                    startIcon={<i className="fa-solid fa-pen"></i>}
+                                                >
+                                                    Sửa
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="error"
+                                                    onClick={() => handleDeleteCustomer(cust)}
+                                                    startIcon={<i className="fa-solid fa-trash"></i>}
+                                                    disabled={cust.soHopDong > 0}
+                                                >
+                                                    Xóa
+                                                </Button>
+                                            </Stack>
+                                        </Grid>
+                                    </Grid>
+                                </Box>
+                            </Card>
+                        ))
+                    )}
+                    </Stack>
+                </div>
+            ) : (
             <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'auto', marginTop: '20px', maxHeight: 'calc(100vh - 280px)' }}>
                 <Table stickyHeader>
                     <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
@@ -369,6 +486,7 @@ function QuanLyKhachHang() {
                     </TableBody>
                 </Table>
             </TableContainer>
+            )}
 
             {/* DIALOG ADD CUSTOMER */}
             <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)} maxWidth="sm" fullWidth>

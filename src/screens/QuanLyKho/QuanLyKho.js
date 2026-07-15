@@ -25,10 +25,20 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import Box from '@mui/material/Box';
 
 
 /* ==================== TRANG CHÍNH ==================== */
 const QuanLyKho = () => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [listSeviceAPI, setListSeviceAPI] = useState([]);
     const { showLoading, hideLoading } = useLoading();
     const [keyword, setKeyword] = useState("");
@@ -75,31 +85,108 @@ const QuanLyKho = () => {
 
 
     return (
-        <div className="content-wrapper-react">
-            <div class="content-header">
-                <h2>QUẢN LÝ KHO</h2>
-                <div class="filters">
+        <div className="content-wrapper-react" style={{ padding: isMobile ? '10px' : '20px', height: isMobile ? 'calc(100vh - 145px)' : 'auto', display: isMobile ? 'flex' : 'block', flexDirection: 'column' }}>
+            <div className="content-header" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', marginBottom: '20px', gap: isMobile ? '16px' : '0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', justifyContent: 'space-between' }}>
+                    <h2 style={{ fontSize: isMobile ? '1.4rem' : '1.8rem', marginBottom: 0 }}>QUẢN LÝ KHO</h2>
+                    {isMobile && (
+                        <div 
+                            style={{ 
+                                width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#1976d2', 
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                color: 'white', fontSize: '24px', opacity: 0.8,
+                                boxShadow: '0 4px 8px rgba(0,0,0,0.2)', position: 'fixed', bottom: '90px', right: '20px', zIndex: 1000, cursor: 'pointer'
+                            }}
+                            onClick={() => setOpenAddDialog(true)}
+                        >
+                            <i className="fa-solid fa-plus"></i>
+                        </div>
+                    )}
+                </div>
+                <div className="filters" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '15px' }}>
                     <TextField id="outlined-basic" label="Tìm kiếm" variant="outlined" InputProps={{
-                        sx: { height: commonHeight }
+                        sx: { height: isMobile ? 42 : commonHeight }
                     }}
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
+                        size={isMobile ? "small" : "medium"}
+                        sx={{ width: isMobile ? '100%' : 'auto' }}
                     />
 
-                    <Button
-                        variant="contained"
-                        onClick={() => setOpenAddDialog(true)}
-                        sx={{
-                            height: commonHeight, // Ép chiều cao bằng với 2 input trên
-                            whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
-                        }}
-                    >
-                        Thêm
-                    </Button>
+                    {!isMobile && (
+                        <Button
+                            variant="contained"
+                            onClick={() => setOpenAddDialog(true)}
+                            sx={{
+                                height: commonHeight, // Ép chiều cao bằng với 2 input trên
+                                whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                            }}
+                        >
+                            Thêm
+                        </Button>
+                    )}
                 </div>
             </div>
 
 
+            {isMobile ? (
+                <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
+                    <Stack spacing={2}>
+                    {listSeviceAPI
+                        .filter(item => 
+                            !keyword || 
+                            item.maDichVu.toLowerCase().includes(keyword.toLowerCase()) || 
+                            item.tenDichVu.toLowerCase().includes(keyword.toLowerCase())
+                        )
+                        .map((data, index) => (
+                            <Card 
+                                key={data.maDichVu} 
+                                onClick={() => setSelectedService(data)}
+                                sx={{ 
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                    border: selectedService?.maDichVu === data.maDichVu ? '2px solid #1976d2' : 'none'
+                                }}
+                            >
+                                <CardContent>
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                        <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                                            {data.tenDichVu}
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ backgroundColor: '#e3f2fd', color: '#1976d2', px: 1, borderRadius: '4px', fontWeight: 'bold' }}>
+                                            Kho: {data.tonKhoDichVu}
+                                        </Typography>
+                                    </Box>
+                                    
+                                    <Grid container spacing={1}>
+                                        <Grid item xs={5}><Typography variant="body2" color="textSecondary">Mã dịch vụ:</Typography></Grid>
+                                        <Grid item xs={7}><Typography variant="body2">{data.maDichVu}</Typography></Grid>
+
+                                        <Grid item xs={5}><Typography variant="body2" color="textSecondary">Giá thành:</Typography></Grid>
+                                        <Grid item xs={7}><Typography variant="body2" fontWeight="bold" color="error.main">{data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : '0 đ'}</Typography></Grid>
+
+                                        <Grid item xs={5}><Typography variant="body2" color="textSecondary">Giá thuê:</Typography></Grid>
+                                        <Grid item xs={7}><Typography variant="body2" fontWeight="bold" color="success.main">{data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : '0 đ'}</Typography></Grid>
+
+                                        {data.moTaDichVu && (
+                                            <>
+                                                <Grid item xs={12}><Typography variant="body2" color="textSecondary">Mô tả:</Typography></Grid>
+                                                <Grid item xs={12}><Typography variant="body2" sx={{ fontStyle: 'italic', color: '#555' }}>{data.moTaDichVu}</Typography></Grid>
+                                            </>
+                                        )}
+                                    </Grid>
+                                </CardContent>
+                            </Card>
+                        ))
+                    }
+                    {listSeviceAPI.filter(item => !keyword || item.maDichVu.toLowerCase().includes(keyword.toLowerCase()) || item.tenDichVu.toLowerCase().includes(keyword.toLowerCase())).length === 0 && (
+                        <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
+                            Không tìm thấy dịch vụ nào.
+                        </div>
+                    )}
+                    </Stack>
+                </div>
+            ) : (
             <TableContainer component={Paper} style={{ maxHeight: 'calc(100vh - 280px)', overflow: 'auto' }}>
                 <Table stickyHeader aria-label="simple table">
                     <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
@@ -144,6 +231,7 @@ const QuanLyKho = () => {
                     </TableBody>
                 </Table>
             </TableContainer>
+            )}
 
             <ServiceAddDialog
                 open={openAddDialog}

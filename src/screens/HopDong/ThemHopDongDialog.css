@@ -665,3 +665,102 @@ h4 {
     }
 }
 
+
+
+/* ================= MOBILE RESPONSIVE UI (LIGHT THEME) ================= */
+@media (max-width: 900px) {
+    .dialog.large {
+        width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+        margin: 0;
+    }
+    .dialog-content {
+        display: flex;
+        flex-direction: column;
+        padding: 15px 10px;
+        gap: 20px;
+        background: #f4f6f8;
+    }
+    /* Biến các cột thành Card */
+    .left-column, .right-column {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        background: transparent;
+        border: none;
+        padding: 0;
+    }
+    /* Bọc các phần thông tin thành Card gọn gàng */
+    .dialog-section, .left-column {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e0e0e0;
+    }
+    .dialog-section-khachhang {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .dialog-section-khachhang-item {
+        margin-right: 0;
+    }
+    /* H4 Titles for Mobile Cards */
+    h4 {
+        font-size: 1rem;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px dashed #d4af37;
+        border-left: 4px solid #d4af37;
+        color: #0d1b3f;
+    }
+    /* Input Fields full width */
+    .floating-label input, .floating-label select {
+        font-size: 16px; /* Chống zoom trên iOS */
+        padding: 14px 10px;
+    }
+    /* Product Table responsive (chống tràn) */
+    .product-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    .product-table th, .product-table td {
+        padding: 10px;
+    }
+    .payment {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e0e0e0;
+        margin-top: 10px;
+    }
+    .btn-submit, .btn-cancel {
+        width: 100%;
+        padding: 12px;
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }
+}
+
+
+.two-col-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+.payment-col {
+    flex: 1;
+    min-width: 220px;
+    margin: 0 2rem;
+}
+@media (max-width: 900px) {
+    .two-col-grid {
+        grid-template-columns: 1fr;
+    }
+    .payment-col {
+        margin: 0;
+    }
+}

@@ -17,8 +17,16 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Stack from '@mui/material/Stack';
 
 function DoanhThu() {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { showLoading, hideLoading } = useLoading();
     const [hopDongs, setHopDongs] = useState([]);
     const [chiTieus, setChiTieus] = useState([]);
@@ -462,19 +470,20 @@ function DoanhThu() {
             `}</style>
 
             {/* HEADER & TIME PERIOD SELECTOR */}
-            <div className="DoanhThu-header">
-                <h2>BÁO CÁO DOANH THU & KPI</h2>
+            <div className="DoanhThu-header" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '15px' : '0' }}>
+                <h2 style={{ fontSize: isMobile ? '1.4rem' : '1.8rem', textAlign: isMobile ? 'center' : 'left' }}>BÁO CÁO DOANH THU & KPI</h2>
                 <ToggleButtonGroup
                     value={period}
                     exclusive
                     onChange={(e, val) => val && setPeriod(val)}
                     aria-label="time period filter"
                     size="small"
+                    style={{ width: isMobile ? '100%' : 'auto', display: 'flex', justifyContent: isMobile ? 'center' : 'flex-end' }}
                 >
-                    <ToggleButton value="day" style={{ padding: '8px 16px', fontWeight: 'bold' }}>Hôm Nay</ToggleButton>
-                    <ToggleButton value="week" style={{ padding: '8px 16px', fontWeight: 'bold' }}>Tuần Này</ToggleButton>
-                    <ToggleButton value="month" style={{ padding: '8px 16px', fontWeight: 'bold' }}>Tháng Này</ToggleButton>
-                    <ToggleButton value="year" style={{ padding: '8px 16px', fontWeight: 'bold' }}>Năm Nay</ToggleButton>
+                    <ToggleButton value="day" style={{ padding: isMobile ? '6px 10px' : '8px 16px', fontWeight: 'bold', fontSize: isMobile ? '0.75rem' : '0.875rem' }}>Hôm Nay</ToggleButton>
+                    <ToggleButton value="week" style={{ padding: isMobile ? '6px 10px' : '8px 16px', fontWeight: 'bold', fontSize: isMobile ? '0.75rem' : '0.875rem' }}>Tuần Này</ToggleButton>
+                    <ToggleButton value="month" style={{ padding: isMobile ? '6px 10px' : '8px 16px', fontWeight: 'bold', fontSize: isMobile ? '0.75rem' : '0.875rem' }}>Tháng Này</ToggleButton>
+                    <ToggleButton value="year" style={{ padding: isMobile ? '6px 10px' : '8px 16px', fontWeight: 'bold', fontSize: isMobile ? '0.75rem' : '0.875rem' }}>Năm Nay</ToggleButton>
                 </ToggleButtonGroup>
             </div>
 
@@ -578,6 +587,43 @@ function DoanhThu() {
                         <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', color: '#2c3e50', fontWeight: 'bold' }}>
                             Xếp hạng KPI Nhân viên (Ký mới)
                         </h3>
+                        {isMobile ? (
+                            <Stack spacing={1}>
+                                {metrics.kpiRankings.length === 0 ? (
+                                    <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
+                                        Không có dữ liệu KPI trong khoảng thời gian này.
+                                    </div>
+                                ) : (
+                                    metrics.kpiRankings.map((ranking, index) => {
+                                        let medal = index + 1;
+                                        if (index === 0) medal = <span className="kpi-medal">🥇</span>;
+                                        else if (index === 1) medal = <span className="kpi-medal">🥈</span>;
+                                        else if (index === 2) medal = <span className="kpi-medal">🥉</span>;
+
+                                        return (
+                                            <Card key={ranking.name} sx={{ boxShadow: '0 2px 4px rgba(0,0,0,0.05)', backgroundColor: index === 0 ? 'rgba(241, 196, 15, 0.05)' : 'white' }}>
+                                                <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                        <Box display="flex" alignItems="center" gap={1.5}>
+                                                            <Typography variant="h6" fontWeight="bold">{medal}</Typography>
+                                                            <Typography variant="body1" fontWeight="bold">{ranking.name}</Typography>
+                                                        </Box>
+                                                        <Box textAlign="right">
+                                                            <Typography variant="body2" color="success.main" fontWeight="bold">
+                                                                {ranking.revenue.toLocaleString('vi-VN')} đ
+                                                            </Typography>
+                                                            <Typography variant="caption" color="textSecondary">
+                                                                {ranking.count} hợp đồng
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })
+                                )}
+                            </Stack>
+                        ) : (
                         <TableContainer style={{ maxHeight: '290px', overflow: 'auto' }}>
                             <Table stickyHeader size="small">
                                 <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
@@ -619,6 +665,7 @@ function DoanhThu() {
                                 </TableBody>
                             </Table>
                         </TableContainer>
+                        )}
                     </div>
                 </Grid>
             </Grid>

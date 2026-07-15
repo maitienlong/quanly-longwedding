@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 function MainV2() {
     const navigate = useNavigate();
     const [showDialog, setShowDialog] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { user, logout } = useAuth();
 
     const [ctime, setTime] = useState(new Date().toLocaleTimeString());
@@ -80,6 +81,9 @@ function MainV2() {
                         <div className="logo-title-group">
                             <img className="logo-login" src={logo} alt="logo" />
                             <h1 className="mobile-only-title">HỆ THỐNG QUẢN LÝ CỬA HÀNG LONG WEDDING</h1>
+                            <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                                <i className="fa-solid fa-bars"></i>
+                            </button>
                         </div>
                         <div className="time-display">
                             <h2 id="clock">{ctime}</h2>
@@ -95,34 +99,34 @@ function MainV2() {
                         </div>
                     </div>
 
-                    <nav className="sidebar-nav">
+                    <nav className={`sidebar-nav ${isMenuOpen ? 'open' : ''}`}>
                         <ul>
                             {hasAccess("/hop-dong-khach-hang") && (
-                                <li><Link to="/hop-dong-khach-hang"><i className="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
+                                <li><Link to="/hop-dong-khach-hang" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
                             )}
                             {hasAccess("/lich-cua-hang") && (
-                                <li><Link to="/lich-cua-hang"><i className="fa-solid fa-calendar-days"></i> LỊCH CỬA HÀNG</Link></li>
+                                <li><Link to="/lich-cua-hang" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-calendar-days"></i> LỊCH CỬA HÀNG</Link></li>
                             )}
                             {hasAccess("/lich-soan-do") && (
-                                <li><Link to="/lich-soan-do"><i className="fa-solid fa-shirt"></i> LỊCH SOẠN ĐỒ</Link></li>
+                                <li><Link to="/lich-soan-do" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-shirt"></i> LỊCH SOẠN ĐỒ</Link></li>
                             )}
                             {hasAccess("/quan-ly-chi-tieu") && (
-                                <li><Link to="/quan-ly-chi-tieu"><i className="fa-solid fa-cash-register"></i> QUẢN LÝ CHI TIÊU</Link></li>
+                                <li><Link to="/quan-ly-chi-tieu" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-cash-register"></i> QUẢN LÝ CHI TIÊU</Link></li>
                             )}
                             {hasAccess("/bao-cao-doanh-thu") && (
-                                <li><Link to="/bao-cao-doanh-thu"><i className="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
+                                <li><Link to="/bao-cao-doanh-thu" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
                             )}
                             {hasAccess("/quan-ly-kho") && (
-                                <li><Link to="/quan-ly-kho"><i className="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
+                                <li><Link to="/quan-ly-kho" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
                             )}
                             {hasAccess("/quan-ly-nhan-vien") && (
-                                <li><Link to="/quan-ly-nhan-vien"><i className="fa-solid fa-users-gear"></i> QUẢN LÝ NHÂN VIÊN</Link></li>
+                                <li><Link to="/quan-ly-nhan-vien" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-users-gear"></i> QUẢN LÝ NHÂN VIÊN</Link></li>
                             )}
                             {hasAccess("/quan-ly-khach-hang") && (
-                                <li><Link to="/quan-ly-khach-hang"><i className="fa-solid fa-users"></i> QUẢN LÝ KHÁCH HÀNG</Link></li>
+                                <li><Link to="/quan-ly-khach-hang" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-users"></i> QUẢN LÝ KHÁCH HÀNG</Link></li>
                             )}
                             {hasAccess("/quan-ly-website") && (
-                                <li><Link to="/quan-ly-website"><i className="fa-solid fa-globe"></i> QUẢN LÝ WEBSITE</Link></li>
+                                <li><Link to="/quan-ly-website" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-globe"></i> QUẢN LÝ WEBSITE</Link></li>
                             )}
                         </ul>
                     </nav>

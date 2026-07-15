@@ -23,17 +23,29 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import MenuItem from '@mui/material/MenuItem';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Grid';
+
 import Select from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
+import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useAuth } from '../Login/AuthContext/AuthContext';
 
 function LichSoanDo() {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { showLoading, hideLoading } = useLoading();
     const { user } = useAuth();
     const loggedInUserFullname = user?.fullname || '';
@@ -520,7 +532,7 @@ function LichSoanDo() {
     const listToDisplay = getFilteredHopDongs();
 
     return (
-        <div className="LichSoanDo" style={{ padding: '20px' }}>
+        <div className="LichSoanDo" style={{ padding: isMobile ? '10px' : '20px', height: isMobile ? 'calc(100vh - 145px)' : 'auto', display: isMobile ? 'flex' : 'block', flexDirection: 'column' }}>
             <style>{`
                 .LichSoanDo .content-header {
                     display: flex;
@@ -567,72 +579,160 @@ function LichSoanDo() {
                     50% { opacity: 0.6; }
                     100% { opacity: 1; }
                 }
-                .LichSoanDo-table-row {
-                    transition: background-color 0.2s;
-                    cursor: pointer;
-                }
-                .LichSoanDo-table-row:hover {
-                    background-color: #f1f8ff !important;
-                }
             `}</style>
 
             {/* HEADER & FILTERS */}
-            <div className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <h2>QUẢN LÝ LỊCH SOẠN & MƯỢN TRẢ ĐỒ</h2>
-                    <Button 
-                        variant="contained" 
-                        color="primary"
-                        onClick={handleAddNewVoucher}
-                    >
-                        Thêm phiếu soạn trả
-                    </Button>
-                </div>
-                <div className="filters">
-                    {/* Time Filter */}
-                    <FormControl variant="outlined" size="small" style={{ width: 180 }}>
-                        <InputLabel>Lọc theo thời gian</InputLabel>
-                        <Select
-                            value={timeFilter}
-                            onChange={(e) => setTimeFilter(e.target.value)}
-                            label="Lọc theo thời gian"
-                        >
-                            <MenuItem value="all">Tất cả thời gian</MenuItem>
-                            <MenuItem value="today">Hôm nay</MenuItem>
-                            <MenuItem value="week">Tuần này</MenuItem>
-                            <MenuItem value="month">Tháng này</MenuItem>
-                        </Select>
-                    </FormControl>
-
-                    {/* Status Filter */}
-                    <FormControl variant="outlined" size="small" style={{ width: 180 }}>
-                        <InputLabel>Trạng thái</InputLabel>
-                        <Select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            label="Trạng thái"
-                        >
-                            <MenuItem value="all">Tất cả trạng thái</MenuItem>
-                            <MenuItem value="Chưa mượn">Chưa soạn / Chưa mượn</MenuItem>
-                            <MenuItem value="Đang mượn">Đang mượn</MenuItem>
-                            <MenuItem value="Đã trả">Đã trả</MenuItem>
-                            <MenuItem value="Quá hạn">Quá hạn (Trễ trả)</MenuItem>
-                        </Select>
-                    </FormControl>
-
-                    {/* Search Field */}
+            <div className="content-header">
+                <h2 style={{ fontSize: isMobile ? '1.25rem' : '1.8rem', fontWeight: 'bold', color: '#0d1b3f', textAlign: 'center', textTransform: 'uppercase', marginBottom: isMobile ? '16px' : '0' }}>LỊCH SOẠN & MƯỢN TRẢ ĐỒ</h2>
+                <Stack 
+                    spacing={2} 
+                    direction={isMobile ? 'column' : 'row'} 
+                    sx={{ width: '100%', mb: 2 }}
+                >
                     <TextField
                         label="Tìm kiếm (Mã HĐ, SĐT, Tên)"
                         variant="outlined"
-                        size="small"
+                        size={isMobile ? "small" : "medium"}
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
-                        style={{ width: 250 }}
+                        InputProps={{
+                            sx: { height: isMobile ? 42 : commonHeight }
+                        }}
+                        sx={{ width: isMobile ? '100%' : 280, order: isMobile ? 1 : 3 }}
                     />
-                </div>
-            </div>
+                    
+                    <Stack direction="row" spacing={2} sx={{ width: isMobile ? '100%' : 'auto', order: isMobile ? 2 : 1 }}>
+                        <FormControl variant="outlined" size={isMobile ? "small" : "medium"} sx={{ flex: 1, minWidth: isMobile ? 0 : 220 }}>
+                            <InputLabel>Lọc theo thời gian</InputLabel>
+                            <Select
+                                value={timeFilter}
+                                onChange={(e) => setTimeFilter(e.target.value)}
+                                label="Lọc theo thời gian"
+                                sx={{ height: isMobile ? 42 : commonHeight }}
+                            >
+                                <MenuItem value="all">Tất cả thời gian</MenuItem>
+                                <MenuItem value="today">Hôm nay</MenuItem>
+                                <MenuItem value="week">Tuần này</MenuItem>
+                                <MenuItem value="month">Tháng này</MenuItem>
+                            </Select>
+                        </FormControl>
 
+                        <FormControl variant="outlined" size={isMobile ? "small" : "medium"} sx={{ flex: 1, minWidth: isMobile ? 0 : 220 }}>
+                            <InputLabel>Trạng thái</InputLabel>
+                            <Select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                label="Trạng thái"
+                                sx={{ height: isMobile ? 42 : commonHeight }}
+                            >
+                                <MenuItem value="all">Tất cả trạng thái</MenuItem>
+                                <MenuItem value="Chưa mượn">Chưa soạn / Chưa mượn</MenuItem>
+                                <MenuItem value="Đang mượn">Đang mượn</MenuItem>
+                                <MenuItem value="Đã trả">Đã trả</MenuItem>
+                                <MenuItem value="Quá hạn">Quá hạn (Trễ trả)</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Stack>
+
+                    {!isMobile && (
+                        <Button
+                            onClick={handleAddNewVoucher}
+                            variant="contained"
+                            sx={{
+                                height: commonHeight, 
+                                whiteSpace: 'nowrap',  
+                                order: 4
+                            }}
+                        >Thêm phiếu soạn trả</Button>
+                    )}
+                </Stack>
+                {isMobile && (
+                    <div 
+                        style={{ 
+                            width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#1976d2', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                            color: 'white', fontSize: '24px', opacity: 0.8,
+                            boxShadow: '0 4px 8px rgba(0,0,0,0.2)', position: 'fixed', bottom: '90px', right: '20px', zIndex: 1000, cursor: 'pointer'
+                        }}
+                        onClick={handleAddNewVoucher}
+                    >
+                        <i className="fa-solid fa-plus"></i>
+                    </div>
+                )}
+            </div>
             {/* CONTRACT LIST TABLE */}
+            {isMobile ? (
+                <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
+                    <Stack spacing={2}>
+                    {listToDisplay.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
+                            Không tìm thấy hợp đồng nào phù hợp.
+                        </div>
+                    ) : (
+                        listToDisplay.map((hd, index) => {
+                            const status = getTrangThaiText(hd.soanDo);
+                            const isRed = status === "Quá hạn";
+                            return (
+                                <Card key={index} sx={{ mb: 2, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }} onClick={() => handleRowClick(hd)}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>
+                                            {hd.maHopDong}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Chip 
+                                                label={status} 
+                                                size="small" 
+                                                sx={{ 
+                                                    bgcolor: isRed ? '#d32f2f' : (status === "Đang mượn" ? '#2980b9' : (status === "Đã trả" ? '#2ecc71' : '#95a5a6')), 
+                                                    color: '#fff',
+                                                    fontWeight: 'bold',
+                                                    fontSize: '0.75rem',
+                                                    height: '24px'
+                                                }} 
+                                            />
+                                        </Box>
+                                    </Box>
+                                    <Box sx={{ p: 2 }}>
+                                        <Grid container spacing={2}>
+                                            <Grid item xs={6}>
+                                                <Typography variant="caption" color="text.secondary">Khách hàng</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>
+                                                    {hd.khachHang1 ? hd.khachHang1.tenKhachHang : ''}
+                                                    {hd.khachHang2 && hd.khachHang2.tenKhachHang ? ' / ' + hd.khachHang2.tenKhachHang : ''}
+                                                </Typography>
+                                            </Grid>
+                                            <Grid item xs={6}>
+                                                <Typography variant="caption" color="text.secondary">Liên hệ</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                                    {hd.khachHang1 ? hd.khachHang1.soDienThoai : ''}
+                                                    {hd.khachHang2 && hd.khachHang2.soDienThoai ? ' / ' + hd.khachHang2.soDienThoai : ''}
+                                                </Typography>
+                                            </Grid>
+                                            <Grid item xs={6}>
+                                                <Typography variant="caption" color="text.secondary">Dịch vụ</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{getDichVuChinhLabel(hd.dichVuChinh)}</Typography>
+                                            </Grid>
+                                            <Grid item xs={6}>
+                                                <Typography variant="caption" color="text.secondary">Ngày mượn</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{formatDate(hd.soanDo?.ngayMuon) || '-'}</Typography>
+                                            </Grid>
+                                            <Grid item xs={6}>
+                                                <Typography variant="caption" color="text.secondary">Ngày trả</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: isRed ? '#d32f2f' : 'inherit' }}>{formatDate(hd.soanDo?.ngayTra) || '-'}</Typography>
+                                            </Grid>
+                                            <Grid item xs={6}>
+                                                <Typography variant="caption" color="text.secondary">Đặt cọc</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#2e7d32' }}>{hd.soanDo?.datCoc ? Number(hd.soanDo.datCoc).toLocaleString('vi-VN') + ' đ' : '-'}</Typography>
+                                            </Grid>
+                                        </Grid>
+                                    </Box>
+                                </Card>
+                            );
+                        })
+                    )}
+                    </Stack>
+                </div>
+            ) : (
             <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
                 <Table stickyHeader>
                     <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
@@ -661,6 +761,9 @@ function LichSoanDo() {
                             listToDisplay.map((hd, idx) => {
                                 const status = getTrangThaiText(hd.soanDo);
                                 const isRed = status === "Quá hạn";
+                                const badgeClass = status === "Đang mượn" ? "badge-dang-muon" :
+                                                   status === "Đã trả" ? "badge-da-tra" :
+                                                   status === "Quá hạn" ? "badge-qua-han" : "badge-chua-muon";
                                 return (
                                     <TableRow
                                         key={hd._id}
@@ -672,34 +775,30 @@ function LichSoanDo() {
                                         <TableCell align="center" style={{ fontWeight: '500' }}>{hd.maHopDong}</TableCell>
                                         <TableCell>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
                                         <TableCell>
-                                            {hd.khachHang1?.tenKhachHang}
-                                            {hd.khachHang2?.tenKhachHang && (
+                                            {hd.khachHang1 ? hd.khachHang1.tenKhachHang : ''}
+                                            {hd.khachHang2 && hd.khachHang2.tenKhachHang && (
                                                 <> & <br /> {hd.khachHang2.tenKhachHang}</>
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            {hd.khachHang1?.soDienThoai}
-                                            {hd.khachHang2?.soDienThoai && (
+                                            {hd.khachHang1 ? hd.khachHang1.soDienThoai : ''}
+                                            {hd.khachHang2 && hd.khachHang2.soDienThoai && (
                                                 <> / <br /> {hd.khachHang2.soDienThoai}</>
                                             )}
                                         </TableCell>
-                                        <TableCell align="center">{formatDate(hd.soanDo?.ngaySoan)}</TableCell>
+                                        <TableCell align="center">{formatDate(hd.soanDo ? hd.soanDo.ngaySoan : null)}</TableCell>
                                         <TableCell style={{ maxLines: 2, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {hd.soanDo?.noiDung || '-'}
+                                            {hd.soanDo && hd.soanDo.noiDung ? hd.soanDo.noiDung : '-'}
                                         </TableCell>
-                                        <TableCell align="center">{formatDate(hd.soanDo?.ngayMuon)}</TableCell>
+                                        <TableCell align="center">{formatDate(hd.soanDo ? hd.soanDo.ngayMuon : null)}</TableCell>
                                         <TableCell align="center" style={{ color: isRed ? '#d32f2f' : 'inherit', fontWeight: isRed ? 'bold' : 'normal' }}>
-                                            {formatDate(hd.soanDo?.ngayTra)}
+                                            {formatDate(hd.soanDo ? hd.soanDo.ngayTra : null)}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {hd.soanDo?.datCoc ? Number(hd.soanDo.datCoc).toLocaleString('vi-VN') + ' đ' : '-'}
+                                            {hd.soanDo && hd.soanDo.datCoc ? Number(hd.soanDo.datCoc).toLocaleString('vi-VN') + ' đ' : '-'}
                                         </TableCell>
                                         <TableCell align="center">
-                                            <span className={`status-badge ${
-                                                status === "Đang mượn" ? "badge-dang-muon" :
-                                                status === "Đã trả" ? "badge-da-tra" :
-                                                status === "Quá hạn" ? "badge-qua-han" : "badge-chua-muon"
-                                            }`}>
+                                            <span className={"status-badge " + badgeClass}>
                                                 {status}
                                             </span>
                                         </TableCell>
@@ -710,6 +809,7 @@ function LichSoanDo() {
                     </TableBody>
                 </Table>
             </TableContainer>
+            )}
 
             {/* DIALOG MANAGE FORM */}
             <Dialog
@@ -719,14 +819,14 @@ function LichSoanDo() {
                 fullWidth
             >
                 <DialogTitle style={{ borderBottom: '1px solid #eee', fontWeight: 'bold', color: '#1976d2' }}>
-                    {isNew ? "TẠO PHIẾU SOẠN & MƯỢN TRẢ ĐỒ MỚI" : `QUẢN LÝ LỊCH SOẠN & MƯỢN TRẢ ĐỒ - HĐ: ${selectedHD?.maHopDong}`}
+                    {isNew ? "TẠO PHIẾU SOẠN & MƯỢN TRẢ ĐỒ MỚI" : "QUẢN LÝ LỊCH SOẠN & MƯỢN TRẢ ĐỒ - HĐ: " + (selectedHD ? selectedHD.maHopDong : '')}
                 </DialogTitle>
                 <DialogContent dividers style={{ padding: '0px' }}>
                     {isNew && (
                         <Box p={3} pb={2} style={{ borderBottom: '1px solid #eee', backgroundColor: '#f9f9f9' }}>
                             <Autocomplete
                                 options={hopDongs}
-                                getOptionLabel={(option) => `HĐ: ${option.maHopDong} - ${option.khachHang1?.tenKhachHang || ''} (${getDichVuChinhLabel(option.dichVuChinh)})`}
+                                getOptionLabel={(option) => "HĐ: " + option.maHopDong + " - " + (option.khachHang1 ? option.khachHang1.tenKhachHang : '') + " (" + getDichVuChinhLabel(option.dichVuChinh) + ")"}
                                 value={selectedHD}
                                 onChange={(event, newValue) => {
                                     setSelectedHD(newValue);
@@ -857,7 +957,7 @@ function LichSoanDo() {
                                         <Autocomplete
                                             style={{ flex: 3 }}
                                             options={trangPhucList}
-                                            getOptionLabel={(option) => `[${option.maDichVu}] - ${option.tenDichVu}`}
+                                            getOptionLabel={(option) => "[" + option.maDichVu + "] - " + option.tenDichVu}
                                             value={selectedTrangPhuc}
                                             onChange={(e, val) => setSelectedTrangPhuc(val)}
                                             renderInput={(params) => <TextField {...params} label="Chọn trang phục" size="small" />}

@@ -438,7 +438,11 @@ tbody tr:hover {
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Responsive Design for Dashboard App V2 */
+/* Bố cục responsive cho Mobile / Desktop */
+.mobile-menu-btn {
+    display: none;
+}
+
 @media (max-width: 992px) {
     .container {
         flex-direction: column;
@@ -450,7 +454,7 @@ tbody tr:hover {
     }
     
     .sidebar-header {
-        padding: 15px 20px;
+        padding: 12px 15px;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -466,13 +470,13 @@ tbody tr:hover {
     }
     
     .logo-login {
-        max-height: 45px;
+        max-height: 40px;
         width: auto;
     }
     
     .mobile-only-title {
         display: block !important;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         font-weight: 700;
         color: var(--white-color);
         margin: 0;
@@ -484,16 +488,33 @@ tbody tr:hover {
         display: none !important; /* Hide massive clock on mobile to save header space */
     }
     
+    .mobile-menu-btn {
+        display: block !important;
+        background: transparent;
+        border: none;
+        color: var(--white-color);
+        font-size: 24px;
+        cursor: pointer;
+        padding: 5px;
+        margin-left: auto; /* Đẩy sang góc phải */
+    }
+    
     .sidebar-nav {
-        padding: 10px 20px;
+        display: none; /* Ẩn mặc định trên mobile */
+        padding: 10px;
+        background-color: rgba(0,0,0,0.2); /* Tạo điểm nhấn cho menu khi mở */
+    }
+    
+    .sidebar-nav.open {
+        display: block; /* Hiện khi có class open */
     }
     
     .sidebar-nav ul {
         display: flex;
-        overflow-x: auto;
-        gap: 10px;
+        flex-direction: column; /* Danh sách dọc */
+        overflow-x: hidden;
+        gap: 5px;
         padding-bottom: 5px;
-        scrollbar-width: none; /* Firefox */
     }
     
     .sidebar-nav ul::-webkit-scrollbar {
@@ -502,13 +523,16 @@ tbody tr:hover {
     
     .sidebar-nav ul li {
         flex-shrink: 0;
+        width: 100%;
     }
     
     .sidebar-nav ul li a {
-        padding: 8px 16px;
+        padding: 12px 15px;
         margin-bottom: 0;
-        font-size: 0.85rem;
-        white-space: nowrap;
+        font-size: 0.95rem;
+        white-space: normal; /* Không ép trên 1 dòng nữa */
+        gap: 12px;
+        border-radius: 6px;
     }
     
     .user-profile {
@@ -517,17 +541,35 @@ tbody tr:hover {
         left: 0;
         right: 0;
         z-index: 999;
-        padding: 10px 20px;
+        padding: 8px 15px;
         height: 60px;
         box-shadow: 0 -2px 10px rgba(0,0,0,0.15);
         justify-content: flex-start;
         display: flex;
         align-items: center;
+        gap: 10px;
     }
     
+    .user-profile .fa-user-circle {
+        font-size: 30px;
+    }
+    
+    .user-info .user-name {
+        font-size: 13px;
+    }
+    
+    .user-info .user-role {
+        font-size: 11px;
+    }
+
     .main-content {
+        padding: 10px;
+        padding-bottom: 75px; /* Space to prevent content overlap with bottom profile bar */
+    }
+    
+    .content-wrapper {
         padding: 15px;
-        padding-bottom: 80px; /* Space to prevent content overlap with bottom profile bar */
+        border-radius: 8px;
     }
     
     .main-header {
@@ -537,11 +579,54 @@ tbody tr:hover {
     .content-header {
         flex-direction: column;
         align-items: stretch;
-        gap: 15px;
+        gap: 12px;
+        margin-bottom: 15px;
     }
     
-    .content-header h2 {
-        font-size: 18px;
-        text-align: center;
+    .content-header h2, .title-hdkh {
+        font-size: 1.25rem;
+        text-align: left;
+    }
+    
+    .filters, .actions-group {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+    
+    .filters > * {
+        width: 100% !important;
+        flex-shrink: 1;
+        flex-grow: 1;
+    }
+    
+    .search-bar, .select-wrapper {
+        width: 100% !important;
+        max-width: none;
+    }
+    
+    .search-bar input, .select-wrapper select {
+        width: 100% !important;
+    }
+    
+    .add-new-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    /* Table Responsive */
+    .table-container, .MuiTableContainer-root {
+        overflow-x: auto;
+    }
+    
+    th, td {
+        padding: 10px 8px;
+        font-size: 12px;
+        white-space: nowrap; /* Prevent table headers from stacking */
+    }
+    
+    .status-chip {
+        padding: 4px 8px;
+        font-size: 11px;
     }
 }

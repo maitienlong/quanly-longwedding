@@ -1203,7 +1203,7 @@ function ThemHopDongKHDialog(props) {
 
                             <div className="dialog-section">
                                 <h4>Thông tin hợp đồng</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                <div className="two-col-grid">
                                     <div className="floating-label">
                                         <input name="maHopDong" value={maHopDong} onChange={(e) => setMaHopDong(e.target.value)} required />
                                         <label>Mã hợp đồng</label>
@@ -1277,7 +1277,7 @@ function ThemHopDongKHDialog(props) {
 
                             <div className="dialog-section" style={{ marginTop: '20px' }}>
                                 <h4>Thông tin chung & Lịch trình</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                <div className="two-col-grid">
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                                         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
                                             <DateTimePicker
@@ -1604,7 +1604,7 @@ function ThemHopDongKHDialog(props) {
                             <Stack
                                 direction="column"
                                 spacing={1}
-                                style={{ flex: 1, minWidth: '220px', margin: '0 2rem' }}
+                                className="payment-col"
                             >
 
                                 <div style={{ display: 'flex', gap: '5px' }}>
