@@ -1,25 +1,14 @@
 import './quanlykho.css';
 import React, { useState, useEffect } from 'react';
-import { toast } from 'sonner';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faPlus
-} from '@fortawesome/free-solid-svg-icons';
 import { useLoading } from "../../context/LoadingContext";
 import otherService from '../../API/services/otherService';
-import SearchInput from '../../components/AppSearchInput';
-import AppButton from '../../components/AppButton';
-import AppDialog from "../../components/AppDialog";
 import ServiceDetailDialog from './ServiceDetailDialog';
 import ServiceAddDialog from './ServiceAddDialog';
-import { formatCurrency, parseCurrency } from "../utils/formatCurrency.js";
-
-
+import { formatCurrency } from "../utils/formatCurrency.js";
 import Button from '@mui/material/Button';
-import { styled } from '@mui/material/styles';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
-import TableCell, { tableCellClasses } from '@mui/material/TableCell';
+import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
@@ -47,10 +36,6 @@ const QuanLyKho = () => {
 
     const commonHeight = 56;
 
-    // table
-    const [page, setPage] = React.useState(0);
-    const [rowsPerPage, setRowsPerPage] = React.useState(10);
-
     // -------------------------------
 
     const onSaveSuccess = () => {
@@ -71,17 +56,7 @@ const QuanLyKho = () => {
 
 
 
-    const rows = [
-        { id: 1, lastName: 'Snow', firstName: 'Jon', age: 35 },
-        { id: 2, lastName: 'Lannister', firstName: 'Cersei', age: 42 },
-        { id: 3, lastName: 'Lannister', firstName: 'Jaime', age: 45 },
-        { id: 4, lastName: 'Stark', firstName: 'Arya', age: 16 },
-        { id: 5, lastName: 'Targaryen', firstName: 'Daenerys', age: null },
-        { id: 6, lastName: 'Melisandre', firstName: null, age: 150 },
-        { id: 7, lastName: 'Clifford', firstName: 'Ferrara', age: 44 },
-        { id: 8, lastName: 'Frances', firstName: 'Rossini', age: 36 },
-        { id: 9, lastName: 'Roxie', firstName: 'Harvey', age: 65 },
-    ];
+
 
 
     return (

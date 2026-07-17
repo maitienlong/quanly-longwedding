@@ -26,7 +26,6 @@ import MenuItem from '@mui/material/MenuItem';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 
@@ -53,7 +52,6 @@ function QuanLyChiTieu() {
 
     // Dialog state
     const [openAddDialog, setOpenAddDialog] = useState(false);
-    const [openEditDialog, setOpenEditDialog] = useState(false);
 
     // Form inputs state
     const [selectedHD, setSelectedHD] = useState(null); // Linked contract
@@ -69,9 +67,6 @@ function QuanLyChiTieu() {
         }
     }, [user]);
     const [ghiChu, setGhiChu] = useState('');
-
-    // Selected expense for editing/deleting
-    const [selectedExpense, setSelectedExpense] = useState(null);
 
     const commonHeight = 40;
 
@@ -155,7 +150,6 @@ function QuanLyChiTieu() {
         setSoTien('');
         setNguoiChi(loggedInUserFullname);
         setGhiChu('');
-        setSelectedExpense(null);
     };
 
     // Save a new expenditure
@@ -321,38 +315,38 @@ function QuanLyChiTieu() {
                         </div>
                         <div class="voucher-title-sec">
                             <div class="title">PHIẾU CHI</div>
-                            <div class="date-line">Ngày \${day} tháng \${month} năm \${year}</div>
+                            <div class="date-line">Ngày ${day} tháng ${month} năm ${year}</div>
                         </div>
                         <div class="voucher-code">
                             <div>Mẫu số: 02 - TT</div>
-                            <div>Mã HĐ: \${exp.maHopDong === 'CH-CHUNG' ? 'Chi chung' : exp.maHopDong}</div>
-                            <div style="font-weight: normal; font-size: 11px; margin-top: 5px;">Mã PC: \${exp.id}</div>
+                            <div>Mã HĐ: ${exp.maHopDong === 'CH-CHUNG' ? 'Chi chung' : exp.maHopDong}</div>
+                            <div style="font-weight: normal; font-size: 11px; margin-top: 5px;">Mã PC: ${exp.id}</div>
                         </div>
                     </div>
                     
                     <div class="form-line">
                         <span class="label">Họ và tên người nhận tiền:</span>
-                        <span class="value">\${exp.receiver}</span>
+                        <span class="value">${exp.receiver}</span>
                     </div>
                     <div class="form-line">
                         <span class="label">Địa chỉ / Mục liên kết:</span>
-                        <span class="value">\${exp.khachHangLabel || ''}</span>
+                        <span class="value">${exp.khachHangLabel || ''}</span>
                     </div>
                     <div class="form-line">
                         <span class="label">Lý do chi:</span>
-                        <span class="value">\${exp.reason}</span>
+                        <span class="value">${exp.reason}</span>
                     </div>
                     <div class="form-line">
                         <span class="label">Số tiền chi:</span>
-                        <span class="value"><strong>\${Number(exp.amount).toLocaleString('vi-VN')} VNĐ</strong></span>
+                        <span class="value"><strong>${Number(exp.amount).toLocaleString('vi-VN')} VNĐ</strong></span>
                     </div>
                     <div class="form-line">
                         <span class="label">Viết bằng chữ:</span>
-                        <span class="value" style="font-style: italic;">\${docSoTiengViet(exp.amount)}</span>
+                        <span class="value" style="font-style: italic;">${docSoTiengViet(exp.amount)}</span>
                     </div>
                     <div class="form-line">
                         <span class="label">Kèm theo:</span>
-                        <span class="value">\${exp.note || 'Chứng từ gốc'}</span>
+                        <span class="value">${exp.note || 'Chứng từ gốc'}</span>
                     </div>
                     
                     <div class="signatures">

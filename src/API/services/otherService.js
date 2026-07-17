@@ -31,6 +31,11 @@ const appService = {
    findAllLichSoanDo: (params) => axiosClient.post(ENDPOINTS.LICH_SOAN_DO.FIND_ALL, params),
    findByContractLichSoanDo: (params) => axiosClient.post(ENDPOINTS.LICH_SOAN_DO.FIND_BY_CONTRACT, params),
    removeLichSoanDo: (params) => axiosClient.post(ENDPOINTS.LICH_SOAN_DO.REMOVE, params),
+   // ALBUM
+   syncAlbum: (params) => axiosClient.post(ENDPOINTS.ALBUM.SYNC, params),
+   listAlbums: (params) => axiosClient.get(ENDPOINTS.ALBUM.LIST, { params }),
+   getAlbumDetail: (maHopDong) => axiosClient.get(`${ENDPOINTS.ALBUM.DETAIL}/${maHopDong}`),
+   updateAlbumSettings: (maHopDong, params) => axiosClient.put(`${ENDPOINTS.ALBUM.SETTINGS}/${maHopDong}/settings`, params)
 };
 
 export default appService;

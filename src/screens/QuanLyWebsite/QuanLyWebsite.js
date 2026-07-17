@@ -32,11 +32,7 @@ const QuanLyWebsite = () => {
   const [syncLoading, setSyncLoading] = useState(false);
   const [activeServiceTab, setActiveServiceTab] = useState('general');
   
-  // Auth state
-  const [websiteToken, setWebsiteToken] = useState(sessionStorage.getItem('websiteToken') || null);
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-
+  // Auth state removed as we use admin token
   // Temporary state for form
   const [editItem, setEditItem] = useState(null);
   const [bookingFilter, setBookingFilter] = useState('all');
@@ -217,7 +213,7 @@ const QuanLyWebsite = () => {
     setLoading(true);
     try {
       if (activeTab === 'accounts') {
-        const res = await websiteService.getAccounts(websiteToken);
+        const res = await websiteService.getAccounts(localStorage.getItem('token'));
         if (res && res.success) {
           setData(res.data || []);
         }
@@ -229,7 +225,6 @@ const QuanLyWebsite = () => {
       }
     } catch (error) {
       toast.error("Lỗi khi tải dữ liệu");
-      if (error.response?.status === 401) setWebsiteToken(null);
     } finally {
       setLoading(false);
     }
@@ -312,7 +307,7 @@ const QuanLyWebsite = () => {
       const updatedData = [...data, ...newItems];
 
       // Save using updateSection
-      const res = await websiteService.updateSection(activeTab, updatedData, websiteToken);
+      const res = await websiteService.updateSection(activeTab, updatedData, localStorage.getItem('token'));
       if (res && res.success) {
         toast.success(`Đồng bộ thành công ${newItems.length} dịch vụ!`);
         setData(res.data);
@@ -404,22 +399,7 @@ const QuanLyWebsite = () => {
     return prepared;
   };
 
-  const handleSave = async (newData) => {
-    setLoading(true);
-    try {
-      const res = await websiteService.updateSection(activeTab, newData, websiteToken);
-      if (res && res.success) {
-        toast.success("Cập nhật thành công!");
-        setData(res.data);
-      }
-    } catch (error) {
-      toast.error("Lỗi khi cập nhật (Có thể do token hết hạn)");
-      if (error.response?.status === 401) setWebsiteToken(null);
-    } finally {
-      setLoading(false);
-      closeEdit();
-    }
-  };
+
 
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc chắn muốn xoá mục này?")) return;
@@ -427,9 +407,9 @@ const QuanLyWebsite = () => {
     try {
       let res;
       if (activeTab === 'accounts') {
-        res = await websiteService.deleteAccount(id, websiteToken);
+        res = await websiteService.deleteAccount(id, localStorage.getItem('token'));
       } else {
-        res = await websiteService.deleteSectionItem(activeTab, id, websiteToken);
+        res = await websiteService.deleteSectionItem(activeTab, id, localStorage.getItem('token'));
       }
       
       if (res && res.success) {
@@ -438,7 +418,6 @@ const QuanLyWebsite = () => {
       }
     } catch (error) {
       toast.error("Lỗi khi xóa");
-      if (error.response?.status === 401) setWebsiteToken(null);
     } finally {
       setLoading(false);
     }
@@ -498,15 +477,15 @@ const QuanLyWebsite = () => {
       
       if (activeTab === 'accounts') {
         if (isExisting) {
-          res = await websiteService.updateAccount(submitData._id || submitData.id, submitData.username, submitData.password, websiteToken);
+          res = await websiteService.updateAccount(submitData._id || submitData.id, submitData.username, submitData.password, localStorage.getItem('token'));
         } else {
-          res = await websiteService.createAccount(submitData.username, submitData.password, websiteToken);
+          res = await websiteService.createAccount(submitData.username, submitData.password, localStorage.getItem('token'));
         }
       } else {
         if (isExisting) {
-          res = await websiteService.updateSectionItem(activeTab, submitData.id, submitData, websiteToken);
+          res = await websiteService.updateSectionItem(activeTab, submitData.id, submitData, localStorage.getItem('token'));
         } else {
-          res = await websiteService.addSectionItem(activeTab, submitData, websiteToken);
+          res = await websiteService.addSectionItem(activeTab, submitData, localStorage.getItem('token'));
         }
       }
       
@@ -518,29 +497,13 @@ const QuanLyWebsite = () => {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Lỗi khi cập nhật");
-      if (error.response?.status === 401) setWebsiteToken(null);
     } finally {
       setLoading(false);
       closeEdit();
     }
   };
 
-  const handleWebsiteLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await websiteService.loginWebsite(loginUsername, loginPassword);
-      if (res && res.success) {
-        toast.success("Đăng nhập quản lý website thành công!");
-        setWebsiteToken(res.token);
-        sessionStorage.setItem('websiteToken', res.token);
-      }
-    } catch (error) {
-      toast.error("Tài khoản hoặc mật khẩu không đúng!");
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const renderServiceGeneralTab = () => {
     return (
@@ -975,29 +938,10 @@ const QuanLyWebsite = () => {
     }
   };
 
-  if (!websiteToken) {
-    return (
-      <div className="quanly-website-container">
-        <h2>Đăng Nhập Quản Lý Website</h2>
-        <div className="website-login-box" style={{ maxWidth: '400px', margin: '40px auto', background: '#fff', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          <form onSubmit={handleWebsiteLogin} className="website-form">
-            <h3 style={{ textAlign: 'center', marginBottom: '20px' }}>Xác thực bảo mật</h3>
-            <input type="text" placeholder="Tên đăng nhập" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} required />
-            <input type="password" placeholder="Mật khẩu" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
-            <button type="submit" className="save-btn" style={{ width: '100%', marginTop: '10px' }} disabled={loading}>
-              {loading ? 'Đang xử lý...' : 'Đăng Nhập'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="quanly-website-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ margin: 0 }}>Quản Lý Giao Diện Website</h2>
-        <button onClick={() => { setWebsiteToken(null); sessionStorage.removeItem('websiteToken'); }} className="cancel-btn">Đăng Xuất</button>
       </div>
       
       <div className="website-tabs">

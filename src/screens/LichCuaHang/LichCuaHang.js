@@ -13,6 +13,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import DetailHopDongKhachHangDialog from '../HopDong/DetailHopDongKhachHangDialog';
+import LocAnhMayTinhDialog from '../HopDong/LocAnhMayTinhDialog';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import Card from '@mui/material/Card';
@@ -20,6 +21,8 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -210,11 +213,19 @@ function LichCuaHang() {
 
     // dialog cập nhật lịch chụp cho Tab Chụp Hình
     const [openChupHinhDialog, setOpenChupHinhDialog] = useState(false);
+    const [chupHinhTab, setChupHinhTab] = useState(0);
+    const [albumData, setAlbumData] = useState(null);
+    const [coGioiHanAnh, setCoGioiHanAnh] = useState(false);
+    const [soLuongAnhGioiHan, setSoLuongAnhGioiHan] = useState(0);
+    const [khachHangXacNhan, setKhachHangXacNhan] = useState(false);
+    const [openLocAnhDialog, setOpenLocAnhDialog] = useState(false);
     const [selectedChupHinhContract, setSelectedChupHinhContract] = useState(null);
+    const [isSyncingAlbumChinhSua, setIsSyncingAlbumChinhSua] = useState(false);
 
     const [confirmDiaDiem, setConfirmDiaDiem] = useState("");
     const [confirmChotLich, setConfirmChotLich] = useState("Chưa gọi điện");
     const [confirmLinkAnh, setConfirmLinkAnh] = useState("");
+    const [isSyncingAlbum, setIsSyncingAlbum] = useState(false);
     const [confirmThoChupHinh, setConfirmThoChupHinh] = useState("");
     const [confirmThoMakeUp, setConfirmThoMakeUp] = useState("");
 
@@ -295,13 +306,42 @@ function LichCuaHang() {
             setConfirmLinkAnh(hd.linkAnhGoc || "");
             setConfirmThoChupHinh(hd.nguoiPhucVu?.thoChupHinh || "");
             setConfirmThoMakeUp(hd.nguoiPhucVu?.thoMakeUp || "");
+            
+            setChupHinhTab(0);
+            setAlbumData(null);
+            if (hd.linkAnhGoc) {
+                otherService.getAlbumDetail(hd.maHopDong)
+                    .then(res => {
+                        if (res && res.album) {
+                            setAlbumData(res.album);
+                            setCoGioiHanAnh(res.album.coGioiHanAnh || false);
+                            setSoLuongAnhGioiHan(res.album.soLuongAnhGioiHan || 0);
+                            setKhachHangXacNhan(res.album.khachHangXacNhan || false);
+                        }
+                    })
+                    .catch(() => {});
+            }
+
             setOpenChupHinhDialog(true);
         } else if (activeTab === 'hauKy') {
             setSelectedHauKyContract(hd);
             setConfirmThoChinhAnh(hd.nguoiPhucVu?.thoChinhAnh || "");
             setConfirmNgayChinhAnh(formatTimestampToDateInput(hd.cacNgay?.ngayChinhAnh) || "");
             setConfirmNgayTraAnh(formatTimestampToDateInput(hd.cacNgay?.ngayTraAnh) || "");
+            setConfirmLinkAnh(hd.linkAnhGoc || "");
             setConfirmLinkAnhChinhSua(hd.linkAnhChinhSua || "");
+            
+            setAlbumData(null);
+            if (hd.linkAnhGoc || hd.linkAnhChinhSua) {
+                otherService.getAlbumDetail(hd.maHopDong)
+                    .then(res => {
+                        if (res && res.album) {
+                            setAlbumData(res.album);
+                        }
+                    })
+                    .catch(() => {});
+            }
+
             setOpenHauKyDialog(true);
         } else if (activeTab === 'inAnh') {
             setSelectedInAnhContract(hd);
@@ -310,6 +350,54 @@ function LichCuaHang() {
             setSendData(hd);
             setOpenDetailDialog(true);
         }
+    };
+
+    const handleSyncAlbum = (link, isChinhSua = false) => {
+        const urlToSync = typeof link === 'string' ? link : confirmLinkAnh;
+        if (!urlToSync) {
+            toast.error("Chưa có đường dẫn ảnh. Vui lòng nhập link Google Drive.");
+            return;
+        }
+        const contract = isChinhSua ? selectedHauKyContract : selectedChupHinhContract;
+        const loaiAnh = isChinhSua ? 'chinhSua' : 'goc';
+        
+        if (isChinhSua) setIsSyncingAlbumChinhSua(true);
+        else setIsSyncingAlbum(true);
+
+        otherService.syncAlbum({ maHopDong: contract?.maHopDong, driveLink: urlToSync.trim(), loaiAnh })
+            .then(res => {
+                toast.success(res.message || "Đồng bộ album thành công!");
+                if (res.album) {
+                    setAlbumData(res.album);
+                    if (!isChinhSua) {
+                        setCoGioiHanAnh(res.album.coGioiHanAnh || false);
+                        setSoLuongAnhGioiHan(res.album.soLuongAnhGioiHan || 0);
+                        setKhachHangXacNhan(res.album.khachHangXacNhan || false);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                toast.error(err.response?.data?.message || "Lỗi đồng bộ album!");
+            })
+            .finally(() => {
+                if (isChinhSua) setIsSyncingAlbumChinhSua(false);
+                else setIsSyncingAlbum(false);
+            });
+    };
+
+    const handleSaveAlbumSettings = () => {
+        const contractId = activeTab === 'hauKy' ? selectedHauKyContract?.maHopDong : selectedChupHinhContract?.maHopDong;
+        otherService.updateAlbumSettings(contractId, { coGioiHanAnh, soLuongAnhGioiHan, khachHangXacNhan })
+            .then(res => {
+                toast.success(res.message || "Đã lưu cài đặt album!");
+                if (res.album) {
+                    setAlbumData(res.album);
+                }
+            })
+            .catch(err => {
+                toast.error(err.response?.data?.message || "Lỗi lưu cài đặt!");
+            });
     };
 
     const handleUpdateChupHinh = (shouldTransitionToHauKy = false) => {
@@ -1182,7 +1270,7 @@ function LichCuaHang() {
                             <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
                                 <Stack spacing={2}>
                                 {filteredHopDong.map((hd, index) => {
-                                    const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? hd.cacNgay?.ngayChinhAnh : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
+                                    const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null)) : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
                                     const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab);
                 
                                     return (
@@ -1261,8 +1349,14 @@ function LichCuaHang() {
                                                         <>
                                                             <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày hậu kỳ:</Typography></Grid>
                                                             <Grid item xs={8}>
-                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? 'error' : 'textPrimary'}>
+                                                                <Typography variant="body2">
                                                                     {formatDateOnly(hd.cacNgay?.ngayChinhAnh) || "Chưa cập nhật"}
+                                                                </Typography>
+                                                            </Grid>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày trả ảnh:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? 'error' : 'textPrimary'}>
+                                                                    {formatDateOnly(hd.cacNgay?.ngayTraAnh) || (hd.cacNgay?.ngayChinhAnh ? formatDateOnly(new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString()) + " (Dự kiến)" : "Chưa cập nhật")}
                                                                     {isOverdue && " (Trễ lịch)"}
                                                                 </Typography>
                                                             </Grid>
@@ -1377,7 +1471,7 @@ function LichCuaHang() {
                         <TableBody>
                             {filteredHopDong && filteredHopDong.length > 0 ? (
                                 filteredHopDong.map((hd, index) => {
-                                    const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? hd.cacNgay?.ngayChinhAnh : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
+                                    const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null)) : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
                                     const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab);
      
                                     return (
@@ -1415,18 +1509,20 @@ function LichCuaHang() {
                                             )}
                                             {activeTab === 'hauKy' && (
                                                 <>
+                                                    <TableCell align='center'>
+                                                        {formatDateOnly(hd.cacNgay?.ngayChinhAnh) || "Chưa cập nhật"}
+                                                    </TableCell>
                                                     <TableCell align='center' style={{ 
                                                         color: isOverdue ? '#e53e3e' : 'inherit', 
                                                         fontWeight: isOverdue ? 'bold' : 'normal' 
                                                     }}>
-                                                        {formatDateOnly(hd.cacNgay?.ngayChinhAnh) || "Chưa cập nhật"}
+                                                        {formatDateOnly(hd.cacNgay?.ngayTraAnh) || (hd.cacNgay?.ngayChinhAnh ? formatDateOnly(new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString()) + " (Dự kiến)" : "Chưa cập nhật")}
                                                         {isOverdue && (
                                                             <span style={{ display: 'block', fontSize: '0.75rem', color: '#e53e3e', fontWeight: 'bold', marginTop: '2px' }}>
                                                                 (Trễ lịch)
                                                             </span>
                                                         )}
                                                     </TableCell>
-                                                    <TableCell align='center'>{formatDateOnly(hd.cacNgay?.ngayTraAnh) || "Chưa cập nhật"}</TableCell>
                                                 </>
                                             )}
                                             {activeTab === 'inAnh' && (
@@ -1590,13 +1686,24 @@ function LichCuaHang() {
             />
 
             {/* Dialog Cập nhật lịch chụp hình & Gọi điện xác nhận cho Tab Chụp Hình */}
-            <Dialog open={openChupHinhDialog} onClose={() => setOpenChupHinhDialog(false)} maxWidth="sm" fullWidth>
-                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2' }}>
+            <Dialog open={openChupHinhDialog} onClose={() => setOpenChupHinhDialog(false)} maxWidth="md" fullWidth>
+                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2', paddingBottom: 0 }}>
                     XÁC NHẬN LỊCH CHỤP HÌNH - HĐ: {selectedChupHinhContract?.maHopDong}
+                    <Tabs 
+                        value={chupHinhTab} 
+                        onChange={(e, val) => setChupHinhTab(val)} 
+                        indicatorColor="primary" 
+                        textColor="primary"
+                        style={{ marginTop: '10px' }}
+                    >
+                        <Tab label="Thông tin" />
+                        <Tab label="Ảnh đồng bộ" />
+                    </Tabs>
                 </DialogTitle>
                 <DialogContent dividers>
-                    <Box display="flex" flexDirection="column" gap={2} mt={1}>
-                        <FormControl fullWidth variant="outlined">
+                    {chupHinhTab === 0 && (
+                        <Box display="flex" flexDirection="column" gap={2} mt={1}>
+                            <FormControl fullWidth variant="outlined">
                             <InputLabel id="confirm-chot-lich-label">Gọi điện xác nhận / Chốt lịch</InputLabel>
                             <Select
                                 labelId="confirm-chot-lich-label"
@@ -1662,15 +1769,133 @@ function LichCuaHang() {
                             onChange={(e) => setConfirmDiaDiem(e.target.value)}
                         />
 
-                        <TextField
-                            label="Đường dẫn ảnh gốc (Link ảnh)"
-                            variant="outlined"
-                            fullWidth
-                            value={confirmLinkAnh}
-                            onChange={(e) => setConfirmLinkAnh(e.target.value)}
-                            placeholder="https://drive.google.com/..."
-                        />
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <TextField
+                                label="Đường dẫn ảnh gốc (Link ảnh)"
+                                variant="outlined"
+                                fullWidth
+                                value={confirmLinkAnh}
+                                onChange={(e) => setConfirmLinkAnh(e.target.value)}
+                                placeholder="https://drive.google.com/..."
+                            />
+                            <Button 
+                                variant="contained" 
+                                color="primary" 
+                                onClick={handleSyncAlbum}
+                                disabled={isSyncingAlbum || !selectedChupHinhContract}
+                                style={{ minWidth: '150px' }}
+                            >
+                                {isSyncingAlbum ? "Đang đồng bộ..." : "Đồng bộ ảnh KH"}
+                            </Button>
+                        </div>
                     </Box>
+                    )}
+                    
+                    {chupHinhTab === 1 && (
+                        <Box mt={1}>
+                            {!albumData || !albumData.danhSachAnh || albumData.danhSachAnh.length === 0 ? (
+                                <Typography color="textSecondary" align="center" style={{ padding: '20px' }}>
+                                    Chưa có ảnh nào được đồng bộ. Vui lòng sang tab Thông tin để thực hiện đồng bộ.
+                                </Typography>
+                            ) : (
+                                <>
+                                    <Box sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+                                        <Typography variant="subtitle2" style={{ fontWeight: 'bold', marginBottom: '8px', color: '#1976d2' }}>
+                                            CÀI ĐẶT CHỌN ẢNH CHO KHÁCH HÀNG
+                                        </Typography>
+                                        
+                                        <Box display="flex" alignItems="center" flexWrap="wrap" gap={2}>
+                                            <FormControlLabel
+                                                control={
+                                                    <Switch
+                                                        checked={coGioiHanAnh}
+                                                        onChange={(e) => setCoGioiHanAnh(e.target.checked)}
+                                                        color="primary"
+                                                    />
+                                                }
+                                                label="Giới hạn số lượng ảnh khách chọn"
+                                            />
+                                            
+                                            {coGioiHanAnh && (
+                                                <TextField
+                                                    label="Số lượng ảnh"
+                                                    type="number"
+                                                    size="small"
+                                                    value={soLuongAnhGioiHan}
+                                                    onChange={(e) => setSoLuongAnhGioiHan(e.target.value)}
+                                                    InputProps={{ inputProps: { min: 1 } }}
+                                                    style={{ width: '150px' }}
+                                                />
+                                            )}
+
+                                            <Button 
+                                                variant="contained" 
+                                                size="small" 
+                                                color="primary" 
+                                                onClick={handleSaveAlbumSettings}
+                                            >
+                                                Lưu Cài Đặt
+                                            </Button>
+                                        </Box>
+
+                                        <Box mt={2} p={1.5} borderRadius="4px" bgcolor={khachHangXacNhan ? '#e8f5e9' : '#fff3e0'}>
+                                            <FormControlLabel
+                                                control={
+                                                    <Switch
+                                                        checked={khachHangXacNhan}
+                                                        onChange={(e) => setKhachHangXacNhan(e.target.checked)}
+                                                        color={khachHangXacNhan ? "success" : "warning"}
+                                                    />
+                                                }
+                                                label={
+                                                    <Typography variant="body2" style={{ fontWeight: 'bold', color: khachHangXacNhan ? '#2e7d32' : '#ed6c02' }}>
+                                                        Khóa album (Khách hàng đã chọn ảnh xong)
+                                                    </Typography>
+                                                }
+                                            />
+                                            <Typography variant="caption" display="block" style={{ color: '#666', marginTop: '4px' }}>
+                                                Khi bật công tắc này, khách hàng sẽ không thể chọn thêm hay bỏ chọn ảnh trên website.
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+
+                                    <Typography variant="subtitle1" gutterBottom style={{ fontWeight: 'bold' }}>
+                                        Tổng số ảnh gốc: {albumData.danhSachAnh.length}
+                                    </Typography>
+                                    <Box sx={{ width: '100%', columnCount: 3, columnGap: '16px', mt: 2 }}>
+                                        {albumData.danhSachAnh.map((item) => (
+                                            <Box key={item.idDrive} sx={{ mb: '16px', breakInside: 'avoid' }}>
+                                                <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+                                                    <img
+                                                        src={`${item.urlNen}`}
+                                                        alt={item.tenFile}
+                                                        loading="lazy"
+                                                        style={{ width: '100%', display: 'block' }}
+                                                    />
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        bottom: 0,
+                                                        left: 0,
+                                                        right: 0,
+                                                        padding: '20px 12px 10px',
+                                                        background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
+                                                        color: 'white',
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: '500',
+                                                        whiteSpace: 'nowrap',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis'
+                                                    }}>
+                                                        {item.tenFile}
+                                                    </div>
+                                                </div>
+                                            </Box>
+                                        ))}
+                                    </Box>
+                                </>
+                            )}
+                        </Box>
+                    )}
                 </DialogContent>
                 <DialogActions style={{ padding: '16px 24px' }}>
                     <Button onClick={() => setOpenChupHinhDialog(false)} color="inherit">
@@ -1686,9 +1911,9 @@ function LichCuaHang() {
             </Dialog>
 
             {/* Dialog Cập nhật lịch hậu kỳ cho Tab Hậu Kỳ */}
-            <Dialog open={openHauKyDialog} onClose={() => setOpenHauKyDialog(false)} maxWidth="sm" fullWidth>
-                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2' }}>
-                    XÁC NHẬN LỊCH HẬU KỲ - HĐ: {selectedHauKyContract?.maHopDong}
+            <Dialog open={openHauKyDialog} onClose={() => setOpenHauKyDialog(false)} maxWidth="md" fullWidth PaperProps={{ style: { maxWidth: '780px' } }}>
+                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2', textTransform: 'uppercase' }}>
+                    CHI TIẾT HẬU KỲ - HĐ: {selectedHauKyContract?.maHopDong} - {selectedHauKyContract?.khachHang1?.tenKhachHang}
                 </DialogTitle>
                 <DialogContent dividers>
                     <Box display="flex" flexDirection="column" gap={2} mt={1}>
@@ -1720,7 +1945,18 @@ function LichCuaHang() {
                             variant="outlined"
                             fullWidth
                             value={confirmNgayChinhAnh}
-                            onChange={(e) => setConfirmNgayChinhAnh(e.target.value)}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setConfirmNgayChinhAnh(val);
+                                if (val && !confirmNgayTraAnh) {
+                                    const d = new Date(val);
+                                    d.setDate(d.getDate() + 3);
+                                    const year = d.getFullYear();
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    setConfirmNgayTraAnh(`${year}-${month}-${day}`);
+                                }
+                            }}
                             InputLabelProps={{ shrink: true }}
                         />
 
@@ -1734,14 +1970,137 @@ function LichCuaHang() {
                             InputLabelProps={{ shrink: true }}
                         />
 
-                        <TextField
-                            label="Đường dẫn ảnh chỉnh sửa (Link ảnh)"
-                            variant="outlined"
-                            fullWidth
-                            value={confirmLinkAnhChinhSua}
-                            onChange={(e) => setConfirmLinkAnhChinhSua(e.target.value)}
-                            placeholder="https://drive.google.com/..."
-                        />
+                        <Box mt={2}>
+                            <Typography variant="subtitle2" style={{ fontWeight: 'bold', color: '#1976d2', marginBottom: '8px' }}>
+                                ĐỒNG BỘ ẢNH (GỐC & CHỈNH SỬA)
+                            </Typography>
+                            <Box display="flex" flexDirection="column" gap={2} p={2} border="1px solid #e0e0e0" borderRadius="8px" bgcolor="#fcfcfc">
+                                <Box display="flex" gap={1}>
+                                    <TextField
+                                        label="Đường dẫn ảnh gốc (Link ảnh)"
+                                        variant="outlined"
+                                        fullWidth
+                                        value={confirmLinkAnh}
+                                        onChange={(e) => setConfirmLinkAnh(e.target.value)}
+                                        placeholder="https://drive.google.com/..."
+                                        size="small"
+                                    />
+                                    <Button 
+                                        variant="contained" 
+                                        color="primary" 
+                                        onClick={() => handleSyncAlbum(confirmLinkAnh, false)}
+                                        disabled={isSyncingAlbum || !selectedHauKyContract}
+                                        style={{ minWidth: '150px' }}
+                                    >
+                                        {isSyncingAlbum ? "Đang đồng bộ..." : "Đồng bộ ảnh KH"}
+                                    </Button>
+                                </Box>
+
+                                <Box display="flex" gap={1}>
+                                    <TextField
+                                        label="Đường dẫn ảnh chỉnh sửa (Link ảnh)"
+                                        variant="outlined"
+                                        fullWidth
+                                        value={confirmLinkAnhChinhSua}
+                                        onChange={(e) => setConfirmLinkAnhChinhSua(e.target.value)}
+                                        placeholder="https://drive.google.com/..."
+                                        size="small"
+                                    />
+                                    <Button 
+                                        variant="contained" 
+                                        color="secondary" 
+                                        onClick={() => handleSyncAlbum(confirmLinkAnhChinhSua, true)}
+                                        disabled={isSyncingAlbumChinhSua || !selectedHauKyContract}
+                                        style={{ minWidth: '150px' }}
+                                    >
+                                        {isSyncingAlbumChinhSua ? "Đang đồng bộ..." : "Đồng bộ ảnh C.Sửa"}
+                                    </Button>
+                                </Box>
+                            </Box>
+                        </Box>
+
+                        {albumData && (
+                            <Box mt={1} p={2} border="1px solid #ddd" borderRadius="4px" bgcolor="#f9f9f9">
+                                <Typography variant="subtitle2" style={{ fontWeight: 'bold', marginBottom: '8px', color: '#1976d2' }}>
+                                    THÔNG TIN ALBUM
+                                </Typography>
+                                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', fontSize: '0.85rem' }}>
+                                    <div>
+                                        <b>ĐB ảnh gốc: </b> 
+                                        <span style={{ color: albumData.trangThai === 'Hoàn thành' ? 'green' : 'orange' }}>{albumData.trangThai}</span>
+                                    </div>
+                                    <div>
+                                        <b>ĐB ảnh C.Sửa: </b> 
+                                        <span style={{ color: albumData.trangThaiChinhSua === 'Hoàn thành' ? 'green' : 'orange' }}>{albumData.trangThaiChinhSua || 'Chưa đồng bộ'}</span>
+                                    </div>
+                                    <div><b>Số ảnh gốc:</b> {albumData.danhSachAnh?.length || 0}</div>
+                                    <div><b style={{ color: '#d32f2f' }}>Đã tim:</b> {albumData.danhSachAnh?.filter(a => a.isHearted).length || 0}</div>
+                                    <div><b>Ảnh chỉnh sửa:</b> {albumData.danhSachAnhChinhSua?.length || 0}</div>
+                                </div>
+
+                                <Button
+                                    variant="contained"
+                                    color="secondary"
+                                    size="small"
+                                    style={{ marginTop: '10px', textTransform: 'none', fontWeight: 'bold' }}
+                                    onClick={() => setOpenLocAnhDialog(true)}
+                                >
+                                    💻 Lọc ảnh trên máy tính
+                                </Button>
+
+                                <Box mt={2} p={1.5} borderRadius="4px" bgcolor={khachHangXacNhan ? '#e8f5e9' : '#fff3e0'}>
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                checked={khachHangXacNhan}
+                                                onChange={(e) => setKhachHangXacNhan(e.target.checked)}
+                                                color={khachHangXacNhan ? "success" : "warning"}
+                                            />
+                                        }
+                                        label={
+                                            <Typography variant="body2" style={{ fontWeight: 'bold', color: khachHangXacNhan ? '#2e7d32' : '#ed6c02' }}>
+                                                Khóa album (Khách hàng đã chọn ảnh xong)
+                                            </Typography>
+                                        }
+                                    />
+                                </Box>
+
+                                <Button 
+                                    variant="outlined" 
+                                    size="small" 
+                                    color="primary" 
+                                    onClick={handleSaveAlbumSettings}
+                                    style={{ marginTop: '10px' }}
+                                >
+                                    Lưu Cài Đặt Khóa Album
+                                </Button>
+
+                                {albumData.danhSachAnhChinhSua && albumData.danhSachAnhChinhSua.some(p => p.comments && p.comments.length > 0) && (
+                                    <Box mt={3} p={2} border="1px solid #e0e0e0" borderRadius="8px" bgcolor="#fff">
+                                        <Typography variant="subtitle2" style={{ fontWeight: 'bold', color: '#1976d2', marginBottom: '8px' }}>
+                                            BÌNH LUẬN ẢNH CHỈNH SỬA
+                                        </Typography>
+                                        <Box style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '5px' }}>
+                                            {albumData.danhSachAnhChinhSua.filter(p => p.comments && p.comments.length > 0).map(photo => (
+                                                <div key={photo.idDrive} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #eee' }}>
+                                                    <Typography variant="body2" fontWeight="bold" style={{ color: '#d32f2f' }}>
+                                                        📷 {photo.tenFile}
+                                                    </Typography>
+                                                    {photo.comments.map((c, i) => (
+                                                        <Box key={i} mt={0.5} ml={2} p={1} bgcolor="#f5f5f5" borderRadius="4px">
+                                                            <Typography variant="body2">{c.noiDung}</Typography>
+                                                            <Typography variant="caption" color="textSecondary" display="block" style={{ marginTop: '4px' }}>
+                                                                🕒 {new Date(c.ngayTao).toLocaleString()}
+                                                            </Typography>
+                                                        </Box>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </Box>
+                                    </Box>
+                                )}
+                            </Box>
+                        )}
                     </Box>
                 </DialogContent>
                 <DialogActions style={{ padding: '16px 24px', justifyContent: 'space-between' }}>
@@ -1806,6 +2165,12 @@ function LichCuaHang() {
                     </Box>
                 </DialogActions>
             </Dialog>
+
+            <LocAnhMayTinhDialog 
+                open={openLocAnhDialog} 
+                onClose={() => setOpenLocAnhDialog(false)} 
+                albumData={albumData} 
+            />
 
             {/* Dialog nhập kích thước & số lượng khi chuyển sang in ảnh */}
             <Dialog open={openInAnhInputDialog} onClose={() => setOpenInAnhInputDialog(false)} maxWidth="sm" fullWidth>

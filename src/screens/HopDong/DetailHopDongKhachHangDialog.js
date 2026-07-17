@@ -1,17 +1,20 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import "./ThemHopDongDialog.css";
 import AppSearchInput from "../../components/AppSearchInput";
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
 import otherService from '../../API/services/otherService';
 import TextField from '@mui/material/TextField';
 import { toast } from 'sonner';
 import { useLoading } from "../../context/LoadingContext";
-import { NumericFormat } from 'react-number-format';
-import { styled } from '@mui/material/styles';
-import Divider from '@mui/material/Divider';
 import Autocomplete from '@mui/material/Autocomplete';
+import { Box, Switch, FormControlLabel, Tabs, Tab } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
@@ -26,10 +29,11 @@ import {
     faCamera,
     faWandMagicSparkles,
     faPrint,
-    faCircleCheck
+    faCircleCheck,
+    faHeart
 } from '@fortawesome/free-solid-svg-icons';
 import MobileAccordion from '../../components/MobileAccordion';
-
+import LocAnhMayTinhDialog from './LocAnhMayTinhDialog';
 const getDichVuChinhLabel = (id) => {
     const options = {
         1: 'Pre-Wedding',
@@ -138,8 +142,17 @@ function DetailHopDongKhachHangDialog(props) {
     const [linkAnhGoc, setLinkAnhGoc] = useState("");
     const [linkAnhChinhSua, setLinkAnhChinhSua] = useState("");
     const [danhSachAnhIn, setDanhSachAnhIn] = useState([]);
+    const [albumData, setAlbumData] = useState(null);
+    const [isSyncingAlbum, setIsSyncingAlbum] = useState(false);
+    const [isSyncingAlbumChinhSua, setIsSyncingAlbumChinhSua] = useState(false);
+    const [openAlbumDetailDialog, setOpenAlbumDetailDialog] = useState(false);
+    const [albumDetailTab, setAlbumDetailTab] = useState(0);
+    const [openAllPhotosDialog, setOpenAllPhotosDialog] = useState(false);
     const [hasUpdated, setHasUpdated] = useState(false);
-
+    const [coGioiHanAnh, setCoGioiHanAnh] = useState(false);
+    const [soLuongAnhGioiHan, setSoLuongAnhGioiHan] = useState(0);
+    const [khachHangXacNhan, setKhachHangXacNhan] = useState(false);
+    const [openLocAnhDialog, setOpenLocAnhDialog] = useState(false);
     // States for progress input dialog
     const [openProgressInput, setOpenProgressInput] = useState(false);
     const [targetStep, setTargetStep] = useState(null);
@@ -244,7 +257,6 @@ function DetailHopDongKhachHangDialog(props) {
                 setNameKH1(data.khachHang1.tenKhachHang || "");
                 setAddressKH1(data.khachHang1.diaChi || "");
                 setFacebookKH1(data.khachHang1.facebookId || "");
-                setBtnAddKHShow1(false);
             } else {
                 clearPhoneKH1();
             }
@@ -255,7 +267,6 @@ function DetailHopDongKhachHangDialog(props) {
                 setNameKH2(data.khachHang2.tenKhachHang || "");
                 setAddressKH2(data.khachHang2.diaChi || "");
                 setFacebookKH2(data.khachHang2.facebookId || "");
-                setBtnAddKHShow2(false);
             } else {
                 clearPhoneKH2();
             }
@@ -295,36 +306,94 @@ function DetailHopDongKhachHangDialog(props) {
             setNhanVienSale(data.nhanVienSale || "0");
             setGiaiDoan(data.giaiDoan || 1);
             setDichVuChinh(data.dichVuChinh || 0);
-            setLinkAnhGoc(data.linkAnhGoc || "");
-            setLinkAnhChinhSua(data.linkAnhChinhSua || "");
-            setDanhSachAnhIn(data.danhSachAnhIn || []);
-            setHasUpdated(false);
+            if (data.maHopDong) {
+                fetchAlbumData(data.maHopDong);
+            }
         } else if (open) {
+            setGiaiDoan(1);
+            setDichVuChinh(0);
+            setGioHang([]);
+            setGiamGia(0);
+            setKhachThanhToanTruoc(0);
+            setAlbumData(null);
             resetForm();
         }
     }, [open, data]);
 
+    const fetchAlbumData = (maHD) => {
+        otherService.getAlbumDetail(maHD)
+            .then(res => {
+                if (res && res.album) {
+                    setAlbumData(res.album);
+                    setCoGioiHanAnh(res.album.coGioiHanAnh || false);
+                    setSoLuongAnhGioiHan(res.album.soLuongAnhGioiHan || 0);
+                    setKhachHangXacNhan(res.album.khachHangXacNhan || false);
+                } else {
+                    setAlbumData(null);
+                }
+            })
+            .catch(err => {
+                console.error("Lỗi khi lấy thông tin album:", err);
+                setAlbumData(null);
+            });
+    };
+
+    const handleSyncAlbum = (link, loaiAnh = 'goc') => {
+        if (!link) {
+            toast.warning("Chưa có đường dẫn ảnh. Vui lòng nhập link Google Drive.");
+            return;
+        }
+        if (loaiAnh === 'goc') setIsSyncingAlbum(true);
+        else setIsSyncingAlbumChinhSua(true);
+
+        otherService.syncAlbum({ maHopDong: data.maHopDong, driveLink: link.trim(), loaiAnh })
+            .then(res => {
+                toast.success(res.message || "Đồng bộ album thành công!");
+                if (res.album) {
+                    setAlbumData(res.album);
+                    setCoGioiHanAnh(res.album.coGioiHanAnh || false);
+                    setSoLuongAnhGioiHan(res.album.soLuongAnhGioiHan || 0);
+                    setKhachHangXacNhan(res.album.khachHangXacNhan || false);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                toast.error(err.response?.data?.message || "Lỗi đồng bộ album!");
+            })
+            .finally(() => {
+                if (loaiAnh === 'goc') setIsSyncingAlbum(false);
+                else setIsSyncingAlbumChinhSua(false);
+            });
+    };
+
+    const handleSaveAlbumSettings = () => {
+        otherService.updateAlbumSettings(data?.maHopDong, { coGioiHanAnh, soLuongAnhGioiHan, khachHangXacNhan })
+            .then(res => {
+                toast.success(res.message || "Đã lưu cài đặt album!");
+                if (res.album) {
+                    setAlbumData(res.album);
+                }
+            })
+            .catch(err => {
+                toast.error(err.response?.data?.message || "Lỗi lưu cài đặt!");
+            });
+    };
+
     useEffect(() => {
         setTongTien(tinhTongThanhToan());
-    }, [, gioHang, giamGia, loaiGiamGia]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gioHang, giamGia, loaiGiamGia]);
 
     const [searchTerm, setSearchTerm] = useState("");
 
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [showSuggestionPhone1, setShowSuggestionPhone1] = useState(false);
-    const [showSuggestionPhone2, setShowSuggestionPhone2] = useState(false);
-    const [suggestionPhone1, setSuggestionPhone1] = useState([]);
-    const [suggestionPhone2, setSuggestionPhone2] = useState([]);
-    const [btnAddKHShow1, setBtnAddKHShow1] = useState(true);
-    const [btnAddKHShow2, setBtnAddKHShow2] = useState(true);
 
     const searchRef = useRef(null);
-    const [dataIsDialog, setDataIsDialog] = useState(data);
 
     const suggestions = listDichVu.filter(p =>
         searchTerm.trim() &&
         (p.tenDichVu?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         p.maDichVu?.toLowerCase().includes(searchTerm.toLowerCase()))
+            p.maDichVu?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const handleSelectProduct = (product) => {
@@ -378,7 +447,7 @@ function DetailHopDongKhachHangDialog(props) {
                         ? {
                             ...sp,
                             soLuong: (sp.soLuong || 0) + 1
-                          }
+                        }
                         : sp
                 );
             } else {
@@ -496,16 +565,12 @@ function DetailHopDongKhachHangDialog(props) {
         setPhoneKH1("");
         setNameKH1("");
         setAddressKH1("");
-        setBtnAddKHShow1(true);
-        setShowSuggestionPhone1(false);
 
         // 3. Thông tin khách hàng 2
         setIDKH2("");
         setPhoneKH2("");
         setNameKH2("");
         setAddressKH2("");
-        setBtnAddKHShow2(true);
-        setShowSuggestionPhone2(false);
 
         // 4. Giỏ hàng và tiền bạc
         setGioHang([]);
@@ -521,15 +586,11 @@ function DetailHopDongKhachHangDialog(props) {
     const clearPhoneKH1 = () => {
         setNameKH1("");
         setAddressKH1("");
-        setShowSuggestionPhone1(false);
-        setBtnAddKHShow1(true);
     }
 
     const clearPhoneKH2 = () => {
         setNameKH2("");
         setAddressKH2("");
-        setShowSuggestionPhone2(false);
-        setBtnAddKHShow2(true);
     }
 
 
@@ -810,15 +871,15 @@ function DetailHopDongKhachHangDialog(props) {
         const ngayChupFormatted = ngayChup ? dayjs(ngayChup).format('DD/MM/YYYY HH:mm') : 'Chưa xếp lịch';
         const ngayAnHoiFormatted = ngayAnHoi ? dayjs(ngayAnHoi).format('DD/MM/YYYY HH:mm') : '';
         const ngayCuoiFormatted = ngayCuoi ? dayjs(ngayCuoi).format('DD/MM/YYYY HH:mm') : '';
-        
+
         const tongGoc = gioHang.reduce((sum, item) => {
             const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
             return sum + (price * (item.soLuong || 0));
         }, 0);
-        
+
         const conLai = Math.max(0, tongTien - ((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0)));
         const totals = getAggregatedParams();
-        
+
         printWindow.document.write(`
             <html>
             <head>
@@ -923,11 +984,11 @@ function DetailHopDongKhachHangDialog(props) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${gioHang.length === 0 ? `<tr><td colspan="5" style="text-align: center; color: #999;">Chưa đăng ký dịch vụ nào</td></tr>` : 
-                          gioHang.map((item, index) => {
-                            const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
-                            const total = price * (item.soLuong || 0);
-                            return `
+                        ${gioHang.length === 0 ? `<tr><td colspan="5" style="text-align: center; color: #999;">Chưa đăng ký dịch vụ nào</td></tr>` :
+                gioHang.map((item, index) => {
+                    const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
+                    const total = price * (item.soLuong || 0);
+                    return `
                                 <tr>
                                     <td style="text-align: center;">${index + 1}</td>
                                     <td>${item.tenDichVuSnapshot || item.tenDichVu}</td>
@@ -936,7 +997,7 @@ function DetailHopDongKhachHangDialog(props) {
                                     <td style="text-align: right; font-weight: bold;">${total.toLocaleString('vi-VN')} đ</td>
                                 </tr>
                             `;
-                          }).join('')}
+                }).join('')}
                     </tbody>
                 </table>
 
@@ -1043,950 +1104,1262 @@ function DetailHopDongKhachHangDialog(props) {
     };
 
     return (
-        <Dialog onClose={handleClose} open={open}
-            fullWidth={true}
-            maxWidth="xl"
-        >
-            <div className="dialog-overlay">
-                <div className="mobile-dark-theme dialog large">
+        <Fragment>
+            <Dialog onClose={handleClose} open={open}
+                fullWidth={true}
+                maxWidth="xl"
+            >
+                <div className="dialog-overlay">
+                    <div className="mobile-dark-theme dialog large">
 
-                    <button className="close-btn" onClick={handleClose}>×</button>
-                    <h3 className="dialog-title">CHI TIẾT HỢP ĐỒNG: <span style={{ color: '#d4af37' }}>{maHopDong}</span></h3>
+                        <button className="close-btn" onClick={handleClose}>×</button>
+                        <h3 className="dialog-title">CHI TIẾT HỢP ĐỒNG: <span style={{ color: '#d4af37' }}>{maHopDong}</span></h3>
 
-                    <div className="dialog-progress">
-                        <div className="stepper-wrapper">
-                            {[
-                                { number: 1, label: "Tạo hợp đồng", icon: faFileContract },
-                                { number: 2, label: "Chụp hình", icon: faCamera },
-                                { number: 3, label: "Hậu kỳ", icon: faWandMagicSparkles },
-                                { number: 4, label: "In ảnh", icon: faPrint },
-                                { number: 5, label: "Hoàn thành", icon: faCircleCheck }
-                            ].map((step, idx, arr) => {
-                                const isCompleted = step.number < giaiDoan;
-                                const isActive = step.number === giaiDoan;
-                                const isPending = step.number > giaiDoan;
+                        <div className="dialog-progress">
+                            <div className="stepper-wrapper">
+                                {[
+                                    { number: 1, label: "Tạo hợp đồng", icon: faFileContract },
+                                    { number: 2, label: "Chụp hình", icon: faCamera },
+                                    { number: 3, label: "Hậu kỳ", icon: faWandMagicSparkles },
+                                    { number: 4, label: "In ảnh", icon: faPrint },
+                                    { number: 5, label: "Hoàn thành", icon: faCircleCheck }
+                                ].map((step, idx, arr) => {
+                                    const isCompleted = step.number < giaiDoan;
+                                    const isActive = step.number === giaiDoan;
+                                    const isPending = step.number > giaiDoan;
 
-                                return (
-                                    <div key={step.number} className="step-container">
-                                        <div
-                                            className={`step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${isPending ? 'pending' : ''}`}
-                                            onClick={() => handleStepClick(step.number)}
-                                        >
-                                            <div className="step-icon-wrap">
-                                                <FontAwesomeIcon icon={step.icon} />
-                                                {isCompleted && <span className="step-badge-check">✓</span>}
+                                    return (
+                                        <div key={step.number} className="step-container">
+                                            <div
+                                                className={`step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${isPending ? 'pending' : ''}`}
+                                                onClick={() => handleStepClick(step.number)}
+                                            >
+                                                <div className="step-icon-wrap">
+                                                    <FontAwesomeIcon icon={step.icon} />
+                                                    {isCompleted && <span className="step-badge-check">✓</span>}
+                                                </div>
+                                                <span className="step-label">{step.label}</span>
                                             </div>
-                                            <span className="step-label">{step.label}</span>
+                                            {idx < arr.length - 1 && (
+                                                <div className={`step-line ${step.number < giaiDoan ? 'filled' : ''}`}></div>
+                                            )}
                                         </div>
-                                        {idx < arr.length - 1 && (
-                                            <div className={`step-line ${step.number < giaiDoan ? 'filled' : ''}`}></div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    <div className="dialog-content">
-                        <div className="right-column">
-                            <div className="dialog-section-khachhang">
-                                <MobileAccordion title="Thông tin khách hàng 1" className="dialog-section-khachhang-item">
-                                    <div className="floating-label">
-                                        <input name="phoneKH1" value={phoneKH1} disabled />
-                                        <label>Phone khách hàng 1</label>
-                                    </div>
-
-                                    <div className="floating-label">
-                                        <input name="tenKhachHang" value={nameKH1} disabled />
-                                        <label>Tên khách hàng</label>
-                                    </div>
-
-                                    <div className="floating-label">
-                                        <input name="diaChiCodau" value={addressKH1} disabled />
-                                        <label>Địa chỉ</label>
-                                    </div>
-
-                                    <div className="floating-label">
-                                        <input 
-                                            name="facebookKH1" 
-                                            value={facebookKH1} 
-                                            readOnly 
-                                            style={facebookKH1 ? { cursor: 'pointer', color: '#1976d2', textDecoration: 'underline', backgroundColor: '#f5f5f5' } : { backgroundColor: '#f5f5f5' }}
-                                            onClick={() => {
-                                                if (facebookKH1) {
-                                                    const url = facebookKH1.startsWith('http') ? facebookKH1 : `https://facebook.com/${facebookKH1}`;
-                                                    window.open(url, '_blank');
-                                                }
-                                            }}
-                                        />
-                                        <label>Link / ID Facebook 1</label>
-                                    </div>
-                                </MobileAccordion>
-
-                                <MobileAccordion title="Thông tin khách hàng 2" className="dialog-section-khachhang-item" defaultExpanded={false}>
-                                    <div className="floating-label">
-                                        <input name="phoneKH2" value={phoneKH2} disabled />
-                                        <label>Phone khách hàng 2</label>
-                                    </div>
-
-                                    <div className="floating-label">
-                                        <input name="tenKhachHang" value={nameKH2} disabled />
-                                        <label>Tên khách hàng 2</label>
-                                    </div>
-
-                                    <div className="floating-label">
-                                        <input name="diaChiCodau" value={addressKH2} disabled />
-                                        <label>Địa chỉ khách hàng 2</label>
-                                    </div>
-
-                                    <div className="floating-label">
-                                        <input 
-                                            name="facebookKH2" 
-                                            value={facebookKH2} 
-                                            readOnly 
-                                            style={facebookKH2 ? { cursor: 'pointer', color: '#1976d2', textDecoration: 'underline', backgroundColor: '#f5f5f5' } : { backgroundColor: '#f5f5f5' }}
-                                            onClick={() => {
-                                                if (facebookKH2) {
-                                                    const url = facebookKH2.startsWith('http') ? facebookKH2 : `https://facebook.com/${facebookKH2}`;
-                                                    window.open(url, '_blank');
-                                                }
-                                            }}
-                                        />
-                                        <label>Link / ID Facebook 2</label>
-                                    </div>
-                                </MobileAccordion>
-
+                                    );
+                                })}
                             </div>
+                        </div>
+                        <div className="dialog-content">
+                            <div className="right-column">
+                                <div className="dialog-section-khachhang">
+                                    <MobileAccordion title="Thông tin khách hàng 1" className="dialog-section-khachhang-item">
+                                        <div className="floating-label">
+                                            <input name="phoneKH1" value={phoneKH1} disabled />
+                                            <label>Phone khách hàng 1</label>
+                                        </div>
 
+                                        <div className="floating-label">
+                                            <input name="tenKhachHang" value={nameKH1} disabled />
+                                            <label>Tên khách hàng</label>
+                                        </div>
 
+                                        <div className="floating-label">
+                                            <input name="diaChiCodau" value={addressKH1} disabled />
+                                            <label>Địa chỉ</label>
+                                        </div>
 
-                            <MobileAccordion title="Thông tin hợp đồng" className="dialog-section">
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                                    <div className="floating-label">
-                                        <input name="maHopDong" value={maHopDong} disabled />
-                                        <label>Mã hợp đồng</label>
-                                    </div>
+                                        <div className="floating-label">
+                                            <input
+                                                name="facebookKH1"
+                                                value={facebookKH1}
+                                                readOnly
+                                                style={facebookKH1 ? { cursor: 'pointer', color: '#1976d2', textDecoration: 'underline', backgroundColor: '#f5f5f5' } : { backgroundColor: '#f5f5f5' }}
+                                                onClick={() => {
+                                                    if (facebookKH1) {
+                                                        const url = facebookKH1.startsWith('http') ? facebookKH1 : `https://facebook.com/${facebookKH1}`;
+                                                        window.open(url, '_blank');
+                                                    }
+                                                }}
+                                            />
+                                            <label>Link / ID Facebook 1</label>
+                                        </div>
+                                    </MobileAccordion>
 
-                                    <div className="floating-label">
-                                        <input type="text" name="dichVuChinh" value={getDichVuChinhLabel(dichVuChinh)} disabled />
-                                        <label>Dịch vụ chính</label>
-                                    </div>
+                                    <MobileAccordion title="Thông tin khách hàng 2" className="dialog-section-khachhang-item" defaultExpanded={false}>
+                                        <div className="floating-label">
+                                            <input name="phoneKH2" value={phoneKH2} disabled />
+                                            <label>Phone khách hàng 2</label>
+                                        </div>
 
-                                    <div className="floating-label">
-                                        <select name="nhanVienSale" value={nhanVienSale} onChange={(e) => setNhanVienSale(e.target.value)}>
-                                            <option value="0">Chưa phân công</option>
-                                            {(() => {
-                                                const staff = listStaff.filter(s => s.positon === 'Nhân viên Sale');
-                                                const names = staff.map(s => s.fullname || s.username);
-                                                if (nhanVienSale && nhanVienSale !== "0" && !names.includes(nhanVienSale)) {
-                                                    names.push(nhanVienSale);
-                                                }
-                                                return names.map((name, i) => (
-                                                    <option key={i} value={name}>{name}</option>
-                                                ));
-                                            })()}
-                                        </select>
-                                        <label>Nhân viên sale</label>
-                                    </div>
+                                        <div className="floating-label">
+                                            <input name="tenKhachHang" value={nameKH2} disabled />
+                                            <label>Tên khách hàng 2</label>
+                                        </div>
 
-                                    <div className="floating-label">
-                                        <select name="thoChupHinh" value={thoChupHinh} onChange={(e) => setThoChupHinh(e.target.value)}>
-                                            <option value="">Chưa phân công</option>
-                                            {(() => {
-                                                const staff = listStaff.filter(s => s.positon === 'Thợ chụp hình');
-                                                const names = staff.map(s => s.fullname || s.username);
-                                                if (thoChupHinh && !names.includes(thoChupHinh)) {
-                                                    names.push(thoChupHinh);
-                                                }
-                                                return names.map((name, i) => (
-                                                    <option key={i} value={name}>{name}</option>
-                                                ));
-                                            })()}
-                                        </select>
-                                        <label>Thợ chụp hình</label>
-                                    </div>
+                                        <div className="floating-label">
+                                            <input name="diaChiCodau" value={addressKH2} disabled />
+                                            <label>Địa chỉ khách hàng 2</label>
+                                        </div>
 
-                                    <div className="floating-label">
-                                        <select name="thoMakeUp" value={thoMakeUp} onChange={(e) => setThoMakeUp(e.target.value)}>
-                                            <option value="">Chưa phân công</option>
-                                            {(() => {
-                                                const staff = listStaff.filter(s => s.positon === 'Thợ trang điểm');
-                                                const names = staff.map(s => s.fullname || s.username);
-                                                if (thoMakeUp && !names.includes(thoMakeUp)) {
-                                                    names.push(thoMakeUp);
-                                                }
-                                                return names.map((name, i) => (
-                                                    <option key={i} value={name}>{name}</option>
-                                                ));
-                                            })()}
-                                        </select>
-                                        <label>Thợ Make-up</label>
-                                    </div>
+                                        <div className="floating-label">
+                                            <input
+                                                name="facebookKH2"
+                                                value={facebookKH2}
+                                                readOnly
+                                                style={facebookKH2 ? { cursor: 'pointer', color: '#1976d2', textDecoration: 'underline', backgroundColor: '#f5f5f5' } : { backgroundColor: '#f5f5f5' }}
+                                                onClick={() => {
+                                                    if (facebookKH2) {
+                                                        const url = facebookKH2.startsWith('http') ? facebookKH2 : `https://facebook.com/${facebookKH2}`;
+                                                        window.open(url, '_blank');
+                                                    }
+                                                }}
+                                            />
+                                            <label>Link / ID Facebook 2</label>
+                                        </div>
+                                    </MobileAccordion>
 
-                                    <div className="floating-label">
-                                        <select name="chotLich" value={chotLich} onChange={(e) => setChotLich(e.target.value)}>
-                                            <option value="Chưa gọi điện">Chưa gọi điện</option>
-                                            <option value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</option>
-                                            <option value="Đã chốt lịch">Đã chốt lịch</option>
-                                        </select>
-                                        <label>Chốt lịch</label>
-                                    </div>
-
-                                    <div className="floating-label">
-                                        <select name="thoChinhAnh" value={thoChinhAnh} onChange={(e) => setThoChinhAnh(e.target.value)}>
-                                            <option value="">Chưa phân công</option>
-                                            {(() => {
-                                                const staff = listStaff.filter(s => s.positon === 'Thợ chỉnh ảnh');
-                                                const names = staff.map(s => s.fullname || s.username);
-                                                if (thoChinhAnh && !names.includes(thoChinhAnh)) {
-                                                    names.push(thoChinhAnh);
-                                                }
-                                                return names.map((name, i) => (
-                                                    <option key={i} value={name}>{name}</option>
-                                                ));
-                                            })()}
-                                        </select>
-                                        <label>Thợ chỉnh ảnh</label>
-                                    </div>
                                 </div>
-                            </MobileAccordion>
 
-                            <MobileAccordion title="Thông tin chung & Lịch trình" className="dialog-section" style={{ marginTop: '20px' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
-                                            <DateTimePicker
-                                                label="Ngày chụp ảnh"
-                                                value={ngayChup ? dayjs(ngayChup) : null}
-                                                onChange={(newValue) => {
-                                                    const formatted = newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '';
-                                                    setNgayChup(formatted);
-                                                    if (formatted) {
-                                                        const conflict = checkNgayChupConflict(formatted, data?._id);
-                                                        if (conflict) {
-                                                            const conflictTime = new Date(conflict.cacNgay.ngayChup);
-                                                            const timeStr = `${String(conflictTime.getHours()).padStart(2, '0')}:${String(conflictTime.getMinutes()).padStart(2, '0')} ngày ${conflictTime.getDate()}/${conflictTime.getMonth() + 1}/${conflictTime.getFullYear()}`;
-                                                            toast.warning(`Cảnh báo: Trùng hoặc quá gần lịch chụp với HĐ ${conflict.maHopDong} (${conflict.khachHang1?.tenKhachHang || ''}) vào lúc ${timeStr} (khoảng cách dưới 3 tiếng).`);
-                                                        }
-                                                    }
-                                                }}
-                                                slotProps={{
-                                                    textField: {
-                                                        fullWidth: true,
-                                                        required: true,
-                                                        size: 'small',
-                                                    }
-                                                }}
-                                                format="DD/MM/YYYY HH:mm"
-                                            />
-                                        </LocalizationProvider>
-                                        {ngayChup && (
-                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                Âm lịch: {formatLunarDateFull(ngayChup)}
-                                            </div>
-                                        )}
 
-                                        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
-                                            <DateTimePicker
-                                                label="Ngày ăn hỏi"
-                                                value={ngayAnHoi ? dayjs(ngayAnHoi) : null}
-                                                onChange={(newValue) => setNgayAnHoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
-                                                slotProps={{
-                                                    textField: {
-                                                        fullWidth: true,
-                                                        required: true,
-                                                        size: 'small',
-                                                    }
-                                                }}
-                                                format="DD/MM/YYYY HH:mm"
-                                            />
-                                        </LocalizationProvider>
-                                        {ngayAnHoi && (
-                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                Âm lịch: {formatLunarDateFull(ngayAnHoi)}
-                                            </div>
-                                        )}
 
-                                        <div className="floating-label" style={{ marginTop: '5px' }}>
-                                            <input type="date" name="ngayChinhAnh" value={ngayChinhAnh} onChange={(e) => setNgayChinhAnh(e.target.value)} />
-                                            <label>Ngày bắt đầu hậu kỳ</label>
-                                        </div>
-                                        {ngayChinhAnh && (
-                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                Âm lịch: {formatLunarDateFull(ngayChinhAnh)}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
-                                            <DateTimePicker
-                                                label="Ngày cưới"
-                                                value={ngayCuoi ? dayjs(ngayCuoi) : null}
-                                                onChange={(newValue) => setNgayCuoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
-                                                slotProps={{
-                                                    textField: {
-                                                        fullWidth: true,
-                                                        required: true,
-                                                        size: 'small',
-                                                    }
-                                                }}
-                                                format="DD/MM/YYYY HH:mm"
-                                            />
-                                        </LocalizationProvider>
-                                        {ngayCuoi && (
-                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                Âm lịch: {formatLunarDateFull(ngayCuoi)}
-                                            </div>
-                                        )}
-
-                                        <div className="floating-label" style={{ marginTop: '0px' }}>
-                                            <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />
-                                            <label>Địa điểm chụp</label>
+                                <MobileAccordion title="Thông tin hợp đồng" className="dialog-section">
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                        <div className="floating-label">
+                                            <input name="maHopDong" value={maHopDong} disabled />
+                                            <label>Mã hợp đồng</label>
                                         </div>
 
-                                        <div className="floating-label" style={{ marginTop: '5px' }}>
-                                            <input type="date" name="ngayTraAnh" value={ngayTraAnh} onChange={(e) => setNgayTraAnh(e.target.value)} />
-                                            <label>Ngày trả ảnh</label>
+                                        <div className="floating-label">
+                                            <input type="text" name="dichVuChinh" value={getDichVuChinhLabel(dichVuChinh)} disabled />
+                                            <label>Dịch vụ chính</label>
                                         </div>
-                                        {ngayTraAnh && (
-                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                Âm lịch: {formatLunarDateFull(ngayTraAnh)}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </MobileAccordion>
 
-                            {(linkAnhGoc || linkAnhChinhSua || (danhSachAnhIn && danhSachAnhIn.length > 0)) && (
-                                <MobileAccordion title="Thông tin tiến trình" className="dialog-section" style={{ marginTop: '20px' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 15px', backgroundColor: '#fcfcfc', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
-                                        {linkAnhGoc && (
-                                            <div>
-                                                <strong style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: '#666' }}>Đường dẫn ảnh gốc:</strong>
-                                                <a href={linkAnhGoc} target="_blank" rel="noopener noreferrer" style={{ wordBreak: 'break-all', color: '#1976d2', textDecoration: 'underline', fontSize: '0.9rem', fontWeight: '500' }}>
-                                                    {linkAnhGoc}
-                                                </a>
-                                            </div>
-                                        )}
-                                        {linkAnhChinhSua && (
-                                            <div style={{ marginTop: '4px' }}>
-                                                <strong style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: '#666' }}>Đường dẫn ảnh chỉnh sửa:</strong>
-                                                <a href={linkAnhChinhSua} target="_blank" rel="noopener noreferrer" style={{ wordBreak: 'break-all', color: '#1976d2', textDecoration: 'underline', fontSize: '0.9rem', fontWeight: '500' }}>
-                                                    {linkAnhChinhSua}
-                                                </a>
-                                            </div>
-                                        )}
-                                        {danhSachAnhIn && danhSachAnhIn.length > 0 && (
-                                            <div style={{ marginTop: '4px' }}>
-                                                <strong style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: '#666' }}>Danh sách ảnh in:</strong>
-                                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                                                    <thead>
-                                                        <tr style={{ borderBottom: '1px solid #ddd', textAlign: 'left', color: '#666' }}>
-                                                            <th style={{ padding: '6px 0' }}>Kích thước</th>
-                                                            <th style={{ padding: '6px 0', textAlign: 'right' }}>Số lượng</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {danhSachAnhIn.map((item, index) => (
-                                                            <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
-                                                                <td style={{ padding: '6px 0', color: '#333' }}>{item.kichThuoc}</td>
-                                                                <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 'bold', color: '#333' }}>{item.soLuong}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
+                                        <div className="floating-label">
+                                            <select name="nhanVienSale" value={nhanVienSale} onChange={(e) => setNhanVienSale(e.target.value)}>
+                                                <option value="0">Chưa phân công</option>
+                                                {(() => {
+                                                    const staff = listStaff.filter(s => s.positon === 'Nhân viên Sale');
+                                                    const names = staff.map(s => s.fullname || s.username);
+                                                    if (nhanVienSale && nhanVienSale !== "0" && !names.includes(nhanVienSale)) {
+                                                        names.push(nhanVienSale);
+                                                    }
+                                                    return names.map((name, i) => (
+                                                        <option key={i} value={name}>{name}</option>
+                                                    ));
+                                                })()}
+                                            </select>
+                                            <label>Nhân viên sale</label>
+                                        </div>
+
+                                        <div className="floating-label">
+                                            <select name="thoChupHinh" value={thoChupHinh} onChange={(e) => setThoChupHinh(e.target.value)}>
+                                                <option value="">Chưa phân công</option>
+                                                {(() => {
+                                                    const staff = listStaff.filter(s => s.positon === 'Thợ chụp hình');
+                                                    const names = staff.map(s => s.fullname || s.username);
+                                                    if (thoChupHinh && !names.includes(thoChupHinh)) {
+                                                        names.push(thoChupHinh);
+                                                    }
+                                                    return names.map((name, i) => (
+                                                        <option key={i} value={name}>{name}</option>
+                                                    ));
+                                                })()}
+                                            </select>
+                                            <label>Thợ chụp hình</label>
+                                        </div>
+
+                                        <div className="floating-label">
+                                            <select name="thoMakeUp" value={thoMakeUp} onChange={(e) => setThoMakeUp(e.target.value)}>
+                                                <option value="">Chưa phân công</option>
+                                                {(() => {
+                                                    const staff = listStaff.filter(s => s.positon === 'Thợ trang điểm');
+                                                    const names = staff.map(s => s.fullname || s.username);
+                                                    if (thoMakeUp && !names.includes(thoMakeUp)) {
+                                                        names.push(thoMakeUp);
+                                                    }
+                                                    return names.map((name, i) => (
+                                                        <option key={i} value={name}>{name}</option>
+                                                    ));
+                                                })()}
+                                            </select>
+                                            <label>Thợ Make-up</label>
+                                        </div>
+
+                                        <div className="floating-label">
+                                            <select name="chotLich" value={chotLich} onChange={(e) => setChotLich(e.target.value)}>
+                                                <option value="Chưa gọi điện">Chưa gọi điện</option>
+                                                <option value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</option>
+                                                <option value="Đã chốt lịch">Đã chốt lịch</option>
+                                            </select>
+                                            <label>Chốt lịch</label>
+                                        </div>
+
+                                        <div className="floating-label">
+                                            <select name="thoChinhAnh" value={thoChinhAnh} onChange={(e) => setThoChinhAnh(e.target.value)}>
+                                                <option value="">Chưa phân công</option>
+                                                {(() => {
+                                                    const staff = listStaff.filter(s => s.positon === 'Thợ chỉnh ảnh');
+                                                    const names = staff.map(s => s.fullname || s.username);
+                                                    if (thoChinhAnh && !names.includes(thoChinhAnh)) {
+                                                        names.push(thoChinhAnh);
+                                                    }
+                                                    return names.map((name, i) => (
+                                                        <option key={i} value={name}>{name}</option>
+                                                    ));
+                                                })()}
+                                            </select>
+                                            <label>Thợ chỉnh ảnh</label>
+                                        </div>
                                     </div>
                                 </MobileAccordion>
-                            )}
-                        </div>
 
-                        <div className="left-column">
-                            <MobileAccordion title="Sản phẩm & Dịch vụ" className="dialog-section-sanpham">
+                                <MobileAccordion title="Thông tin chung & Lịch trình" className="dialog-section" style={{ marginTop: '20px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+                                                <DateTimePicker
+                                                    label="Ngày chụp ảnh"
+                                                    value={ngayChup ? dayjs(ngayChup) : null}
+                                                    onChange={(newValue) => {
+                                                        const formatted = newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '';
+                                                        setNgayChup(formatted);
+                                                        if (formatted) {
+                                                            const conflict = checkNgayChupConflict(formatted, data?._id);
+                                                            if (conflict) {
+                                                                const conflictTime = new Date(conflict.cacNgay.ngayChup);
+                                                                const timeStr = `${String(conflictTime.getHours()).padStart(2, '0')}:${String(conflictTime.getMinutes()).padStart(2, '0')} ngày ${conflictTime.getDate()}/${conflictTime.getMonth() + 1}/${conflictTime.getFullYear()}`;
+                                                                toast.warning(`Cảnh báo: Trùng hoặc quá gần lịch chụp với HĐ ${conflict.maHopDong} (${conflict.khachHang1?.tenKhachHang || ''}) vào lúc ${timeStr} (khoảng cách dưới 3 tiếng).`);
+                                                            }
+                                                        }
+                                                    }}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            required: true,
+                                                            size: 'small',
+                                                        }
+                                                    }}
+                                                    format="DD/MM/YYYY HH:mm"
+                                                />
+                                            </LocalizationProvider>
+                                            {ngayChup && (
+                                                <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                    Âm lịch: {formatLunarDateFull(ngayChup)}
+                                                </div>
+                                            )}
 
-                            <div className="product-search-container" ref={searchRef}>
-                                <AppSearchInput
-                                    value={searchTerm}
-                                    placeholder="Tìm tên hoặc mã sản phẩm"
-                                    width="100%"
-                                    autoComplete="off"
-                                    onFocus={() => setShowSuggestions(true)}
-                                    onChange={(e) => {
-                                        const value = e.target ? e.target.value : e;
-                                        setSearchTerm(value);
-                                        setShowSuggestions(true);
-                                    }}
-                                />
+                                            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+                                                <DateTimePicker
+                                                    label="Ngày ăn hỏi"
+                                                    value={ngayAnHoi ? dayjs(ngayAnHoi) : null}
+                                                    onChange={(newValue) => setNgayAnHoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            required: true,
+                                                            size: 'small',
+                                                        }
+                                                    }}
+                                                    format="DD/MM/YYYY HH:mm"
+                                                />
+                                            </LocalizationProvider>
+                                            {ngayAnHoi && (
+                                                <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                    Âm lịch: {formatLunarDateFull(ngayAnHoi)}
+                                                </div>
+                                            )}
 
-                                {showSuggestions && suggestions.length > 0 && (
-                                    <ul className="search-suggestions-pop">
-                                        {suggestions.map(p => (
-                                            <li key={p.maDichVu} onClick={() => handleSelectProduct(p)}>
-                                                <span className="p-name">{p.tenDichVu} <small style={{ color: '#888', marginLeft: '5px' }}>({p.maDichVu})</small></span>
-                                                <span className="p-price">{p.giaChoThueDichVu.toLocaleString("vi-VN")}đ</span>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                            <div className="floating-label" style={{ marginTop: '5px' }}>
+                                                <input type="date" name="ngayChinhAnh" value={ngayChinhAnh} onChange={(e) => setNgayChinhAnh(e.target.value)} />
+                                                <label>Ngày bắt đầu hậu kỳ</label>
+                                            </div>
+                                            {ngayChinhAnh && (
+                                                <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                    Âm lịch: {formatLunarDateFull(ngayChinhAnh)}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+                                                <DateTimePicker
+                                                    label="Ngày cưới"
+                                                    value={ngayCuoi ? dayjs(ngayCuoi) : null}
+                                                    onChange={(newValue) => setNgayCuoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            required: true,
+                                                            size: 'small',
+                                                        }
+                                                    }}
+                                                    format="DD/MM/YYYY HH:mm"
+                                                />
+                                            </LocalizationProvider>
+                                            {ngayCuoi && (
+                                                <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                    Âm lịch: {formatLunarDateFull(ngayCuoi)}
+                                                </div>
+                                            )}
+
+                                            <div className="floating-label" style={{ marginTop: '0px' }}>
+                                                <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />
+                                                <label>Địa điểm chụp</label>
+                                            </div>
+
+                                            <div className="floating-label" style={{ marginTop: '5px' }}>
+                                                <input type="date" name="ngayTraAnh" value={ngayTraAnh} onChange={(e) => setNgayTraAnh(e.target.value)} />
+                                                <label>Ngày trả ảnh</label>
+                                            </div>
+                                            {ngayTraAnh && (
+                                                <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                    Âm lịch: {formatLunarDateFull(ngayTraAnh)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </MobileAccordion>
+
+                                {(linkAnhGoc || linkAnhChinhSua || (danhSachAnhIn && danhSachAnhIn.length > 0) || albumData) && (
+                                    <MobileAccordion title="Thông tin tiến trình" className="dialog-section" style={{ marginTop: '20px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 15px', backgroundColor: '#fcfcfc', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
+                                            {linkAnhGoc && (
+                                                <div>
+                                                    <strong style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: '#666' }}>Đường dẫn ảnh gốc:</strong>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                                        <a href={linkAnhGoc} target="_blank" rel="noopener noreferrer" style={{ wordBreak: 'break-all', color: '#1976d2', textDecoration: 'underline', fontSize: '0.9rem', fontWeight: '500' }}>
+                                                            {linkAnhGoc}
+                                                        </a>
+                                                        <Button
+                                                            variant="contained"
+                                                            size="small"
+                                                            color="primary"
+                                                            onClick={() => handleSyncAlbum(linkAnhGoc, 'goc')}
+                                                            disabled={isSyncingAlbum}
+                                                        >
+                                                            {isSyncingAlbum ? "Đang đồng bộ..." : "Đồng bộ ảnh chọn KH"}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {linkAnhChinhSua && (
+                                                <div style={{ marginTop: linkAnhGoc ? '15px' : '0' }}>
+                                                    <strong style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: '#666' }}>Đường dẫn ảnh chỉnh sửa:</strong>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                                        <a href={linkAnhChinhSua} target="_blank" rel="noopener noreferrer" style={{ wordBreak: 'break-all', color: '#1976d2', textDecoration: 'underline', fontSize: '0.9rem', fontWeight: '500' }}>
+                                                            {linkAnhChinhSua}
+                                                        </a>
+                                                        <Button
+                                                            variant="contained"
+                                                            size="small"
+                                                            color="secondary"
+                                                            onClick={() => handleSyncAlbum(linkAnhChinhSua, 'chinhSua')}
+                                                            disabled={isSyncingAlbumChinhSua}
+                                                        >
+                                                            {isSyncingAlbumChinhSua ? "Đang đồng bộ..." : "Đồng bộ ảnh chỉnh sửa KH"}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {albumData && (
+                                                <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#eef5f9', borderRadius: '4px', border: '1px dashed #90caf9' }}>
+                                                    <strong style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#0d47a1' }}>Album Khách Hàng Chọn Ảnh</strong>
+                                                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', fontSize: '0.85rem' }}>
+                                                        <div>
+                                                            <b>ĐB ảnh gốc: </b>
+                                                            <span style={{ color: albumData.trangThai === 'Hoàn thành' ? 'green' : 'orange' }}>{albumData.trangThai}</span>
+                                                        </div>
+                                                        <div>
+                                                            <b>ĐB ảnh C.Sửa: </b>
+                                                            <span style={{ color: albumData.trangThaiChinhSua === 'Hoàn thành' ? 'green' : 'orange' }}>{albumData.trangThaiChinhSua || 'Chưa đồng bộ'}</span>
+                                                        </div>
+                                                        <div><b>Số ảnh gốc:</b> {albumData.danhSachAnh?.length || 0}</div>
+                                                        <div><b style={{ color: '#d32f2f' }}>Đã tim:</b> {albumData.danhSachAnh?.filter(a => a.isHearted).length || 0}</div>
+                                                        <div><b>Ảnh chỉnh sửa:</b> {albumData.danhSachAnhChinhSua?.length || 0}</div>
+                                                    </div>
+
+                                                    <Button
+                                                        variant="contained"
+                                                        color="secondary"
+                                                        size="small"
+                                                        style={{ marginTop: '10px', textTransform: 'none', fontWeight: 'bold' }}
+                                                        onClick={() => setOpenLocAnhDialog(true)}
+                                                    >
+                                                        💻 Lọc ảnh trên máy tính
+                                                    </Button>
+
+                                                    <Box mt={2} mb={2} p={1.5} border="1px solid #ddd" borderRadius="4px" bgcolor="#fff">
+                                                        <Typography variant="subtitle2" style={{ fontWeight: 'bold', marginBottom: '8px', color: '#1976d2' }}>
+                                                            CÀI ĐẶT CHỌN ẢNH CHO KHÁCH HÀNG
+                                                        </Typography>
+
+                                                        <Box display="flex" alignItems="center" flexWrap="wrap" gap={2}>
+                                                            <FormControlLabel
+                                                                control={
+                                                                    <Switch
+                                                                        checked={coGioiHanAnh}
+                                                                        onChange={(e) => setCoGioiHanAnh(e.target.checked)}
+                                                                        color="primary"
+                                                                    />
+                                                                }
+                                                                label={<Typography variant="body2">Giới hạn số lượng ảnh</Typography>}
+                                                            />
+
+                                                            {coGioiHanAnh && (
+                                                                <TextField
+                                                                    label="Số lượng ảnh"
+                                                                    type="number"
+                                                                    size="small"
+                                                                    value={soLuongAnhGioiHan}
+                                                                    onChange={(e) => setSoLuongAnhGioiHan(e.target.value)}
+                                                                    InputProps={{ inputProps: { min: 1 } }}
+                                                                    style={{ width: '130px' }}
+                                                                />
+                                                            )}
+                                                        </Box>
+
+                                                        <Box mt={1} p={1} borderRadius="4px" bgcolor={khachHangXacNhan ? '#e8f5e9' : '#fff3e0'}>
+                                                            <FormControlLabel
+                                                                control={
+                                                                    <Switch
+                                                                        checked={khachHangXacNhan}
+                                                                        onChange={(e) => setKhachHangXacNhan(e.target.checked)}
+                                                                        color={khachHangXacNhan ? "success" : "warning"}
+                                                                        size="small"
+                                                                    />
+                                                                }
+                                                                label={
+                                                                    <Typography variant="body2" style={{ fontWeight: 'bold', color: khachHangXacNhan ? '#2e7d32' : '#ed6c02' }}>
+                                                                        Khóa album (Khách hàng đã chọn xong)
+                                                                    </Typography>
+                                                                }
+                                                            />
+                                                        </Box>
+
+                                                        <Button
+                                                            variant="contained"
+                                                            size="small"
+                                                            color="primary"
+                                                            onClick={handleSaveAlbumSettings}
+                                                            style={{ marginTop: '10px' }}
+                                                        >
+                                                            Lưu Cài Đặt
+                                                        </Button>
+                                                    </Box>
+
+                                                    {albumData.publicLink && (
+                                                        <div style={{ marginTop: '10px' }}>
+                                                            <b>Link gửi khách:</b>{' '}
+                                                            <a href={`http://localhost:3000/album/${albumData.publicLink}`} target="_blank" rel="noopener noreferrer" style={{ color: '#1976d2', textDecoration: 'underline' }}>
+                                                                http://localhost:3000/album/{albumData.publicLink}
+                                                            </a>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {linkAnhChinhSua && (
+                                                <div style={{ marginTop: '4px' }}>
+                                                    <strong style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: '#666' }}>Đường dẫn ảnh chỉnh sửa:</strong>
+                                                    <a href={linkAnhChinhSua} target="_blank" rel="noopener noreferrer" style={{ wordBreak: 'break-all', color: '#1976d2', textDecoration: 'underline', fontSize: '0.9rem', fontWeight: '500' }}>
+                                                        {linkAnhChinhSua}
+                                                    </a>
+                                                </div>
+                                            )}
+                                            {danhSachAnhIn && danhSachAnhIn.length > 0 && (
+                                                <div style={{ marginTop: '4px' }}>
+                                                    <strong style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: '#666' }}>Danh sách ảnh in:</strong>
+                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                                        <thead>
+                                                            <tr style={{ borderBottom: '1px solid #ddd', textAlign: 'left', color: '#666' }}>
+                                                                <th style={{ padding: '6px 0' }}>Kích thước</th>
+                                                                <th style={{ padding: '6px 0', textAlign: 'right' }}>Số lượng</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {danhSachAnhIn.map((item, index) => (
+                                                                <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                                                                    <td style={{ padding: '6px 0', color: '#333' }}>{item.kichThuoc}</td>
+                                                                    <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 'bold', color: '#333' }}>{item.soLuong}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </MobileAccordion>
                                 )}
                             </div>
 
-                            {/* ===== TABLE ===== */}
-                            <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', maxHeight: '250px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px', marginBottom: '15px' }}>
-                                <table className="product-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Tên SP</th>
-                                            <th style={{ textAlign: "center" }}>Số lượng</th>
-                                            <th>Giá</th>
-                                            <th>Thành tiền</th>
-                                            <th>Hành động</th> {/* Thêm cột mới */}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                                                                {Array.isArray(gioHang) && gioHang.length > 0 ? (
-                                            gioHang.map((item, index) => {
-                                                const productId = item.dichVu?._id || item.dichVu || item._id;
-                                                const price = item.donGia || item.giaChoThueDichVu || 0;
-                                                const total = price * (item.soLuong || 0);
-                                                const loaiDichVuVal = item.loaiDichVu ?? item.dichVu?.loaiDichVu;
+                            <div className="left-column">
+                                <MobileAccordion title="Sản phẩm & Dịch vụ" className="dialog-section-sanpham">
 
-                                                return (
-                                                    <Fragment key={productId}>
-                                                        <tr style={{ backgroundColor: Number(loaiDichVuVal) !== 1 ? '#f5f8fc' : 'transparent' }}>
-                                                            <td style={{ fontWeight: Number(loaiDichVuVal) !== 1 ? '600' : 'normal' }}>{item.tenDichVuSnapshot || item.tenDichVu}</td>
-                                                            <td style={{ textAlign: "center" }}>
-                                                                <button className="btn-qty" onClick={() => handleDecreaseQuantity(productId)}>-</button>
-                                                                <span style={{ margin: "0 10px" }}>{item.soLuong}</span>
-                                                                <button className="btn-qty" onClick={() => handleSelectProduct(item)}>+</button>
-                                                            </td>
-                                                            <td>{price.toLocaleString("vi-VN")}đ</td>
-                                                            <td>{total.toLocaleString("vi-VN")}đ</td>
-                                                            <td style={{ textAlign: "center" }}>
-                                                                <Button
-                                                                    size="small"
-                                                                    color="error"
-                                                                    onClick={() => handleDeleteProduct(productId)}
-                                                                >
-                                                                    Xóa
-                                                                </Button>
-                                                            </td>
-                                                        </tr>
-                                                    </Fragment>
-                                                );
-                                            })
-                                        ) : (
-                                            <tr>
-                                                <td colSpan={5} style={{ textAlign: "center", color: "#999" }}>
-                                                    Chưa sử dụng dịch vụ
-                                                </td>
-                                            </tr>
+                                    <div className="product-search-container" ref={searchRef}>
+                                        <AppSearchInput
+                                            value={searchTerm}
+                                            placeholder="Tìm tên hoặc mã sản phẩm"
+                                            width="100%"
+                                            autoComplete="off"
+                                            onFocus={() => setShowSuggestions(true)}
+                                            onChange={(e) => {
+                                                const value = e.target ? e.target.value : e;
+                                                setSearchTerm(value);
+                                                setShowSuggestions(true);
+                                            }}
+                                        />
+
+                                        {showSuggestions && suggestions.length > 0 && (
+                                            <ul className="search-suggestions-pop">
+                                                {suggestions.map(p => (
+                                                    <li key={p.maDichVu} onClick={() => handleSelectProduct(p)}>
+                                                        <span className="p-name">{p.tenDichVu} <small style={{ color: '#888', marginLeft: '5px' }}>({p.maDichVu})</small></span>
+                                                        <span className="p-price">{p.giaChoThueDichVu.toLocaleString("vi-VN")}đ</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    </div>
 
-                            {(() => {
-                                const hasItems = Array.isArray(gioHang) && gioHang.length > 0;
-                                const firstItem = hasItems ? gioHang[0] : {};
-
-                                return (
-                                    <>
-                                        <div className="package-parameters-title" style={{ marginTop: '25px' }}>Tổng hợp dịch vụ trong hợp đồng</div>
-                                        <div className="summary-parameters-grid">
-                                            <div className="form-group-summary">
-                                                <label>SL ảnh chỉnh sửa</label>
-                                                <input
-                                                    type="number"
-                                                    className="summary-value-input"
-                                                    value={firstItem.soLuongAnhChinhSua ?? 0}
-                                                    onChange={(e) => updateGioHangParam("soLuongAnhChinhSua", Number(e.target.value) || 0)}
-                                                    disabled={!hasItems}
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>SL ảnh 16x21</label>
-                                                <input
-                                                    type="number"
-                                                    className="summary-value-input"
-                                                    value={firstItem.soLuongAnh16x21 ?? 0}
-                                                    onChange={(e) => updateGioHangParam("soLuongAnh16x21", Number(e.target.value) || 0)}
-                                                    disabled={!hasItems}
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>SL ảnh 20x30</label>
-                                                <input
-                                                    type="number"
-                                                    className="summary-value-input"
-                                                    value={firstItem.soLuongAnh20x30 ?? 0}
-                                                    onChange={(e) => updateGioHangParam("soLuongAnh20x30", Number(e.target.value) || 0)}
-                                                    disabled={!hasItems}
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>SL ảnh 60x90</label>
-                                                <input
-                                                    type="number"
-                                                    className="summary-value-input"
-                                                    value={firstItem.soLuongAnh60x90 ?? 0}
-                                                    onChange={(e) => updateGioHangParam("soLuongAnh60x90", Number(e.target.value) || 0)}
-                                                    disabled={!hasItems}
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Trang điểm ngày ăn hỏi</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangDiemNgayAnHoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangDiemNgayAnHoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Trang điểm ngày cưới</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangDiemNgayCuoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangDiemNgayCuoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Trang phục bê lễ</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangPhucChoDoiBeLe ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangPhucChoDoiBeLe", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>TP cô dâu ngày ăn hỏi</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangPhucCoDauNgayAnHoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangPhucCoDauNgayAnHoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>TP chú rể ngày ăn hỏi</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangPhucChuReNgayAnHoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangPhucChuReNgayAnHoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Váy cưới ngày cưới (giá trị)</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangPhucVayCuoiNgayCuoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangPhucVayCuoiNgayCuoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Vest chú rể ngày cưới</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangPhucVestChuReNgayCuoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangPhucVestChuReNgayCuoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Hoa cầm tay</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.hoaCamTay ?? ""}
-                                                    onChange={(e) => updateGioHangParam("hoaCamTay", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                        </div>
-                                    </>
-                                );
-                            })()}
-                            </MobileAccordion>
-                        </div>
-                    </div>
-
-                    {/* === DƯỚI CÙNG: THANH TOÁN === */}
-                    <MobileAccordion title="Thông tin thanh toán" className="dialog-section payment">
-                        <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', flexWrap: 'wrap', width: '100%' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 2, minWidth: '350px' }}>
-                                <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1.2em', color: 'green', margin: '0 0 10px 0' }}>Lịch sử thanh toán</p>
-                                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                    {data?.thanhToan?.cacLuotThanhToan && data.thanhToan.cacLuotThanhToan.length > 0 ? (
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                    {/* ===== TABLE ===== */}
+                                    <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', maxHeight: '250px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px', marginBottom: '15px' }}>
+                                        <table className="product-table">
                                             <thead>
-                                                <tr style={{ borderBottom: '1px solid #ddd', textAlign: 'left', color: '#666' }}>
-                                                    <th style={{ padding: '6px' }}>Ngày</th>
-                                                    <th style={{ padding: '6px' }}>Số tiền</th>
-                                                    <th style={{ padding: '6px' }}>Hình thức</th>
-                                                    <th style={{ padding: '6px' }}>Ghi chú</th>
+                                                <tr>
+                                                    <th>Tên SP</th>
+                                                    <th style={{ textAlign: "center" }}>Số lượng</th>
+                                                    <th>Giá</th>
+                                                    <th>Thành tiền</th>
+                                                    <th>Hành động</th> {/* Thêm cột mới */}
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {data.thanhToan.cacLuotThanhToan.map((payment, index) => (
-                                                    <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
-                                                        <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>{formatDate(payment.date)}</td>
-                                                        <td style={{ padding: '6px', fontWeight: '600', color: '#333' }}>{payment.amount?.toLocaleString("vi-VN")}đ</td>
-                                                        <td style={{ padding: '6px' }}>{payment.method}</td>
-                                                        <td style={{ padding: '6px', color: '#666', fontStyle: 'italic' }}>{payment.noiDung || '-'}</td>
+                                                {Array.isArray(gioHang) && gioHang.length > 0 ? (
+                                                    gioHang.map((item, index) => {
+                                                        const productId = item.dichVu?._id || item.dichVu || item._id;
+                                                        const price = item.donGia || item.giaChoThueDichVu || 0;
+                                                        const total = price * (item.soLuong || 0);
+                                                        const loaiDichVuVal = item.loaiDichVu ?? item.dichVu?.loaiDichVu;
+
+                                                        return (
+                                                            <Fragment key={productId}>
+                                                                <tr style={{ backgroundColor: Number(loaiDichVuVal) !== 1 ? '#f5f8fc' : 'transparent' }}>
+                                                                    <td style={{ fontWeight: Number(loaiDichVuVal) !== 1 ? '600' : 'normal' }}>{item.tenDichVuSnapshot || item.tenDichVu}</td>
+                                                                    <td style={{ textAlign: "center" }}>
+                                                                        <button className="btn-qty" onClick={() => handleDecreaseQuantity(productId)}>-</button>
+                                                                        <span style={{ margin: "0 10px" }}>{item.soLuong}</span>
+                                                                        <button className="btn-qty" onClick={() => handleSelectProduct(item)}>+</button>
+                                                                    </td>
+                                                                    <td>{price.toLocaleString("vi-VN")}đ</td>
+                                                                    <td>{total.toLocaleString("vi-VN")}đ</td>
+                                                                    <td style={{ textAlign: "center" }}>
+                                                                        <Button
+                                                                            size="small"
+                                                                            color="error"
+                                                                            onClick={() => handleDeleteProduct(productId)}
+                                                                        >
+                                                                            Xóa
+                                                                        </Button>
+                                                                    </td>
+                                                                </tr>
+                                                            </Fragment>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan={5} style={{ textAlign: "center", color: "#999" }}>
+                                                            Chưa sử dụng dịch vụ
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {(() => {
+                                        const hasItems = Array.isArray(gioHang) && gioHang.length > 0;
+                                        const firstItem = hasItems ? gioHang[0] : {};
+
+                                        return (
+                                            <>
+                                                <div className="package-parameters-title" style={{ marginTop: '25px' }}>Tổng hợp dịch vụ trong hợp đồng</div>
+                                                <div className="summary-parameters-grid">
+                                                    <div className="form-group-summary">
+                                                        <label>SL ảnh chỉnh sửa</label>
+                                                        <input
+                                                            type="number"
+                                                            className="summary-value-input"
+                                                            value={firstItem.soLuongAnhChinhSua ?? 0}
+                                                            onChange={(e) => updateGioHangParam("soLuongAnhChinhSua", Number(e.target.value) || 0)}
+                                                            disabled={!hasItems}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>SL ảnh 16x21</label>
+                                                        <input
+                                                            type="number"
+                                                            className="summary-value-input"
+                                                            value={firstItem.soLuongAnh16x21 ?? 0}
+                                                            onChange={(e) => updateGioHangParam("soLuongAnh16x21", Number(e.target.value) || 0)}
+                                                            disabled={!hasItems}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>SL ảnh 20x30</label>
+                                                        <input
+                                                            type="number"
+                                                            className="summary-value-input"
+                                                            value={firstItem.soLuongAnh20x30 ?? 0}
+                                                            onChange={(e) => updateGioHangParam("soLuongAnh20x30", Number(e.target.value) || 0)}
+                                                            disabled={!hasItems}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>SL ảnh 60x90</label>
+                                                        <input
+                                                            type="number"
+                                                            className="summary-value-input"
+                                                            value={firstItem.soLuongAnh60x90 ?? 0}
+                                                            onChange={(e) => updateGioHangParam("soLuongAnh60x90", Number(e.target.value) || 0)}
+                                                            disabled={!hasItems}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>Trang điểm ngày ăn hỏi</label>
+                                                        <input
+                                                            type="text"
+                                                            className="summary-value-input"
+                                                            value={firstItem.trangDiemNgayAnHoi ?? ""}
+                                                            onChange={(e) => updateGioHangParam("trangDiemNgayAnHoi", e.target.value)}
+                                                            disabled={!hasItems}
+                                                            placeholder="Không có"
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>Trang điểm ngày cưới</label>
+                                                        <input
+                                                            type="text"
+                                                            className="summary-value-input"
+                                                            value={firstItem.trangDiemNgayCuoi ?? ""}
+                                                            onChange={(e) => updateGioHangParam("trangDiemNgayCuoi", e.target.value)}
+                                                            disabled={!hasItems}
+                                                            placeholder="Không có"
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>Trang phục bê lễ</label>
+                                                        <input
+                                                            type="text"
+                                                            className="summary-value-input"
+                                                            value={firstItem.trangPhucChoDoiBeLe ?? ""}
+                                                            onChange={(e) => updateGioHangParam("trangPhucChoDoiBeLe", e.target.value)}
+                                                            disabled={!hasItems}
+                                                            placeholder="Không có"
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>TP cô dâu ngày ăn hỏi</label>
+                                                        <input
+                                                            type="text"
+                                                            className="summary-value-input"
+                                                            value={firstItem.trangPhucCoDauNgayAnHoi ?? ""}
+                                                            onChange={(e) => updateGioHangParam("trangPhucCoDauNgayAnHoi", e.target.value)}
+                                                            disabled={!hasItems}
+                                                            placeholder="Không có"
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>TP chú rể ngày ăn hỏi</label>
+                                                        <input
+                                                            type="text"
+                                                            className="summary-value-input"
+                                                            value={firstItem.trangPhucChuReNgayAnHoi ?? ""}
+                                                            onChange={(e) => updateGioHangParam("trangPhucChuReNgayAnHoi", e.target.value)}
+                                                            disabled={!hasItems}
+                                                            placeholder="Không có"
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>Váy cưới ngày cưới (giá trị)</label>
+                                                        <input
+                                                            type="text"
+                                                            className="summary-value-input"
+                                                            value={firstItem.trangPhucVayCuoiNgayCuoi ?? ""}
+                                                            onChange={(e) => updateGioHangParam("trangPhucVayCuoiNgayCuoi", e.target.value)}
+                                                            disabled={!hasItems}
+                                                            placeholder="Không có"
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>Vest chú rể ngày cưới</label>
+                                                        <input
+                                                            type="text"
+                                                            className="summary-value-input"
+                                                            value={firstItem.trangPhucVestChuReNgayCuoi ?? ""}
+                                                            onChange={(e) => updateGioHangParam("trangPhucVestChuReNgayCuoi", e.target.value)}
+                                                            disabled={!hasItems}
+                                                            placeholder="Không có"
+                                                        />
+                                                    </div>
+                                                    <div className="form-group-summary">
+                                                        <label>Hoa cầm tay</label>
+                                                        <input
+                                                            type="text"
+                                                            className="summary-value-input"
+                                                            value={firstItem.hoaCamTay ?? ""}
+                                                            onChange={(e) => updateGioHangParam("hoaCamTay", e.target.value)}
+                                                            disabled={!hasItems}
+                                                            placeholder="Không có"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                </MobileAccordion>
+                            </div>
+                        </div>
+
+                        {/* === DƯỚI CÙNG: THANH TOÁN === */}
+                        <MobileAccordion title="Thông tin thanh toán" className="dialog-section payment">
+                            <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', flexWrap: 'wrap', width: '100%' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 2, minWidth: '350px' }}>
+                                    <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1.2em', color: 'green', margin: '0 0 10px 0' }}>Lịch sử thanh toán</p>
+                                    <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                        {data?.thanhToan?.cacLuotThanhToan && data.thanhToan.cacLuotThanhToan.length > 0 ? (
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                                <thead>
+                                                    <tr style={{ borderBottom: '1px solid #ddd', textAlign: 'left', color: '#666' }}>
+                                                        <th style={{ padding: '6px' }}>Ngày</th>
+                                                        <th style={{ padding: '6px' }}>Số tiền</th>
+                                                        <th style={{ padding: '6px' }}>Hình thức</th>
+                                                        <th style={{ padding: '6px' }}>Ghi chú</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {data.thanhToan.cacLuotThanhToan.map((payment, index) => (
+                                                        <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                                                            <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>{formatDate(payment.date)}</td>
+                                                            <td style={{ padding: '6px', fontWeight: '600', color: '#333' }}>{payment.amount?.toLocaleString("vi-VN")}đ</td>
+                                                            <td style={{ padding: '6px' }}>{payment.method}</td>
+                                                            <td style={{ padding: '6px', color: '#666', fontStyle: 'italic' }}>{payment.noiDung || '-'}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        ) : (
+                                            <p style={{ fontSize: '0.9rem', color: '#999', textAlign: 'left', margin: '10px 0' }}>Chưa có lượt thanh toán nào.</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '200px' }}>
+                                    <Autocomplete
+                                        disablePortal
+                                        options={[
+                                            { label: 'Chuyển khoản', id: 0 },
+                                            { label: 'Tiền mặt', id: 1 }
+                                        ]}
+                                        size="small"
+                                        value={{ label: methodPayment }}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                label="Hình thức thanh toán"
+                                                sx={{
+                                                    '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px', padding: '0 8px' },
+                                                    '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
+                                                    '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
+                                                }}
+                                            />
+                                        )}
+                                        onChange={(event, newValue) => {
+                                            setMethodPayment(newValue ? newValue.label : "Tiền mặt");
+                                        }}
+                                        sx={{
+                                            '& .MuiAutocomplete-inputRoot': { padding: '0 8px' }
+                                        }}
+                                    />
+
+                                    <TextField
+                                        label="Ghi chú thanh toán"
+                                        size="small"
+                                        value={noiDungPayment}
+                                        onChange={(e) => setNoiDungPayment(e.target.value)}
+                                        sx={{
+                                            '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px' },
+                                            '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
+                                            '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
+                                        }}
+                                    />
+
+                                    <TextField
+                                        label="Thanh toán"
+                                        value={khachThanhToanTruoc === 0 ? "" : khachThanhToanTruoc.toLocaleString("vi-VN")}
+                                        onChange={(e) => {
+                                            const rawValue = e.target.value.replace(/[^0-9]/g, "");
+                                            setKhachThanhToanTruoc(Number(rawValue) || 0);
+                                        }}
+                                        fullWidth
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{
+                                            '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px' },
+                                            '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
+                                            '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
+                                        }}
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '200px' }}>
+                                    <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
+                                        Tổng tiền đơn hàng: <b>{gioHang.reduce((sum, item) => {
+                                            const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
+                                            return sum + (price * (item.soLuong || 0));
+                                        }, 0).toLocaleString("vi-VN") + " đ"} </b>
+                                    </p>
+                                    <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
+                                        Tổng tiền sau giảm giá: <b>{tongTien.toLocaleString("vi-VN")} đ</b>
+                                    </p>
+                                    <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
+                                        Tổng đã thanh toán: <b>{((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0)).toLocaleString("vi-VN")} đ</b>
+                                    </p>
+
+                                    <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1.2em', color: 'red' }}>
+                                        Tổng tiền còn lại: <b>{Math.max(0, tongTien - ((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0))).toLocaleString("vi-VN")} đ</b>
+                                    </p>
+                                </div>
+                            </div>
+                        </MobileAccordion>
+
+                        <div className="dialog-actions" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                            <Button
+                                onClick={() => {
+                                    setDeleteConfirmInput("");
+                                    setOpenDeleteDialog(true);
+                                }}
+                                variant="outlined"
+                                color="error"
+                                sx={{
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >Xóa hợp đồng</Button>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                <Button
+                                    onClick={handleClose}
+                                    variant="contained"
+                                    color="error"
+                                    sx={{
+                                        whiteSpace: 'nowrap',
+                                        fontSize: { xs: '0.7rem', sm: '0.875rem' },
+                                        padding: { xs: '4px 8px', sm: '6px 16px' }
+                                    }}
+                                >Thoát</Button>
+
+                                <Button
+                                    onClick={handlePrintHopDong}
+                                    variant="contained"
+                                    color="success"
+                                    startIcon={<FontAwesomeIcon icon={faPrint} />}
+                                    sx={{
+                                        whiteSpace: 'nowrap',
+                                        fontSize: { xs: '0.7rem', sm: '0.875rem' },
+                                        padding: { xs: '4px 8px', sm: '6px 16px' }
+                                    }}
+                                >In hợp đồng</Button>
+
+                                {albumData && albumData.danhSachAnh && albumData.danhSachAnh.length > 0 && (
+                                    <Button
+                                        variant="contained"
+                                        color="info"
+                                        onClick={() => setOpenAlbumDetailDialog(true)}
+                                        sx={{
+                                            whiteSpace: 'nowrap',
+                                            fontSize: { xs: '0.7rem', sm: '0.875rem' },
+                                            padding: { xs: '4px 8px', sm: '6px 16px' }
+                                        }}
+                                    >
+                                        Xem Ảnh Khách Hàng
+                                    </Button>
+                                )}
+
+                                <Button
+                                    onClick={() => onUpdateHopDong()}
+                                    variant="contained"
+                                    sx={{
+                                        whiteSpace: 'nowrap',
+                                        fontSize: { xs: '0.7rem', sm: '0.875rem' },
+                                        padding: { xs: '4px 8px', sm: '6px 16px' }
+                                    }}
+                                >Cập nhật hợp đồng</Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Dialog nhập liệu thông tin tiến trình */}
+                <Dialog open={openProgressInput} onClose={() => setOpenProgressInput(false)} maxWidth="sm" fullWidth>
+                    <div style={{ padding: '24px', fontFamily: 'sans-serif' }}>
+                        <h3 style={{ margin: '0 0 16px 0', color: '#1976d2', borderBottom: '1px solid #eee', paddingBottom: '8px', fontWeight: 'bold' }}>
+                            Cập nhật tiến trình: {targetStep === 2 ? "Chụp hình" : targetStep === 3 ? "Hậu kỳ" : "In ảnh"}
+                        </h3>
+
+                        {targetStep === 2 && (
+                            <div style={{ marginTop: '12px' }}>
+                                <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
+                                    Vui lòng nhập đường dẫn thư mục chứa ảnh gốc của khách hàng:
+                                </p>
+                                <TextField
+                                    label="Đường dẫn ảnh gốc (URL)"
+                                    fullWidth
+                                    variant="outlined"
+                                    value={inputLinkAnhGoc}
+                                    onChange={(e) => setInputLinkAnhGoc(e.target.value)}
+                                    placeholder="https://drive.google.com/drive/folders/..."
+                                    size="small"
+                                />
+                            </div>
+                        )}
+
+                        {targetStep === 3 && (
+                            <div style={{ marginTop: '12px' }}>
+                                <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
+                                    Vui lòng nhập đường dẫn thư mục chứa ảnh đã chỉnh sửa (ảnh hậu kỳ):
+                                </p>
+                                <TextField
+                                    label="Đường dẫn ảnh chỉnh sửa (URL)"
+                                    fullWidth
+                                    variant="outlined"
+                                    value={inputLinkAnhChinhSua}
+                                    onChange={(e) => setInputLinkAnhChinhSua(e.target.value)}
+                                    placeholder="https://drive.google.com/drive/folders/..."
+                                    size="small"
+                                />
+                            </div>
+                        )}
+
+                        {targetStep === 4 && (
+                            <div style={{ marginTop: '12px' }}>
+                                <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
+                                    Bổ sung danh sách ảnh in kích thước và số lượng:
+                                </p>
+
+                                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                                    <TextField
+                                        label="Kích thước (ví dụ: 60x90, 30x45)"
+                                        variant="outlined"
+                                        value={newKichThuoc}
+                                        onChange={(e) => setNewKichThuoc(e.target.value)}
+                                        size="small"
+                                        sx={{ flex: 2 }}
+                                    />
+                                    <TextField
+                                        label="Số lượng"
+                                        type="number"
+                                        variant="outlined"
+                                        value={newSoLuong}
+                                        onChange={(e) => setNewSoLuong(Math.max(1, parseInt(e.target.value) || 1))}
+                                        size="small"
+                                        sx={{ flex: 1 }}
+                                        inputProps={{ min: 1 }}
+                                    />
+                                    <Button
+                                        variant="contained"
+                                        color="primary"
+                                        onClick={() => {
+                                            if (!newKichThuoc.trim()) {
+                                                toast.warning("Vui lòng nhập kích thước!");
+                                                return;
+                                            }
+                                            setInputDanhSachAnhIn([
+                                                ...inputDanhSachAnhIn,
+                                                { kichThuoc: newKichThuoc.trim(), soLuong: newSoLuong }
+                                            ]);
+                                            setNewKichThuoc("");
+                                            setNewSoLuong(1);
+                                        }}
+                                    >
+                                        Thêm
+                                    </Button>
+                                </div>
+
+                                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '8px' }}>
+                                    {inputDanhSachAnhIn.length === 0 ? (
+                                        <p style={{ textAlign: 'center', color: '#999', fontSize: '0.85rem', margin: '16px 0' }}>Chưa có ảnh in nào trong danh sách</p>
+                                    ) : (
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left' }}>
+                                                    <th style={{ padding: '6px' }}>STT</th>
+                                                    <th style={{ padding: '6px' }}>Kích thước</th>
+                                                    <th style={{ padding: '6px' }}>Số lượng</th>
+                                                    <th style={{ padding: '6px', textAlign: 'center' }}>Hành động</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {inputDanhSachAnhIn.map((item, idx) => (
+                                                    <tr key={idx} style={{ borderBottom: '1px solid #f9f9f9' }}>
+                                                        <td style={{ padding: '6px' }}>{idx + 1}</td>
+                                                        <td style={{ padding: '6px' }}>{item.kichThuoc}</td>
+                                                        <td style={{ padding: '6px' }}>{item.soLuong}</td>
+                                                        <td style={{ padding: '6px', textAlign: 'center' }}>
+                                                            <Button
+                                                                size="small"
+                                                                color="error"
+                                                                onClick={() => {
+                                                                    setInputDanhSachAnhIn(inputDanhSachAnhIn.filter((_, i) => i !== idx));
+                                                                }}
+                                                            >
+                                                                Xóa
+                                                            </Button>
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
                                         </table>
-                                    ) : (
-                                        <p style={{ fontSize: '0.9rem', color: '#999', textAlign: 'left', margin: '10px 0' }}>Chưa có lượt thanh toán nào.</p>
                                     )}
                                 </div>
                             </div>
+                        )}
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '200px' }}>
-                                <Autocomplete
-                                    disablePortal
-                                    options={[
-                                        { label: 'Chuyển khoản', id: 0 },
-                                        { label: 'Tiền mặt', id: 1 }
-                                    ]}
-                                    size="small"
-                                    value={{ label: methodPayment }}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label="Hình thức thanh toán"
-                                            sx={{
-                                                '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px', padding: '0 8px' },
-                                                '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
-                                                '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
-                                            }}
-                                        />
-                                    )}
-                                    onChange={(event, newValue) => {
-                                        setMethodPayment(newValue ? newValue.label : "Tiền mặt");
-                                    }}
-                                    sx={{
-                                        '& .MuiAutocomplete-inputRoot': { padding: '0 8px' }
-                                    }}
-                                />
-
-                                <TextField
-                                    label="Ghi chú thanh toán"
-                                    size="small"
-                                    value={noiDungPayment}
-                                    onChange={(e) => setNoiDungPayment(e.target.value)}
-                                    sx={{
-                                        '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px' },
-                                        '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
-                                        '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
-                                    }}
-                                />
-
-                                <TextField
-                                    label="Thanh toán"
-                                    value={khachThanhToanTruoc === 0 ? "" : khachThanhToanTruoc.toLocaleString("vi-VN")}
-                                    onChange={(e) => {
-                                        const rawValue = e.target.value.replace(/[^0-9]/g, "");
-                                        setKhachThanhToanTruoc(Number(rawValue) || 0);
-                                    }}
-                                    fullWidth
-                                    variant="outlined"
-                                    size="small"
-                                    sx={{
-                                        '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px' },
-                                        '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
-                                        '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
-                                    }}
-                                />
-                            </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '200px' }}>
-                                <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
-                                    Tổng tiền đơn hàng: <b>{gioHang.reduce((sum, item) => {
-                                        const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
-                                        return sum + (price * (item.soLuong || 0));
-                                    }, 0).toLocaleString("vi-VN") + " đ"} </b>
-                                </p>
-                                <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
-                                    Tổng tiền sau giảm giá: <b>{tongTien.toLocaleString("vi-VN")} đ</b>
-                                </p>
-                                <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
-                                    Tổng đã thanh toán: <b>{((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0)).toLocaleString("vi-VN")} đ</b>
-                                </p>
-
-                                <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1.2em', color: 'red' }}>
-                                    Tổng tiền còn lại: <b>{Math.max(0, tongTien - ((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0))).toLocaleString("vi-VN")} đ</b>
-                                </p>
-                            </div>
-                        </div>
-                    </MobileAccordion>
-
-                    <div className="dialog-actions" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                        <Button
-                            onClick={() => {
-                                setDeleteConfirmInput("");
-                                setOpenDeleteDialog(true);
-                            }}
-                            variant="outlined"
-                            color="error"
-                            sx={{
-                                whiteSpace: 'nowrap'
-                            }}
-                        >Xóa hợp đồng</Button>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
+                            <Button variant="outlined" color="inherit" onClick={() => setOpenProgressInput(false)}>
+                                Hủy
+                            </Button>
                             <Button
-                                onClick={handleClose}
                                 variant="contained"
-                                color="error"
-                                sx={{
-                                    whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
-                                }}
-                            >Thoát</Button>
-
-                            <Button
-                                onClick={handlePrintHopDong}
-                                variant="contained"
-                                color="success"
-                                startIcon={<FontAwesomeIcon icon={faPrint} />}
-                                sx={{
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >In hợp đồng</Button>
-
-                            <Button
-                                onClick={() => onUpdateHopDong()}
-                                variant="contained"
-                                sx={{
-                                    whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
-                                }}
-                            >Cập nhật hợp đồng</Button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Dialog nhập liệu thông tin tiến trình */}
-            <Dialog open={openProgressInput} onClose={() => setOpenProgressInput(false)} maxWidth="sm" fullWidth>
-                <div style={{ padding: '24px', fontFamily: 'sans-serif' }}>
-                    <h3 style={{ margin: '0 0 16px 0', color: '#1976d2', borderBottom: '1px solid #eee', paddingBottom: '8px', fontWeight: 'bold' }}>
-                        Cập nhật tiến trình: {targetStep === 2 ? "Chụp hình" : targetStep === 3 ? "Hậu kỳ" : "In ảnh"}
-                    </h3>
-
-                    {targetStep === 2 && (
-                        <div style={{ marginTop: '12px' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
-                                Vui lòng nhập đường dẫn thư mục chứa ảnh gốc của khách hàng:
-                            </p>
-                            <TextField
-                                label="Đường dẫn ảnh gốc (URL)"
-                                fullWidth
-                                variant="outlined"
-                                value={inputLinkAnhGoc}
-                                onChange={(e) => setInputLinkAnhGoc(e.target.value)}
-                                placeholder="https://drive.google.com/drive/folders/..."
-                                size="small"
-                            />
-                        </div>
-                    )}
-
-                    {targetStep === 3 && (
-                        <div style={{ marginTop: '12px' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
-                                Vui lòng nhập đường dẫn thư mục chứa ảnh đã chỉnh sửa (ảnh hậu kỳ):
-                            </p>
-                            <TextField
-                                label="Đường dẫn ảnh chỉnh sửa (URL)"
-                                fullWidth
-                                variant="outlined"
-                                value={inputLinkAnhChinhSua}
-                                onChange={(e) => setInputLinkAnhChinhSua(e.target.value)}
-                                placeholder="https://drive.google.com/drive/folders/..."
-                                size="small"
-                            />
-                        </div>
-                    )}
-
-                    {targetStep === 4 && (
-                        <div style={{ marginTop: '12px' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
-                                Bổ sung danh sách ảnh in kích thước và số lượng:
-                            </p>
-
-                            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                                <TextField
-                                    label="Kích thước (ví dụ: 60x90, 30x45)"
-                                    variant="outlined"
-                                    value={newKichThuoc}
-                                    onChange={(e) => setNewKichThuoc(e.target.value)}
-                                    size="small"
-                                    sx={{ flex: 2 }}
-                                />
-                                <TextField
-                                    label="Số lượng"
-                                    type="number"
-                                    variant="outlined"
-                                    value={newSoLuong}
-                                    onChange={(e) => setNewSoLuong(Math.max(1, parseInt(e.target.value) || 1))}
-                                    size="small"
-                                    sx={{ flex: 1 }}
-                                    inputProps={{ min: 1 }}
-                                />
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    onClick={() => {
-                                        if (!newKichThuoc.trim()) {
-                                            toast.warning("Vui lòng nhập kích thước!");
+                                color="primary"
+                                onClick={() => {
+                                    if (targetStep === 2) {
+                                        if (!inputLinkAnhGoc.trim()) {
+                                            toast.warning("Vui lòng nhập đường dẫn ảnh gốc!");
                                             return;
                                         }
-                                        setInputDanhSachAnhIn([
-                                            ...inputDanhSachAnhIn,
-                                            { kichThuoc: newKichThuoc.trim(), soLuong: newSoLuong }
-                                        ]);
-                                        setNewKichThuoc("");
-                                        setNewSoLuong(1);
-                                    }}
-                                >
-                                    Thêm
-                                </Button>
-                            </div>
+                                        submitProgressUpdate(2, { linkAnhGoc: inputLinkAnhGoc.trim() });
+                                    } else if (targetStep === 3) {
+                                        if (!inputLinkAnhChinhSua.trim()) {
+                                            toast.warning("Vui lòng nhập đường dẫn ảnh chỉnh sửa!");
+                                            return;
+                                        }
+                                        submitProgressUpdate(3, { linkAnhChinhSua: inputLinkAnhChinhSua.trim() });
+                                    } else if (targetStep === 4) {
+                                        if (inputDanhSachAnhIn.length === 0) {
+                                            toast.warning("Vui lòng thêm ít nhất một ảnh in vào danh sách!");
+                                            return;
+                                        }
+                                        submitProgressUpdate(4, { danhSachAnhIn: inputDanhSachAnhIn });
+                                    }
+                                }}
+                            >
+                                Xác nhận chuyển bước
+                            </Button>
+                        </div>
+                    </div>
+                </Dialog>
 
-                            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '8px' }}>
-                                {inputDanhSachAnhIn.length === 0 ? (
-                                    <p style={{ textAlign: 'center', color: '#999', fontSize: '0.85rem', margin: '16px 0' }}>Chưa có ảnh in nào trong danh sách</p>
-                                ) : (
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                                        <thead>
-                                            <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left' }}>
-                                                <th style={{ padding: '6px' }}>STT</th>
-                                                <th style={{ padding: '6px' }}>Kích thước</th>
-                                                <th style={{ padding: '6px' }}>Số lượng</th>
-                                                <th style={{ padding: '6px', textAlign: 'center' }}>Hành động</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {inputDanhSachAnhIn.map((item, idx) => (
-                                                <tr key={idx} style={{ borderBottom: '1px solid #f9f9f9' }}>
-                                                    <td style={{ padding: '6px' }}>{idx + 1}</td>
-                                                    <td style={{ padding: '6px' }}>{item.kichThuoc}</td>
-                                                    <td style={{ padding: '6px' }}>{item.soLuong}</td>
-                                                    <td style={{ padding: '6px', textAlign: 'center' }}>
-                                                        <Button
-                                                            size="small"
-                                                            color="error"
-                                                            onClick={() => {
-                                                                setInputDanhSachAnhIn(inputDanhSachAnhIn.filter((_, i) => i !== idx));
-                                                            }}
-                                                        >
-                                                            Xóa
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                )}
-                            </div>
+                {/* Dialog xác nhận xóa hợp đồng */}
+                <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)} maxWidth="sm" fullWidth>
+                    <div style={{ padding: '24px', textAlign: 'center' }}>
+                        <h2 style={{ color: '#d32f2f', marginBottom: '16px' }}>Xác nhận xóa hợp đồng</h2>
+                        <p style={{ marginBottom: '16px', color: '#555' }}>
+                            Hành động này <b>không thể hoàn tác</b>. Tất cả dữ liệu liên quan đến hợp đồng <b>{data?.maHopDong}</b> sẽ bị xóa vĩnh viễn.
+                        </p>
+                        <p style={{ marginBottom: '16px', fontSize: '0.9rem' }}>
+                            Vui lòng nhập <b>{data?.maHopDong}</b> để xác nhận:
+                        </p>
+                        <TextField
+                            label="Nhập mã hợp đồng"
+                            fullWidth
+                            variant="outlined"
+                            value={deleteConfirmInput}
+                            onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                            placeholder={maHopDong}
+                            size="small"
+                            error={deleteConfirmInput !== "" && deleteConfirmInput !== maHopDong}
+                            helperText={deleteConfirmInput !== "" && deleteConfirmInput !== maHopDong ? "Mã hợp đồng nhập vào không chính xác" : ""}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
+                            <Button variant="outlined" color="inherit" onClick={() => setOpenDeleteDialog(false)}>
+                                Hủy bỏ
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="error"
+                                disabled={deleteConfirmInput !== maHopDong}
+                                onClick={handleDeleteHopDong}
+                            >
+                                Xác nhận xóa
+                            </Button>
+                        </div>
+                    </div>
+                </Dialog>
+
+            </Dialog >
+
+
+
+            {/* Dialog Xem Chi Tiết Ảnh Khách Chọn */}
+            <Dialog open={openAlbumDetailDialog} onClose={() => setOpenAlbumDetailDialog(false)} maxWidth="lg" fullWidth>
+                <DialogTitle>
+                    Chi Tiết Ảnh Khách Hàng - {data?.maHopDong}
+                    {albumData && (
+                        <Tabs value={albumDetailTab} onChange={(e, newValue) => setAlbumDetailTab(newValue)} style={{ marginTop: '10px' }}>
+                            <Tab label="Tất Cả Ảnh Gốc" />
+                            <Tab label="Ảnh Khách Chọn" />
+                            <Tab label="Ảnh Đã Chỉnh Sửa" />
+                        </Tabs>
+                    )}
+                </DialogTitle>
+                <DialogContent dividers>
+                    {albumData && albumDetailTab === 0 && (
+                        <div className="admin-masonry-grid">
+                            {albumData.danhSachAnh?.map((item) => (
+                                <div key={item.idDrive} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
+                                    <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+                                        <img
+                                            src={`${item.urlNen}`}
+                                            alt={item.tenFile}
+                                            loading="lazy"
+                                            style={{ width: '100%', display: 'block' }}
+                                        />
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: 0,
+                                            left: 0,
+                                            right: 0,
+                                            padding: '20px 12px 10px',
+                                            background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
+                                            color: 'white',
+                                            fontSize: '0.8rem',
+                                            fontWeight: '500',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis'
+                                        }}>
+                                            {item.tenFile}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
-                        <Button variant="outlined" color="inherit" onClick={() => setOpenProgressInput(false)}>
-                            Hủy
-                        </Button>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={() => {
-                                if (targetStep === 2) {
-                                    if (!inputLinkAnhGoc.trim()) {
-                                        toast.warning("Vui lòng nhập đường dẫn ảnh gốc!");
-                                        return;
-                                    }
-                                    submitProgressUpdate(2, { linkAnhGoc: inputLinkAnhGoc.trim() });
-                                } else if (targetStep === 3) {
-                                    if (!inputLinkAnhChinhSua.trim()) {
-                                        toast.warning("Vui lòng nhập đường dẫn ảnh chỉnh sửa!");
-                                        return;
-                                    }
-                                    submitProgressUpdate(3, { linkAnhChinhSua: inputLinkAnhChinhSua.trim() });
-                                } else if (targetStep === 4) {
-                                    if (inputDanhSachAnhIn.length === 0) {
-                                        toast.warning("Vui lòng thêm ít nhất một ảnh in vào danh sách!");
-                                        return;
-                                    }
-                                    submitProgressUpdate(4, { danhSachAnhIn: inputDanhSachAnhIn });
-                                }
-                            }}
-                        >
-                            Xác nhận chuyển bước
-                        </Button>
-                    </div>
-                </div>
+                    {albumData && albumDetailTab === 1 && (
+                        <div className="admin-masonry-grid">
+                            {albumData.danhSachAnh?.filter(a => a.isHearted || (a.comments && a.comments.length > 0)).map((anh, index) => (
+                                <div key={index} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
+                                    <Card style={{ borderRadius: '16px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+                                        <div style={{ position: 'relative' }}>
+                                            <img
+                                                src={`${anh.urlNen}`}
+                                                alt={anh.tenFile}
+                                                loading="lazy"
+                                                style={{ width: '100%', display: 'block' }}
+                                            />
+                                            {anh.isHearted && (
+                                                <div style={{ position: 'absolute', top: 10, right: 10, color: 'red', fontSize: '24px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>
+                                                    <FontAwesomeIcon icon={faHeart} />
+                                                </div>
+                                            )}
+                                            <div style={{
+                                                position: 'absolute',
+                                                bottom: 0,
+                                                left: 0,
+                                                right: 0,
+                                                padding: '20px 12px 10px',
+                                                background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
+                                                color: 'white',
+                                                fontSize: '0.8rem',
+                                                fontWeight: '500',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis'
+                                            }}>
+                                                {anh.tenFile}
+                                            </div>
+                                        </div>
+                                        {anh.comments && anh.comments.length > 0 && (
+                                            <CardContent style={{ padding: '12px' }}>
+                                                <div style={{ backgroundColor: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
+                                                    <Typography variant="caption" fontWeight="bold" style={{ color: '#1976d2' }}>Bình luận KH:</Typography>
+                                                    {anh.comments.map((cmt, idx) => (
+                                                        <Typography key={idx} variant="body2" style={{ marginTop: '4px', fontStyle: 'italic' }}>- {cmt.noiDung}</Typography>
+                                                    ))}
+                                                </div>
+                                            </CardContent>
+                                        )}
+                                    </Card>
+                                </div>
+                            ))}
+                            {albumData.danhSachAnh?.filter(a => a.isHearted || (a.comments && a.comments.length > 0)).length === 0 && (
+                                <Typography variant="body1" style={{ padding: '20px', gridColumn: '1 / -1' }}>Khách hàng chưa chọn hoặc bình luận ảnh nào.</Typography>
+                            )}
+                        </div>
+                    )}
+                    {albumData && albumDetailTab === 2 && (
+                        <div className="admin-masonry-grid">
+                            {albumData.danhSachAnhChinhSua?.map((anh, index) => (
+                                <div key={index} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
+                                    <Card style={{ borderRadius: '16px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+                                        <div style={{ position: 'relative' }}>
+                                            <img
+                                                src={`${anh.urlNen}`}
+                                                alt={anh.tenFile}
+                                                loading="lazy"
+                                                style={{ width: '100%', display: 'block' }}
+                                            />
+                                            {anh.isHearted && (
+                                                <div style={{ position: 'absolute', top: 10, right: 10, color: 'red', fontSize: '24px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>
+                                                    <FontAwesomeIcon icon={faHeart} />
+                                                </div>
+                                            )}
+                                            <div style={{
+                                                position: 'absolute',
+                                                bottom: 0,
+                                                left: 0,
+                                                right: 0,
+                                                padding: '20px 12px 10px',
+                                                background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
+                                                color: 'white',
+                                                fontSize: '0.8rem',
+                                                fontWeight: '500',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis'
+                                            }}>
+                                                {anh.tenFile}
+                                            </div>
+                                        </div>
+                                        {anh.comments && anh.comments.length > 0 && (
+                                            <CardContent style={{ padding: '12px' }}>
+                                                <div style={{ backgroundColor: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
+                                                    <Typography variant="caption" fontWeight="bold" style={{ color: '#1976d2' }}>Bình luận KH:</Typography>
+                                                    {anh.comments.map((cmt, idx) => (
+                                                        <Typography key={idx} variant="body2" style={{ marginTop: '4px', fontStyle: 'italic' }}>- {cmt.noiDung}</Typography>
+                                                    ))}
+                                                </div>
+                                            </CardContent>
+                                        )}
+                                    </Card>
+                                </div>
+                            ))}
+                            {(!albumData.danhSachAnhChinhSua || albumData.danhSachAnhChinhSua.length === 0) && (
+                                <Typography variant="body1" style={{ padding: '20px', gridColumn: '1 / -1' }}>Chưa có ảnh chỉnh sửa nào.</Typography>
+                            )}
+                        </div>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenAlbumDetailDialog(false)} variant="contained" color="primary">Đóng</Button>
+                </DialogActions>
             </Dialog>
 
-            {/* Dialog xác nhận xóa hợp đồng */}
-            <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)} maxWidth="sm" fullWidth>
-                <div style={{ padding: '24px', fontFamily: 'sans-serif' }}>
-                    <h3 style={{ margin: '0 0 16px 0', color: '#d32f2f', borderBottom: '1px solid #eee', paddingBottom: '8px', fontWeight: 'bold' }}>
-                        Xác nhận xóa hợp đồng
-                    </h3>
-                    <p style={{ fontSize: '0.95rem', color: '#333', lineHeight: '1.6', marginBottom: '16px' }}>
-                        Hành động này sẽ xóa hoàn toàn hợp đồng <strong>{maHopDong}</strong> cùng với lịch soạn đồ liên quan (nếu có). 
-                        Đây là hành động <strong>không thể hoàn tác</strong>.
-                    </p>
-                    <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
-                        Vui lòng nhập chính xác mã hợp đồng <strong>{maHopDong}</strong> để xác nhận:
-                    </p>
-                    <TextField
-                        label="Nhập mã hợp đồng"
-                        fullWidth
-                        variant="outlined"
-                        value={deleteConfirmInput}
-                        onChange={(e) => setDeleteConfirmInput(e.target.value)}
-                        placeholder={maHopDong}
-                        size="small"
-                        error={deleteConfirmInput !== "" && deleteConfirmInput !== maHopDong}
-                        helperText={deleteConfirmInput !== "" && deleteConfirmInput !== maHopDong ? "Mã hợp đồng nhập vào không chính xác" : ""}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px' }}>
-                        <Button variant="outlined" color="inherit" onClick={() => setOpenDeleteDialog(false)}>
-                            Hủy bỏ
-                        </Button>
-                        <Button
-                            variant="contained"
-                            color="error"
-                            disabled={deleteConfirmInput !== maHopDong}
-                            onClick={handleDeleteHopDong}
-                        >
-                            Xác nhận xóa
-                        </Button>
-                    </div>
-                </div>
-            </Dialog>
+            <LocAnhMayTinhDialog
+                open={openLocAnhDialog}
+                onClose={() => setOpenLocAnhDialog(false)}
+                albumData={albumData}
+            />
 
-        </Dialog >
+        </Fragment>
     );
 }
 

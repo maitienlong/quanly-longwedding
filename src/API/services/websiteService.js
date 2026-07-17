@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Connect to the specific back-end-website
-const WEBSITE_BACKEND_URL = "http://localhost:5000/api/website";
+const WEBSITE_BACKEND_URL = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api/website` : "http://localhost:8386/api/website";
 
 const websiteService = {
   getSection: async (section) => {
@@ -16,7 +16,7 @@ const websiteService = {
 
   loginWebsite: async (username, password) => {
     try {
-      const response = await axios.post(`${WEBSITE_BACKEND_URL.replace('/website', '/auth/login')}`, { username, password });
+      const response = await axios.post(`${WEBSITE_BACKEND_URL.replace('/website', '/authWebsite/login')}`, { username, password });
       return response.data;
     } catch (error) {
       console.error("Login failed:", error);

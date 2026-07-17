@@ -12,6 +12,7 @@ import QuanLyKho from "../screens/QuanLyKho/QuanLyKho";
 import QuanLyNhanVien from "../screens/QuanLyNhanVien/QuanLyNhanVien";
 import QuanLyKhachHang from "../screens/QuanLyKhachHang/QuanLyKhachHang";
 import QuanLyWebsite from "../screens/QuanLyWebsite/QuanLyWebsite";
+import SystemLogs from "../screens/SystemLogs/SystemLogs";
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../screens/Login/AuthContext/AuthContext';
 import { toast } from 'sonner';
@@ -128,6 +129,9 @@ function MainV2() {
                             {hasAccess("/quan-ly-website") && (
                                 <li><Link to="/quan-ly-website" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-globe"></i> QUẢN LÝ WEBSITE</Link></li>
                             )}
+                            {hasAccess("/nhat-ky-he-thong") && (
+                                <li><Link to="/nhat-ky-he-thong" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-clipboard-list"></i> NHẬT KÝ HỆ THỐNG</Link></li>
+                            )}
                         </ul>
                     </nav>
 
@@ -158,6 +162,7 @@ function MainV2() {
                             <Route path="/quan-ly-nhan-vien" element={hasAccess("/quan-ly-nhan-vien") ? <QuanLyNhanVien /> : <Navigate to={getDefaultPath()} replace />} />
                             <Route path="/quan-ly-khach-hang" element={hasAccess("/quan-ly-khach-hang") ? <QuanLyKhachHang /> : <Navigate to={getDefaultPath()} replace />} />
                             <Route path="/quan-ly-website" element={hasAccess("/quan-ly-website") ? <QuanLyWebsite /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/nhat-ky-he-thong" element={hasAccess("/nhat-ky-he-thong") ? <SystemLogs /> : <Navigate to={getDefaultPath()} replace />} />
                             <Route path="*" element={<Navigate to={getDefaultPath()} replace />} />
                         </Routes>
                     </div>

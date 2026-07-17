@@ -42,5 +42,11 @@ export const ENDPOINTS = {
     FIND_ALL: "/lichSoanDo/findAll",
     FIND_BY_CONTRACT: "/lichSoanDo/findByContract",
     REMOVE: "/lichSoanDo/remove"
+  },
+  ALBUM: {
+    SYNC: "/api/album/sync",
+    LIST: "/api/album/admin/list",
+    DETAIL: "/api/album/admin",
+    SETTINGS: "/api/album/admin"
   }
 };
