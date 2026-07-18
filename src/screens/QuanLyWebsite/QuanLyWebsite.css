@@ -868,3 +868,211 @@
   padding-top: 15px;
   border-top: 1px solid #eee;
 }
+
+/* Global Settings Panel */
+.global-settings-panel {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  margin-bottom: 25px;
+  overflow: hidden;
+}
+
+.global-settings-header {
+  background: #f8f9fa;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.global-settings-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.1em;
+}
+
+.save-settings-btn {
+  background: #b78752;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.3s;
+}
+
+.save-settings-btn:hover {
+  background: #a07445;
+}
+
+.save-settings-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.global-settings-content {
+  padding: 20px;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.setting-row.time-picker-row {
+  background: #fff9f0;
+  margin: -20px -20px 20px -20px;
+  padding: 20px;
+  border-radius: 0 0 8px 8px;
+  border-bottom: none;
+  border-top: 1px solid #ffe8cc;
+}
+
+.setting-label-col {
+  flex: 1;
+}
+
+.setting-title {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.setting-desc {
+  display: block;
+  font-size: 0.85em;
+  color: #666;
+}
+
+.setting-action-col {
+  margin-left: 20px;
+}
+
+.settings-datetime-input {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+/* Switch Styles */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+}
+
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #b78752;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #b78752;
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+/* Sub tabs for Khai Truong group */
+.khaitruong-sub-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.sub-tab-btn {
+  padding: 8px 16px;
+  border: 1px solid #e0e0e0;
+  background-color: #f9f9f9;
+  color: #555;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.sub-tab-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.sub-tab-btn.active {
+  background-color: #b78752;
+  color: white;
+  border-color: #b78752;
+}
+
+/* Draggable special collections cards styling */
+.special-collections-draggable-card {
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.special-collections-draggable-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  border-color: #b78752;
+}
+
+.special-collections-draggable-card:active {
+  cursor: grabbing;
+  opacity: 0.6;
+}

@@ -162,9 +162,13 @@ body {
     margin-bottom: 20px;
 }
 
-.content-header h2 {
-    color: var(--dark-blue);
-    font-size: 20px;
+.content-header h2,
+.quanlynhanvien-header h2,
+.quanlykhachhang-header h2,
+.QuanLyChiTieu-header h2 {
+    color: var(--dark-blue) !important;
+    font-size: 1.2rem !important;
+    font-weight: bold !important;
 }
 
 .filters {
@@ -172,7 +176,8 @@ body {
     gap: 15px;
 }
 
-.select-wrapper, .search-bar {
+.select-wrapper,
+.search-bar {
     display: flex;
     align-items: center;
     background-color: var(--light-grey);
@@ -181,11 +186,13 @@ body {
     padding: 0 10px;
 }
 
-.select-wrapper i, .search-bar i {
+.select-wrapper i,
+.search-bar i {
     color: #888;
 }
 
-select, input[type="text"] {
+select,
+input[type="text"] {
     border: none;
     background: transparent;
     padding: 12px 8px;
@@ -220,7 +227,8 @@ thead tr {
     background-color: var(--table-header-bg);
 }
 
-th, td {
+th,
+td {
     padding: 15px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
@@ -228,9 +236,12 @@ th, td {
     vertical-align: middle;
 }
 
-th {
-    font-weight: 500;
-    color: var(--primary-blue);
+th,
+.MuiTableCell-head {
+    font-weight: bold !important;
+    color: var(--primary-blue) !important;
+    white-space: nowrap !important;
+    padding: 0.5em 16px !important;
 }
 
 tbody tr:hover {
@@ -273,7 +284,8 @@ tbody tr:hover {
 .actions-group {
     display: flex;
     align-items: center;
-    gap: 15px; /* Khoảng cách giữa bộ lọc và nút "Thêm" */
+    gap: 15px;
+    /* Khoảng cách giữa bộ lọc và nút "Thêm" */
 }
 
 /* Giữ nguyên bố cục cho bộ lọc */
@@ -301,7 +313,8 @@ tbody tr:hover {
 }
 
 .add-new-btn:hover {
-    background-color: #1eb300; /* Màu xanh đậm hơn khi di chuột qua */
+    background-color: #1eb300;
+    /* Màu xanh đậm hơn khi di chuột qua */
 }
 
 .add-new-btn .fa-solid {
@@ -311,89 +324,96 @@ tbody tr:hover {
 
 
 .dialog-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
 }
 
 .dialog {
-  background: #fff;
-  padding: 30px;
-  border-radius: 16px;
-  text-align: center;
-  width: 320px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  animation: fadeIn 0.3s ease;
+    background: #fff;
+    padding: 30px;
+    border-radius: 16px;
+    text-align: center;
+    width: 320px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    animation: fadeIn 0.3s ease;
 }
 
 .dialog-avatar {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  object-fit: cover;
-  margin-bottom: 15px;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 15px;
 }
 
 .logout-btn {
-  background: #e53935;
-  color: #fff;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  margin-top: 15px;
-  transition: background 0.2s ease;
+    background: #e53935;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 15px;
+    transition: background 0.2s ease;
 }
 
 .logout-btn:hover {
-  background: #c62828;
+    background: #c62828;
 }
 
 .dialog-close-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: none;
-  background-color: #e53935;
-  color: #fff;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
-  line-height: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: background 0.2s ease;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background-color: #e53935;
+    color: #fff;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background 0.2s ease;
 }
 
 .dialog-close-btn:hover {
-  background-color: #c62828;
+    background-color: #c62828;
 }
 
 .dialog {
-  position: relative; /* 👈 cần có để nút đóng định vị chính xác */
-  background: white;
-  border-radius: 16px;
-  padding: 25px;
-  text-align: center;
-  width: 320px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-  animation: scaleIn 0.25s ease;
+    position: relative;
+    /* 👈 cần có để nút đóng định vị chính xác */
+    background: white;
+    border-radius: 16px;
+    padding: 25px;
+    text-align: center;
+    width: 320px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    animation: scaleIn 0.25s ease;
 }
 
 /* ===== Giữ cố định kích thước các nút và input trong bộ lọc ===== */
-.filters > * {
-    flex-shrink: 0; /* Ngăn bị co khi viewport thay đổi */
-    flex-grow: 0;   /* Ngăn tự giãn to */
+.filters>* {
+    flex-shrink: 0;
+    /* Ngăn bị co khi viewport thay đổi */
+    flex-grow: 0;
+    /* Ngăn tự giãn to */
 }
 
 /* Giữ nguyên kích thước cố định */
@@ -427,6 +447,7 @@ tbody tr:hover {
 .mobile-only-title {
     display: none;
 }
+
 .logo-title-group {
     display: flex;
     flex-direction: column;
@@ -434,8 +455,15 @@ tbody tr:hover {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* Bố cục responsive cho Mobile / Desktop */
@@ -447,12 +475,12 @@ tbody tr:hover {
     .container {
         flex-direction: column;
     }
-    
+
     .sidebar {
         width: 100%;
         height: auto;
     }
-    
+
     .sidebar-header {
         padding: 12px 15px;
         display: flex;
@@ -460,7 +488,7 @@ tbody tr:hover {
         align-items: center;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
+
     .logo-title-group {
         flex-direction: row;
         align-items: center;
@@ -468,12 +496,12 @@ tbody tr:hover {
         justify-content: flex-start;
         flex: 1;
     }
-    
+
     .logo-login {
         max-height: 40px;
         width: auto;
     }
-    
+
     .mobile-only-title {
         display: block !important;
         font-size: 0.9rem;
@@ -483,11 +511,12 @@ tbody tr:hover {
         text-align: left;
         line-height: 1.3;
     }
-    
+
     .time-display {
-        display: none !important; /* Hide massive clock on mobile to save header space */
+        display: none !important;
+        /* Hide massive clock on mobile to save header space */
     }
-    
+
     .mobile-menu-btn {
         display: block !important;
         background: transparent;
@@ -496,45 +525,52 @@ tbody tr:hover {
         font-size: 24px;
         cursor: pointer;
         padding: 5px;
-        margin-left: auto; /* Đẩy sang góc phải */
+        margin-left: auto;
+        /* Đẩy sang góc phải */
     }
-    
+
     .sidebar-nav {
-        display: none; /* Ẩn mặc định trên mobile */
+        display: none;
+        /* Ẩn mặc định trên mobile */
         padding: 10px;
-        background-color: rgba(0,0,0,0.2); /* Tạo điểm nhấn cho menu khi mở */
+        background-color: rgba(0, 0, 0, 0.2);
+        /* Tạo điểm nhấn cho menu khi mở */
     }
-    
+
     .sidebar-nav.open {
-        display: block; /* Hiện khi có class open */
+        display: block;
+        /* Hiện khi có class open */
     }
-    
+
     .sidebar-nav ul {
         display: flex;
-        flex-direction: column; /* Danh sách dọc */
+        flex-direction: column;
+        /* Danh sách dọc */
         overflow-x: hidden;
         gap: 5px;
         padding-bottom: 5px;
     }
-    
+
     .sidebar-nav ul::-webkit-scrollbar {
-        display: none; /* Chrome/Safari */
+        display: none;
+        /* Chrome/Safari */
     }
-    
+
     .sidebar-nav ul li {
         flex-shrink: 0;
         width: 100%;
     }
-    
+
     .sidebar-nav ul li a {
         padding: 12px 15px;
         margin-bottom: 0;
         font-size: 0.95rem;
-        white-space: normal; /* Không ép trên 1 dòng nữa */
+        white-space: normal;
+        /* Không ép trên 1 dòng nữa */
         gap: 12px;
         border-radius: 6px;
     }
-    
+
     .user-profile {
         position: fixed;
         bottom: 0;
@@ -543,88 +579,97 @@ tbody tr:hover {
         z-index: 999;
         padding: 8px 15px;
         height: 60px;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.15);
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.15);
         justify-content: flex-start;
         display: flex;
         align-items: center;
         gap: 10px;
     }
-    
+
     .user-profile .fa-user-circle {
         font-size: 30px;
     }
-    
+
     .user-info .user-name {
         font-size: 13px;
     }
-    
+
     .user-info .user-role {
         font-size: 11px;
     }
 
     .main-content {
         padding: 10px;
-        padding-bottom: 75px; /* Space to prevent content overlap with bottom profile bar */
+        padding-bottom: 75px;
+        /* Space to prevent content overlap with bottom profile bar */
     }
-    
+
     .content-wrapper {
         padding: 15px;
         border-radius: 8px;
     }
-    
+
     .main-header {
-        display: none !important; /* Hide main-content title header as it is now in the sidebar header */
+        display: none !important;
+        /* Hide main-content title header as it is now in the sidebar header */
     }
-    
+
     .content-header {
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
         margin-bottom: 15px;
     }
-    
-    .content-header h2, .title-hdkh {
+
+    .content-header h2,
+    .title-hdkh {
         font-size: 1.25rem;
         text-align: left;
     }
-    
-    .filters, .actions-group {
+
+    .filters,
+    .actions-group {
         flex-direction: column;
         width: 100%;
         gap: 10px;
     }
-    
-    .filters > * {
+
+    .filters>* {
         width: 100% !important;
         flex-shrink: 1;
         flex-grow: 1;
     }
-    
-    .search-bar, .select-wrapper {
+
+    .search-bar,
+    .select-wrapper {
         width: 100% !important;
         max-width: none;
     }
-    
-    .search-bar input, .select-wrapper select {
+
+    .search-bar input,
+    .select-wrapper select {
         width: 100% !important;
     }
-    
+
     .add-new-btn {
         width: 100%;
         justify-content: center;
     }
-    
+
     /* Table Responsive */
-    .table-container, .MuiTableContainer-root {
+    .table-container,
+    .MuiTableContainer-root {
         overflow-x: auto;
     }
-    
-    th, td {
+
+    th,
+    td {
         padding: 10px 8px;
         font-size: 12px;
-        white-space: nowrap; /* Prevent table headers from stacking */
+        white-space: nowrap;
+        /* Prevent table headers from stacking */
     }
-    
+
     .status-chip {
         padding: 4px 8px;
         font-size: 11px;

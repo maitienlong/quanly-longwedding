@@ -54,7 +54,7 @@ function QuanLyKhachHang() {
     const [ngayCapCCCD, setNgayCapCCCD] = useState('');
     const [facebookId, setFacebookId] = useState('');
 
-    const commonHeight = 40;
+    const commonHeight = 56;
 
     const loadData = () => {
         showLoading("Đang tải danh sách khách hàng...");
@@ -267,7 +267,7 @@ function QuanLyKhachHang() {
         <div className="quanlykhachhang-container" style={{ padding: isMobile ? '10px' : '20px', height: isMobile ? 'calc(100vh - 145px)' : 'auto', display: isMobile ? 'flex' : 'block', flexDirection: 'column' }}>
             {/* HEADER & FILTERS */}
             <div className="quanlykhachhang-header">
-                <h2 style={{ fontSize: isMobile ? '1.25rem' : '1.8rem', fontWeight: 'bold', color: '#0d1b3f', textAlign: 'center', textTransform: 'uppercase', marginBottom: isMobile ? '16px' : '0' }}>QUẢN LÝ KHÁCH HÀNG</h2>
+                <h2 style={{ color: '#0d1b3f', marginBottom: isMobile ? '12px' : '0' }}>QUẢN LÝ KHÁCH HÀNG</h2>
                 <Stack 
                     spacing={2} 
                     direction={isMobile ? 'column' : 'row'} 

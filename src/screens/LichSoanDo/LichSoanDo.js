@@ -538,7 +538,6 @@ function LichSoanDo() {
                     margin-bottom: 20px;
                 }
                 .LichSoanDo .content-header h2 {
-                    font-size: 1.8rem;
                     font-weight: bold;
                     color: #1976d2;
                     margin: 0;
@@ -580,7 +579,7 @@ function LichSoanDo() {
 
             {/* HEADER & FILTERS */}
             <div className="content-header">
-                <h2 style={{ fontSize: isMobile ? '1.25rem' : '1.8rem', fontWeight: 'bold', color: '#0d1b3f', textAlign: 'center', textTransform: 'uppercase', marginBottom: isMobile ? '16px' : '0' }}>LỊCH SOẠN & MƯỢN TRẢ ĐỒ</h2>
+                <h2 style={{ color: '#0d1b3f', marginBottom: isMobile ? '12px' : '0' }}>LỊCH SOẠN & MƯỢN TRẢ ĐỒ</h2>
                 <Stack 
                     spacing={2} 
                     direction={isMobile ? 'column' : 'row'} 
@@ -732,7 +731,7 @@ function LichSoanDo() {
             ) : (
             <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
                 <Table stickyHeader>
-                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
+                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold', whiteSpace: 'nowrap' } }}>
                         <TableRow>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '60px' }}>STT</TableCell>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '120px' }}>MÃ SỐ HĐ</TableCell>
@@ -740,7 +739,7 @@ function LichSoanDo() {
                             <TableCell style={{ fontWeight: 'bold', width: '220px' }}>TÊN KHÁCH HÀNG</TableCell>
                             <TableCell style={{ fontWeight: 'bold', width: '150px' }}>SĐT</TableCell>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '160px' }}>NGÀY SOẠN ĐỒ</TableCell>
-                            <TableCell style={{ fontWeight: 'bold' }}>NỘI DUNG</TableCell>
+                            <TableCell style={{ fontWeight: 'bold', width: '200px' }}>NỘI DUNG</TableCell>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '160px' }}>NGÀY MƯỢN</TableCell>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '160px' }}>NGÀY TRẢ</TableCell>
                             <TableCell align="right" style={{ fontWeight: 'bold', width: '140px' }}>ĐẶT CỌC</TableCell>

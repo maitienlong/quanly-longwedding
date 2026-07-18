@@ -14,15 +14,7 @@ const websiteService = {
     }
   },
 
-  loginWebsite: async (username, password) => {
-    try {
-      const response = await axios.post(`${WEBSITE_BACKEND_URL.replace('/website', '/authWebsite/login')}`, { username, password });
-      return response.data;
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
-    }
-  },
+
 
   uploadImage: async (file, token) => {
     try {
@@ -89,54 +81,6 @@ const websiteService = {
     }
   },
 
-  // Account Management API
-  getAccounts: async (token) => {
-    try {
-      const response = await axios.get(`${WEBSITE_BACKEND_URL.replace('/website', '/account')}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching accounts:", error);
-      throw error;
-    }
-  },
-
-  createAccount: async (username, password, token) => {
-    try {
-      const response = await axios.post(`${WEBSITE_BACKEND_URL.replace('/website', '/account')}`, { username, password }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Error creating account:", error);
-      throw error;
-    }
-  },
-
-  updateAccount: async (id, username, password, token) => {
-    try {
-      const response = await axios.put(`${WEBSITE_BACKEND_URL.replace('/website', '/account')}/${id}`, { username, password }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Error updating account:", error);
-      throw error;
-    }
-  },
-
-  deleteAccount: async (id, token) => {
-    try {
-      const response = await axios.delete(`${WEBSITE_BACKEND_URL.replace('/website', '/account')}/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Error deleting account:", error);
-      throw error;
-    }
-  }
 };
 
 export default websiteService;

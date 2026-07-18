@@ -1410,17 +1410,20 @@ function LichCuaHang() {
                             width: 100% !important;
                             min-width: 1090px !important;
                         }
-                        .fixed-layout-table th, .fixed-layout-table td {
+                        .fixed-layout-table td {
                             word-wrap: break-word !important;
                             word-break: break-word !important;
                             white-space: normal !important;
+                        }
+                        .fixed-layout-table th {
+                            white-space: nowrap !important;
                         }
                     `}</style>
                     <Table stickyHeader aria-label="simple table" className="fixed-layout-table">
                     <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                             {activeTab === 'chupHinh' ? (
                                 <TableRow>
-                                    <TableCell align='center' style={{ width: 40 }}>STT</TableCell>
+                                    <TableCell align='center' style={{ width: 65 }}>STT</TableCell>
                                     <TableCell align='center' style={{ width: 140 }}>NGÀY CHỤP</TableCell>
                                     <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
                                     <TableCell align='center' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
@@ -1432,7 +1435,7 @@ function LichCuaHang() {
                                 </TableRow>
                             ) : activeTab === 'hauKy' ? (
                                 <TableRow>
-                                    <TableCell align='center' style={{ width: 40 }}>STT</TableCell>
+                                    <TableCell align='center' style={{ width: 65 }}>STT</TableCell>
                                     <TableCell align='center' style={{ width: 140 }}>NGÀY HẬU KỲ</TableCell>
                                     <TableCell align='center' style={{ width: 140 }}>NGÀY TRẢ ẢNH</TableCell>
                                     <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
@@ -1444,7 +1447,7 @@ function LichCuaHang() {
                                 </TableRow>
                             ) : activeTab === 'inAnh' ? (
                                 <TableRow>
-                                    <TableCell align='center' style={{ width: 40 }}>STT</TableCell>
+                                    <TableCell align='center' style={{ width: 65 }}>STT</TableCell>
                                     <TableCell align='center' style={{ width: 140 }}>NGÀY CHUYỂN IN</TableCell>
                                     <TableCell align='center' style={{ width: 140 }}>NGÀY TRẢ ẢNH</TableCell>
                                     <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
@@ -1456,7 +1459,7 @@ function LichCuaHang() {
                                 </TableRow>
                             ) : (
                                 <TableRow>
-                                    <TableCell align='center' style={{ width: 40 }}>STT</TableCell>
+                                    <TableCell align='center' style={{ width: 65 }}>STT</TableCell>
                                     <TableCell align='center' style={{ width: 170 }}>NGÀY ĂN HỎI</TableCell>
                                     <TableCell align='center' style={{ width: 170 }}>NGÀY CƯỚI</TableCell>
                                     <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>

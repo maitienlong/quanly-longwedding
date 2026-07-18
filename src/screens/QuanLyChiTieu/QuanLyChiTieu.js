@@ -68,7 +68,7 @@ function QuanLyChiTieu() {
     }, [user]);
     const [ghiChu, setGhiChu] = useState('');
 
-    const commonHeight = 40;
+    const commonHeight = 56;
 
     // Load data from contracts API and chiTieu API
     const loadData = () => {
@@ -396,7 +396,6 @@ function QuanLyChiTieu() {
                     margin-bottom: 20px;
                 }
                 .QuanLyChiTieu-header h2 {
-                    font-size: 1.8rem;
                     font-weight: bold;
                     color: #1976d2;
                     margin: 0;
@@ -413,7 +412,7 @@ function QuanLyChiTieu() {
 
             {/* HEADER & FILTERS */}
             <div className="QuanLyChiTieu-header">
-                <h2 style={{ fontSize: isMobile ? '1.25rem' : '1.8rem', fontWeight: 'bold', color: '#0d1b3f', textAlign: 'center', textTransform: 'uppercase', marginBottom: isMobile ? '16px' : '0' }}>QUẢN LÝ CHI TIÊU</h2>
+                <h2 style={{ color: '#0d1b3f', marginBottom: isMobile ? '12px' : '0' }}>QUẢN LÝ CHI TIÊU</h2>
                 <Stack 
                     spacing={2} 
                     direction={isMobile ? 'column' : 'row'} 

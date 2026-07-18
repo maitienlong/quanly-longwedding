@@ -7,6 +7,7 @@ import { formatCurrency } from '../utils/formatCurrency.js';
 
 const SECTIONS = [
   { id: 'banners', name: 'Slide Banner' },
+  { id: 'khai_truong', name: 'Deal Khai Trương' },
   { id: 'services', name: 'Dịch vụ của tôi' },
   { id: 'feedback', name: 'Feedback khách hàng' },
   { id: 'bookings', name: 'Danh sách lịch tư vấn' },
@@ -14,16 +15,65 @@ const SECTIONS = [
   { id: 'invitations', name: 'Mẫu thiệp cưới nổi bật' },
   { id: 'makeup', name: 'Nghệ thuật trang điểm' },
   { id: 'packages', name: 'Bảng giá & Gói chụp' },
-  { id: 'collections', name: 'Bộ sưu tập & Concept' },
-  { id: 'footer', name: 'Thông tin Footer' },
-  { id: 'accounts', name: 'Tài khoản quản trị' }
+  { id: 'collections', name: 'Concept mẫu' },
+  { id: 'special_collections', name: 'Bộ sưu tập đặc biệt' },
+  { id: 'footer', name: 'Thông tin Footer' }
 ];
 
 const QuanLyWebsite = () => {
   const [activeTab, setActiveTab] = useState('banners');
+  const [khaiTruongSubTab, setKhaiTruongSubTab] = useState('deals');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  
+  const getEffectiveSection = () => {
+    if (activeTab === 'khai_truong') {
+      if (khaiTruongSubTab === 'vouchers') return 'vouchers';
+      if (khaiTruongSubTab === 'claims') return 'voucher_claims';
+      return 'khai_truong';
+    }
+    return activeTab;
+  };
+  const section = getEffectiveSection();
+  const [draggedIndex, setDraggedIndex] = useState(null);
+
+  const handleDragStart = (e, index) => {
+    if (section !== 'special_collections') return;
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, targetIndex) => {
+    if (section !== 'special_collections' || draggedIndex === null || draggedIndex === targetIndex) return;
+    e.preventDefault();
+    
+    const reorderedData = [...data];
+    const draggedItem = reorderedData[draggedIndex];
+    reorderedData.splice(draggedIndex, 1);
+    reorderedData.splice(targetIndex, 0, draggedItem);
+    
+    setDraggedIndex(targetIndex);
+    setData(reorderedData);
+  };
+
+  const handleDragEnd = async () => {
+    if (section !== 'special_collections') return;
+    setDraggedIndex(null);
+    
+    setLoading(true);
+    try {
+      const res = await websiteService.updateSection('special_collections', data, localStorage.getItem('access_token') || localStorage.getItem('token'));
+      if (res && res.success) {
+        toast.success("Đã cập nhật thứ tự hiển thị!");
+        setData(res.data || []);
+      }
+    } catch (err) {
+      toast.error("Lỗi khi lưu thứ tự hiển thị");
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Sync states
   const [isSyncing, setIsSyncing] = useState(false);
@@ -36,6 +86,40 @@ const QuanLyWebsite = () => {
   // Temporary state for form
   const [editItem, setEditItem] = useState(null);
   const [bookingFilter, setBookingFilter] = useState('all');
+ 
+  // Global Settings
+  const [globalSettings, setGlobalSettings] = useState({ isPublished: true, scheduledPublishTime: '' });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  useEffect(() => {
+    fetchGlobalSettings();
+  }, []);
+
+  const fetchGlobalSettings = async () => {
+    try {
+      const res = await websiteService.getSection('settings');
+      if (res && res.success && res.data && !Array.isArray(res.data)) {
+        setGlobalSettings({
+          isPublished: res.data.isPublished !== undefined ? res.data.isPublished : true,
+          scheduledPublishTime: res.data.scheduledPublishTime || ''
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải cài đặt chung", error);
+    }
+  };
+
+  const handleSaveGlobalSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      await websiteService.updateSection('settings', globalSettings, localStorage.getItem('access_token') || localStorage.getItem('token'));
+      toast.success("Đã lưu cài đặt hiển thị website!");
+    } catch (error) {
+      toast.error("Lỗi khi lưu cài đặt hiển thị");
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
@@ -161,7 +245,10 @@ const QuanLyWebsite = () => {
   };
 
   const getFilteredData = () => {
-    if (activeTab !== 'bookings') return data;
+    if (section === 'collections') {
+      return data.filter(item => !item.isSpecial);
+    }
+    if (section !== 'bookings') return data;
     
     const getLocalDateString = (date) => {
       const year = date.getFullYear();
@@ -207,21 +294,14 @@ const QuanLyWebsite = () => {
 
   useEffect(() => {
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, khaiTruongSubTab]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (activeTab === 'accounts') {
-        const res = await websiteService.getAccounts(localStorage.getItem('token'));
-        if (res && res.success) {
-          setData(res.data || []);
-        }
-      } else {
-        const res = await websiteService.getSection(activeTab);
-        if (res && res.success) {
-          setData(res.data || []);
-        }
+      const res = await websiteService.getSection(section);
+      if (res && res.success) {
+        setData(res.data || []);
       }
     } catch (error) {
       toast.error("Lỗi khi tải dữ liệu");
@@ -307,7 +387,7 @@ const QuanLyWebsite = () => {
       const updatedData = [...data, ...newItems];
 
       // Save using updateSection
-      const res = await websiteService.updateSection(activeTab, updatedData, localStorage.getItem('token'));
+      const res = await websiteService.updateSection(activeTab, updatedData, localStorage.getItem('access_token') || localStorage.getItem('token'));
       if (res && res.success) {
         toast.success(`Đồng bộ thành công ${newItems.length} dịch vụ!`);
         setData(res.data);
@@ -396,6 +476,11 @@ const QuanLyWebsite = () => {
       prepared.pageContent = pageContent;
     }
 
+    // Process gifts for khai_truong tab
+    if (typeof prepared.gifts === 'string') {
+      prepared.gifts = prepared.gifts.split('\n').map(s => s.trim()).filter(s => s !== '');
+    }
+
     return prepared;
   };
 
@@ -405,12 +490,7 @@ const QuanLyWebsite = () => {
     if (!window.confirm("Bạn có chắc chắn muốn xoá mục này?")) return;
     setLoading(true);
     try {
-      let res;
-      if (activeTab === 'accounts') {
-        res = await websiteService.deleteAccount(id, localStorage.getItem('token'));
-      } else {
-        res = await websiteService.deleteSectionItem(activeTab, id, localStorage.getItem('token'));
-      }
+      const res = await websiteService.deleteSectionItem(section, id, localStorage.getItem('access_token') || localStorage.getItem('token'));
       
       if (res && res.success) {
         toast.success("Xóa thành công!");
@@ -424,7 +504,7 @@ const QuanLyWebsite = () => {
   };
 
   const openEdit = (item) => {
-    if (activeTab === 'services') {
+    if (section === 'services') {
       const initializedItem = {
         ...item,
         pageContent: {
@@ -439,6 +519,17 @@ const QuanLyWebsite = () => {
       };
       setEditItem(initializedItem);
       setActiveServiceTab('general');
+    } else if (section === 'khai_truong') {
+      setEditItem({
+        ...item,
+        gifts: Array.isArray(item.gifts) ? item.gifts.join('\n') : (item.gifts || '')
+      });
+    } else if (section === 'vouchers') {
+      setEditItem({
+        ...item,
+        quantity: item.quantity !== undefined ? item.quantity : 20,
+        claimedCount: item.claimedCount !== undefined ? item.claimedCount : 0
+      });
     } else {
       setEditItem(item);
     }
@@ -448,7 +539,7 @@ const QuanLyWebsite = () => {
   const openAdd = () => {
     // Generate a unique ID (simple timestamp for simplicity)
     const base = { id: Date.now() };
-    if (activeTab === 'services') {
+    if (section === 'services') {
       base.pageContent = {
         features: [
           { title: '', desc: '', iconName: 'Camera' },
@@ -459,6 +550,20 @@ const QuanLyWebsite = () => {
         packages: []
       };
       setActiveServiceTab('general');
+    } else if (section === 'khai_truong') {
+      base.title = '';
+      base.discount = 'GIẢM 30%';
+      base.price = '';
+      base.originalPrice = '';
+      base.gifts = '';
+      base.popular = false;
+    } else if (section === 'vouchers') {
+      base.code = 'KHAITRUONG2026';
+      base.type = 'discount';
+      base.value = 'Giảm thêm 1.000.000đ';
+      base.desc = 'Áp dụng cho đơn hàng trọn gói từ 8.000.000đ';
+      base.quantity = 20;
+      base.claimedCount = 0;
     }
     setEditItem(base);
     setIsEditing(true);
@@ -475,18 +580,10 @@ const QuanLyWebsite = () => {
       );
       let res;
       
-      if (activeTab === 'accounts') {
-        if (isExisting) {
-          res = await websiteService.updateAccount(submitData._id || submitData.id, submitData.username, submitData.password, localStorage.getItem('token'));
-        } else {
-          res = await websiteService.createAccount(submitData.username, submitData.password, localStorage.getItem('token'));
-        }
+      if (isExisting) {
+        res = await websiteService.updateSectionItem(section, submitData.id, submitData, localStorage.getItem('access_token') || localStorage.getItem('token'));
       } else {
-        if (isExisting) {
-          res = await websiteService.updateSectionItem(activeTab, submitData.id, submitData, localStorage.getItem('token'));
-        } else {
-          res = await websiteService.addSectionItem(activeTab, submitData, localStorage.getItem('token'));
-        }
+        res = await websiteService.addSectionItem(section, submitData, localStorage.getItem('access_token') || localStorage.getItem('token'));
       }
       
       if (res && res.success) {
@@ -779,16 +876,84 @@ const QuanLyWebsite = () => {
   const renderFormFields = () => {
     if (!editItem) return null;
     
-    if (activeTab === 'banners') {
+    if (section === 'banners') {
       return (
         <>
           <input type="text" placeholder="Tiêu đề (Title)" value={editItem.title || ''} onChange={(e) => setEditItem({...editItem, title: e.target.value})} required />
           <input type="text" placeholder="Tiêu đề phụ (Subtitle)" value={editItem.subtitle || ''} onChange={(e) => setEditItem({...editItem, subtitle: e.target.value})} required />
           {renderImageUploadField("Hình ảnh Banner", "image")}
-          <input type="text" placeholder="Đường dẫn liên kết (Link - vd: /packages)" value={editItem.link || ''} onChange={(e) => setEditItem({...editItem, link: e.target.value})} required />
+          <input type="text" placeholder="Đường dẫn liên kết (Link - vd: /khai-truong)" value={editItem.link || ''} onChange={(e) => setEditItem({...editItem, link: e.target.value})} required />
         </>
       );
-    } else if (activeTab === 'services') {
+    } else if (section === 'khai_truong') {
+      const giftsValue = typeof editItem.gifts === 'string' 
+        ? editItem.gifts 
+        : (Array.isArray(editItem.gifts) ? editItem.gifts.join('\n') : '');
+      return (
+        <>
+          <input type="text" placeholder="Tên gói Deal (vd: Gói Chụp Ảnh Cưới VIP Studio)" value={editItem.title || ''} onChange={(e) => setEditItem({...editItem, title: e.target.value})} required />
+          <input type="text" placeholder="Nhãn giảm giá (vd: GIẢM 35% hoặc TẶNG FLYCAM)" value={editItem.discount || ''} onChange={(e) => setEditItem({...editItem, discount: e.target.value})} required />
+          <input type="text" placeholder="Giá khuyến mãi (vd: 9.900.000đ)" value={editItem.price || ''} onChange={(e) => setEditItem({...editItem, price: e.target.value})} required />
+          <input type="text" placeholder="Giá gốc (vd: 15.500.000đ)" value={editItem.originalPrice || ''} onChange={(e) => setEditItem({...editItem, originalPrice: e.target.value})} required />
+          {renderImageUploadField("Ảnh gói Deal Khai Trương", "image")}
+          <div className="form-group">
+            <label className="field-label" style={{ fontSize: '0.9em', color: '#555', marginBottom: '4px', display: 'block' }}>
+              🎁 Danh sách quà tặng / Khuyến mãi kèm theo (mỗi dòng 1 phần quà):
+            </label>
+            <textarea 
+              placeholder="vd: Miễn phí 02 bộ Váy Cưới VIP&#10;Tặng Album Mica Tráng Gương&#10;Tặng 02 ảnh ép gỗ khổ lớn 60x90 cm" 
+              value={giftsValue} 
+              onChange={(e) => setEditItem({...editItem, gifts: e.target.value})} 
+              rows={5}
+              style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontFamily: 'inherit' }}
+            />
+          </div>
+          <label className="checkbox-label" style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={editItem.popular || false} onChange={(e) => setEditItem({...editItem, popular: e.target.checked})} style={{ width: 'auto', margin: 0 }} />
+            <span>🔥 Đánh dấu là Deal "Nổi Bật / HOT"</span>
+          </label>
+        </>
+      );
+    } else if (section === 'vouchers') {
+      return (
+        <>
+          <div className="form-group">
+            <label className="field-label">Mã Voucher (Code)</label>
+            <input type="text" placeholder="vd: KHAITRUONG2026" value={editItem.code || ''} onChange={(e) => setEditItem({...editItem, code: e.target.value.toUpperCase()})} required />
+          </div>
+          <div className="form-group">
+            <label className="field-label">Loại Voucher</label>
+            <select 
+              value={editItem.type || 'discount'} 
+              onChange={(e) => setEditItem({...editItem, type: e.target.value})}
+              style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', marginBottom: '10px' }}
+            >
+              <option value="discount">🏷️ Giảm giá trực tiếp</option>
+              <option value="frame">🖼️ Tặng khung ảnh cao cấp</option>
+              <option value="dress">👗 Thuê váy VIP 0 đồng</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="field-label">Tên ưu đãi / Giá trị</label>
+            <input type="text" placeholder="vd: Giảm thêm 1.000.000đ hoặc Voucher Thuê Váy VIP 0đ" value={editItem.value || ''} onChange={(e) => setEditItem({...editItem, value: e.target.value})} required />
+          </div>
+          <div className="form-group">
+            <label className="field-label">Mô tả điều kiện áp dụng</label>
+            <textarea placeholder="vd: Áp dụng cho đơn hàng trọn gói từ 8.000.000đ" value={editItem.desc || ''} onChange={(e) => setEditItem({...editItem, desc: e.target.value})} rows={2} required />
+          </div>
+          <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div className="form-group">
+              <label className="field-label">Số lượng mã phát hành</label>
+              <input type="number" min="1" value={editItem.quantity !== undefined ? editItem.quantity : 20} onChange={(e) => setEditItem({...editItem, quantity: Number(e.target.value)})} required />
+            </div>
+            <div className="form-group">
+              <label className="field-label">Số lượng đã săn</label>
+              <input type="number" min="0" value={editItem.claimedCount !== undefined ? editItem.claimedCount : 0} onChange={(e) => setEditItem({...editItem, claimedCount: Number(e.target.value)})} required />
+            </div>
+          </div>
+        </>
+      );
+    } else if (section === 'services') {
       return (
         <div className="service-editor-tabs-container">
           <div className="service-editor-tabs">
@@ -806,7 +971,7 @@ const QuanLyWebsite = () => {
           </div>
         </div>
       );
-    } else if (activeTab === 'feedback') {
+    } else if (section === 'feedback') {
       return (
         <>
           <input type="text" placeholder="Tên khách hàng (vd: Mai & Tuấn)" value={editItem.name || ''} onChange={(e) => setEditItem({...editItem, name: e.target.value})} required />
@@ -816,7 +981,7 @@ const QuanLyWebsite = () => {
           {renderImageUploadField("Ảnh khách hàng / Feedback", "image")}
         </>
       );
-    } else if (activeTab === 'dresses') {
+    } else if (section === 'dresses') {
       return (
         <>
           <input type="text" placeholder="Tên váy" value={editItem.name || ''} onChange={(e) => setEditItem({...editItem, name: e.target.value})} required />
@@ -829,7 +994,7 @@ const QuanLyWebsite = () => {
           </select>
         </>
       );
-    } else if (activeTab === 'bookings') {
+    } else if (section === 'bookings') {
       return (
         <div className="booking-details-view">
           <div className="booking-detail-row">
@@ -871,7 +1036,7 @@ const QuanLyWebsite = () => {
           </div>
         </div>
       );
-    } else if (activeTab === 'invitations') {
+    } else if (section === 'invitations') {
       return (
         <>
           <input type="text" placeholder="Tên mẫu thiệp" value={editItem.name || ''} onChange={(e) => setEditItem({...editItem, name: e.target.value})} required />
@@ -881,7 +1046,7 @@ const QuanLyWebsite = () => {
           {renderImageUploadField("Hình ảnh thiệp cưới", "image")}
         </>
       );
-    } else if (activeTab === 'makeup') {
+    } else if (section === 'makeup') {
       return (
         <>
           <input type="text" placeholder="Tên layout" value={editItem.title || ''} onChange={(e) => setEditItem({...editItem, title: e.target.value})} required />
@@ -889,7 +1054,7 @@ const QuanLyWebsite = () => {
           <textarea placeholder="Mô tả" value={editItem.desc || ''} onChange={(e) => setEditItem({...editItem, desc: e.target.value})} required />
         </>
       );
-    } else if (activeTab === 'packages') {
+    } else if (section === 'packages') {
       const featuresStr = Array.isArray(editItem.features) ? editItem.features.join(', ') : (editItem.features || '');
       return (
         <>
@@ -905,7 +1070,7 @@ const QuanLyWebsite = () => {
           </label>
         </>
       );
-    } else if (activeTab === 'collections') {
+    } else if (section === 'collections') {
       return (
         <>
           <input type="text" placeholder="Tiêu đề bộ sưu tập / Concept" value={editItem.title || ''} onChange={(e) => setEditItem({...editItem, title: e.target.value})} required />
@@ -919,14 +1084,7 @@ const QuanLyWebsite = () => {
           </label>
         </>
       );
-    } else if (activeTab === 'accounts') {
-      return (
-        <>
-          <input type="text" placeholder="Tên đăng nhập" value={editItem.username || ''} onChange={(e) => setEditItem({...editItem, username: e.target.value})} required />
-          <input type="password" placeholder={editItem._id || editItem.id ? "Mật khẩu mới (Bỏ trống nếu không đổi)" : "Mật khẩu"} value={editItem.password || ''} onChange={(e) => setEditItem({...editItem, password: e.target.value})} required={!(editItem._id || editItem.id)} />
-        </>
-      );
-    } else if (activeTab === 'footer') {
+    } else if (section === 'footer') {
       return (
         <>
           <input type="text" placeholder="Địa chỉ" value={editItem.address || ''} onChange={(e) => setEditItem({...editItem, address: e.target.value})} required />
@@ -943,6 +1101,54 @@ const QuanLyWebsite = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ margin: 0 }}>Quản Lý Giao Diện Website</h2>
       </div>
+
+      <div className="global-settings-panel">
+        <div className="global-settings-header">
+          <h3>Cài đặt trạng thái Website</h3>
+          <button 
+            className="save-settings-btn" 
+            onClick={handleSaveGlobalSettings} 
+            disabled={isSavingSettings}
+          >
+            {isSavingSettings ? 'Đang lưu...' : 'Lưu cài đặt'}
+          </button>
+        </div>
+        <div className="global-settings-content">
+          <div className="setting-row">
+            <div className="setting-label-col">
+              <span className="setting-title">Công bố Website</span>
+              <span className="setting-desc">Cho phép khách hàng truy cập website. Nếu tắt, website sẽ hiển thị màn hình "Đang chuẩn bị lên sóng".</span>
+            </div>
+            <div className="setting-action-col">
+              <label className="switch">
+                <input 
+                  type="checkbox" 
+                  checked={globalSettings.isPublished} 
+                  onChange={(e) => setGlobalSettings({...globalSettings, isPublished: e.target.checked})} 
+                />
+                <span className="slider round"></span>
+              </label>
+            </div>
+          </div>
+          
+          {!globalSettings.isPublished && (
+            <div className="setting-row time-picker-row">
+              <div className="setting-label-col">
+                <span className="setting-title">Hẹn thời gian công bố (Không bắt buộc)</span>
+                <span className="setting-desc">Website sẽ đếm ngược và tự động bật lại vào thời gian này.</span>
+              </div>
+              <div className="setting-action-col">
+                <input 
+                  type="datetime-local" 
+                  className="settings-datetime-input"
+                  value={globalSettings.scheduledPublishTime} 
+                  onChange={(e) => setGlobalSettings({...globalSettings, scheduledPublishTime: e.target.value})} 
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
       
       <div className="website-tabs">
         {SECTIONS.map(sec => (
@@ -958,20 +1164,45 @@ const QuanLyWebsite = () => {
 
       <div className="website-content-panel">
         <div className="panel-header">
-          <h3>Nội dung: {SECTIONS.find(s => s.id === activeTab)?.name}</h3>
+          <h3>Nội dung: {activeTab === 'khai_truong' ? (khaiTruongSubTab === 'deals' ? 'Deal Khai Trương' : (khaiTruongSubTab === 'vouchers' ? 'Voucher Ưu Đãi' : 'Khách hàng Săn Voucher')) : SECTIONS.find(s => s.id === activeTab)?.name}</h3>
           <div style={{ display: 'flex', gap: '10px' }}>
-            {activeTab === 'packages' && (
+            {section === 'packages' && (
               <button className="sync-btn" onClick={openSyncDialog}>
                 Đồng bộ từ Quản lý dịch vụ
               </button>
             )}
-            {activeTab !== 'bookings' && (
-              <button className="add-btn" onClick={openAdd}>+ Thêm Mục Mới</button>
+            {section !== 'bookings' && section !== 'voucher_claims' && section !== 'special_collections' && (
+              <button className="add-btn" onClick={openAdd}>
+                {section === 'khai_truong' ? '+ Thêm Deal Khai Trương' : (section === 'vouchers' ? '+ Thêm Voucher Mới' : '+ Thêm Mục Mới')}
+              </button>
             )}
           </div>
         </div>
 
-        {activeTab === 'bookings' && (
+        {activeTab === 'khai_truong' && (
+          <div className="khaitruong-sub-tabs">
+            <button 
+              className={`sub-tab-btn ${khaiTruongSubTab === 'deals' ? 'active' : ''}`}
+              onClick={() => setKhaiTruongSubTab('deals')}
+            >
+              🎟️ Deal Khai Trương
+            </button>
+            <button 
+              className={`sub-tab-btn ${khaiTruongSubTab === 'vouchers' ? 'active' : ''}`}
+              onClick={() => setKhaiTruongSubTab('vouchers')}
+            >
+              🎁 Voucher Ưu Đãi
+            </button>
+            <button 
+              className={`sub-tab-btn ${khaiTruongSubTab === 'claims' ? 'active' : ''}`}
+              onClick={() => setKhaiTruongSubTab('claims')}
+            >
+              👥 Khách hàng Săn Voucher
+            </button>
+          </div>
+        )}
+
+        {section === 'bookings' && (
           <div className="bookings-filter-bar">
             <button 
               className={`filter-tab-btn ${bookingFilter === 'all' ? 'active' : ''}`}
@@ -996,23 +1227,28 @@ const QuanLyWebsite = () => {
 
         {loading ? <p>Đang tải...</p> : (
           <div className="items-list">
-            {getFilteredData().map(item => (
+            {getFilteredData().map((item, index) => (
               <div 
-                className={`item-card ${activeTab === 'bookings' ? 'clickable-card' : ''}`} 
+                className={`item-card ${section === 'bookings' ? 'clickable-card' : ''} ${section === 'special_collections' ? 'special-collections-draggable-card' : ''}`} 
                 key={item._id || item.id}
-                onClick={() => activeTab === 'bookings' && openEdit(item)}
+                onClick={() => section === 'bookings' && openEdit(item)}
+                draggable={section === 'special_collections'}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
               >
                 {item.image && <img src={item.image} alt={item.name || item.title} className="item-thumb" />}
                 {item.img && <img src={item.img} alt={item.title} className="item-thumb" />}
                 {item.cover && <img src={item.cover} alt={item.title} className="item-thumb" />}
+                {item.coverImage && <img src={item.coverImage} alt={item.title} className="item-thumb" />}
                 
                 <div className="item-info">
                   <h4>
-                    {activeTab === 'accounts' ? item.username : (activeTab === 'footer' ? item.email : (item.name || item.title))}
-                    {activeTab === 'collections' && item.showOnHome && (
+                    {section === 'footer' ? item.email : (section === 'voucher_claims' ? item.name : (item.name || item.title))}
+                    {section === 'collections' && item.showOnHome && (
                       <span style={{backgroundColor: '#28a745', color: '#fff', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', marginLeft: '8px', fontWeight: 'normal', verticalAlign: 'middle'}}>Hiện trang chủ</span>
                     )}
-                    {activeTab === 'bookings' && (
+                    {section === 'bookings' && (
                       <span style={{
                         backgroundColor: item.status === 'da_lien_he' ? '#28a745' : '#dc3545',
                         color: '#fff',
@@ -1027,38 +1263,108 @@ const QuanLyWebsite = () => {
                       </span>
                     )}
                   </h4>
-                  {activeTab !== 'accounts' && activeTab !== 'footer' && (
+                  {section !== 'footer' && section !== 'voucher_claims' && (
                     <p className="item-desc">
-                      {activeTab === 'invitations'
+                      {section === 'invitations'
                         ? `Mã: ${item.code || ''} | Loại: ${item.category || ''} | Giá: ${item.price || ''}`
-                        : (activeTab === 'bookings'
+                        : (section === 'bookings'
                           ? `SĐT: ${item.phone || ''} | Hẹn: ${item.date ? item.date.split('-').reverse().join('/') : ''} ${item.time || ''} | Dịch vụ: ${item.service || ''}`
-                          : (item.category || item.desc || item.price))}
+                          : (section === 'special_collections'
+                            ? `Mã Hợp Đồng: ${item.maHopDong} | Số ảnh: ${item.photoCount || 0}`
+                            : (item.category || item.desc || item.price)))}
                     </p>
                   )}
-                  {activeTab === 'collections' && item.coupleName && <p className="item-desc" style={{marginTop: '4px', fontSize: '12px', color: '#666'}}>{item.coupleName}</p>}
-                  {activeTab === 'footer' && <p className="item-desc">{item.address} - {item.phone}</p>}
+                  {(section === 'collections' || section === 'special_collections') && item.coupleName && <p className="item-desc" style={{marginTop: '4px', fontSize: '12px', color: '#666'}}>{item.coupleName}</p>}
+                  {section === 'khai_truong' && (
+                    <div style={{ marginTop: '6px' }}>
+                      <p className="item-desc" style={{ fontSize: '13px', color: '#e5a93c', fontWeight: 'bold', margin: '0 0 4px 0' }}>
+                        💰 {item.price} <span style={{ color: '#999', fontSize: '11px', fontWeight: 'normal', textDecoration: 'line-through' }}>{item.originalPrice}</span> | 🏷️ {item.discount}
+                      </p>
+                      {Array.isArray(item.gifts) && item.gifts.length > 0 && (
+                        <div style={{ fontSize: '12px', color: '#555' }}>
+                          {item.gifts.slice(0, 3).map((gift, gIdx) => (
+                            <div key={gIdx} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span>🎁</span> <span>{gift}</span>
+                            </div>
+                          ))}
+                          {item.gifts.length > 3 && <div style={{ fontSize: '11px', color: '#888', fontStyle: 'italic' }}>+ {item.gifts.length - 3} quà tặng khác...</div>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {section === 'vouchers' && (
+                    <div style={{ marginTop: '6px' }}>
+                      <p className="item-desc" style={{ fontSize: '13px', color: '#d97706', fontWeight: 'bold', margin: '0 0 4px 0' }}>
+                        🎫 Mã: <span style={{ fontFamily: 'monospace', fontSize: '14px', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', color: '#b45309' }}>{item.code}</span> — {item.value}
+                      </p>
+                      <p className="item-desc" style={{ fontSize: '12px', color: '#666', margin: '0 0 6px 0' }}>{item.desc}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ flex: 1, height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ 
+                            height: '100%', 
+                            width: `${Math.min(100, ((item.claimedCount || 0) / (item.quantity || 1)) * 100)}%`, 
+                            background: ((item.claimedCount || 0) >= (item.quantity || 1)) ? '#ef4444' : '#10b981',
+                            borderRadius: '4px' 
+                          }} />
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: ((item.claimedCount || 0) >= (item.quantity || 1)) ? '#ef4444' : '#059669' }}>
+                          Đã săn: {item.claimedCount || 0} / {item.quantity || 0}
+                          {((item.claimedCount || 0) >= (item.quantity || 1)) && ' (HẾT MÃ)'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {section === 'voucher_claims' && (
+                    <div style={{ marginTop: '6px' }}>
+                      <p className="item-desc" style={{ fontSize: '13px', color: '#10b981', fontWeight: 'bold', margin: '0 0 4px 0' }}>
+                        🎁 Quà trúng: <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '4px' }}>{item.voucherTitle || item.voucherCode}</span> (Mã: <code style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{item.voucherCode}</code>)
+                      </p>
+                      <p className="item-desc" style={{ fontSize: '12px', color: '#333', margin: '0 0 4px 0' }}>
+                        👤 Khách hàng: <strong>{item.name}</strong> | 📞 SĐT: <strong>{item.phone}</strong>
+                      </p>
+                      <p className="item-desc" style={{ fontSize: '12px', color: '#666', margin: 0 }}>
+                        📍 Địa chỉ: {item.address || 'Chưa nhập'} | 🕒 Ngày quay: {item.claimedAt ? new Date(item.claimedAt).toLocaleString('vi-VN') : 'Mới đây'} (IP: {item.ip || '---'})
+                      </p>
+                    </div>
+                  )}
+                  {section === 'footer' && <p className="item-desc">{item.address} - {item.phone}</p>}
                 </div>
 
-                <div className="item-actions" onClick={(e) => activeTab === 'bookings' && e.stopPropagation()}>
-                  {activeTab === 'bookings' ? (
+                <div className="item-actions" onClick={(e) => section === 'bookings' && e.stopPropagation()}>
+                  {section === 'bookings' ? (
                     <button className="edit-btn" onClick={() => openEdit(item)}>Xem chi tiết</button>
                   ) : (
-                    <button className="edit-btn" onClick={() => openEdit(item)}>Sửa</button>
+                    section !== 'voucher_claims' && section !== 'special_collections' && <button className="edit-btn" onClick={() => openEdit(item)}>Sửa</button>
                   )}
-                  <button className="del-btn" onClick={() => handleDelete(item._id || item.id)}>Xoá</button>
+                  <button className="del-btn" onClick={() => handleDelete(item._id || item.id)}>
+                    {section === 'special_collections' ? 'Hủy công bố' : 'Xoá'}
+                  </button>
                 </div>
               </div>
             ))}
-            {getFilteredData().length === 0 && <p className="empty-msg">Chưa có dữ liệu nào trong chuyên mục này.</p>}
+            {getFilteredData().length === 0 && (
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <p className="empty-msg" style={{ marginBottom: '15px' }}>Chưa có dữ liệu nào trong chuyên mục này.</p>
+                {section === 'khai_truong' && (
+                  <button className="add-btn" onClick={openAdd} style={{ margin: '0 auto', display: 'inline-block' }}>
+                    🎁 + Thêm Deal Khai Trương Đầu Tiên
+                  </button>
+                )}
+                {section === 'vouchers' && (
+                  <button className="add-btn" onClick={openAdd} style={{ margin: '0 auto', display: 'inline-block' }}>
+                    🎫 + Thêm Voucher Ưu Đãi Đầu Tiên
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {isEditing && (
         <div className="modal-overlay">
-        <div className={`modal-content ${activeTab === 'services' ? 'wide-modal' : ''}`}>
-            <h3>{activeTab === 'bookings' ? 'Chi tiết lịch tư vấn' : (editItem?.id?.toString().length > 10 ? 'Thêm mới' : 'Chỉnh sửa')}</h3>
+        <div className={`modal-content ${section === 'services' ? 'wide-modal' : ''}`}>
+            <h3>{section === 'bookings' ? 'Chi tiết lịch tư vấn' : (editItem?.id?.toString().length > 10 ? 'Thêm mới' : 'Chỉnh sửa')}</h3>
             <form onSubmit={submitForm} className="website-form">
               {renderFormFields()}
               <div className="form-actions">
