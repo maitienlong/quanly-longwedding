@@ -31,6 +31,11 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Chip from '@mui/material/Chip';
 
+import logoDefault from '../../assets/logo/BETA-1 VANG@4x.png';
+import Avatar from '@mui/material/Avatar';
+import IconButton from '@mui/material/IconButton';
+import PhotoCamera from '@mui/icons-material/PhotoCamera';
+
 function QuanLyKhachHang() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -55,6 +60,21 @@ function QuanLyKhachHang() {
     const [facebookId, setFacebookId] = useState('');
 
     const commonHeight = 56;
+
+    const handleAvatarChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.warning("Dung lượng ảnh vượt quá 5MB!");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setAvatar(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const loadData = () => {
         showLoading("Đang tải danh sách khách hàng...");
@@ -341,14 +361,17 @@ function QuanLyKhachHang() {
                         customers.map((cust, idx) => (
                             <Card key={cust._id} sx={{ mb: 2, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>
-                                        {cust.tenKhachHang}
-                                        {cust.facebookId && (
-                                            <a href={`https://facebook.com/${cust.facebookId}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: '#1877f2' }} title="Mở Facebook khách hàng">
-                                                <i className="fa-brands fa-facebook"></i>
-                                            </a>
-                                        )}
-                                    </Typography>
+                                    <Box display="flex" alignItems="center" gap={1.5}>
+                                        <Avatar src={cust.avatar || logoDefault} sx={{ width: 40, height: 40, border: '2px solid #1976d2' }} />
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>
+                                            {cust.tenKhachHang}
+                                            {cust.facebookId && (
+                                                <a href={`https://facebook.com/${cust.facebookId}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: '#1877f2' }} title="Mở Facebook khách hàng">
+                                                    <i className="fa-brands fa-facebook"></i>
+                                                </a>
+                                            )}
+                                        </Typography>
+                                    </Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Chip 
                                             label={cust.soHopDong > 0 ? `${cust.soHopDong} hợp đồng` : 'Chưa có HĐ'} 
@@ -417,6 +440,7 @@ function QuanLyKhachHang() {
                     <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                         <TableRow>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '60px' }}>STT</TableCell>
+                            <TableCell style={{ fontWeight: 'bold', width: '80px' }}>AVATAR</TableCell>
                             <TableCell style={{ fontWeight: 'bold', width: '200px' }}>HỌ VÀ TÊN</TableCell>
                             <TableCell style={{ fontWeight: 'bold', width: '150px' }}>SỐ ĐIỆN THOẠI</TableCell>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '130px' }}>NGÀY SINH</TableCell>
@@ -429,7 +453,7 @@ function QuanLyKhachHang() {
                     <TableBody>
                         {customers.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} align="center" style={{ padding: '30px', color: '#999' }}>
+                                <TableCell colSpan={9} align="center" style={{ padding: '30px', color: '#999' }}>
                                     Không tìm thấy thông tin khách hàng nào.
                                 </TableCell>
                             </TableRow>
@@ -437,7 +461,10 @@ function QuanLyKhachHang() {
                             customers.map((cust, idx) => (
                                 <TableRow key={cust._id} className="quanlykhachhang-row">
                                     <TableCell align="center">{idx + 1}</TableCell>
-                                    <TableCell style={{ fontWeight: '500' }}>
+                                    <TableCell align="center">
+                                        <Avatar src={cust.avatar || logoDefault} sx={{ width: 38, height: 38, border: '1px solid #e0e0e0', margin: 'auto' }} />
+                                    </TableCell>
+                                    <TableCell style={{ fontWeight: 'bold' }}>
                                         {cust.tenKhachHang}
                                         {cust.facebookId && (
                                             <a href={`https://facebook.com/${cust.facebookId}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: '#1877f2' }} title="Mở Facebook khách hàng">
@@ -494,6 +521,31 @@ function QuanLyKhachHang() {
                 </DialogTitle>
                 <DialogContent dividers>
                     <Box display="flex" flexDirection="column" gap={2.5} mt={1}>
+                        {/* AVATAR UPLOAD */}
+                        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" mb={1}>
+                            <Box position="relative">
+                                <Avatar
+                                    src={avatar || logoDefault}
+                                    alt="avatar"
+                                    sx={{ width: 90, height: 90, border: '3px solid #1976d2', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }}
+                                />
+                                <label htmlFor="add-cust-avatar-upload" style={{ position: 'absolute', bottom: -4, right: -4 }}>
+                                    <input
+                                        accept="image/*"
+                                        id="add-cust-avatar-upload"
+                                        type="file"
+                                        style={{ display: 'none' }}
+                                        onChange={handleAvatarChange}
+                                    />
+                                    <IconButton color="primary" aria-label="upload picture" component="span" sx={{ bgcolor: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', '&:hover': { bgcolor: '#f0f0f0' } }}>
+                                        <PhotoCamera fontSize="small" />
+                                    </IconButton>
+                                </label>
+                            </Box>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                                Mặc định: Logo Long Wedding (Bấm icon máy ảnh để đổi)
+                            </Typography>
+                        </Box>
                         <TextField
                             label="Họ và tên khách hàng"
                             required
@@ -589,6 +641,31 @@ function QuanLyKhachHang() {
                 </DialogTitle>
                 <DialogContent dividers>
                     <Box display="flex" flexDirection="column" gap={2.5} mt={1}>
+                        {/* AVATAR UPLOAD */}
+                        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" mb={1}>
+                            <Box position="relative">
+                                <Avatar
+                                    src={avatar || logoDefault}
+                                    alt="avatar"
+                                    sx={{ width: 90, height: 90, border: '3px solid #1976d2', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }}
+                                />
+                                <label htmlFor="edit-cust-avatar-upload" style={{ position: 'absolute', bottom: -4, right: -4 }}>
+                                    <input
+                                        accept="image/*"
+                                        id="edit-cust-avatar-upload"
+                                        type="file"
+                                        style={{ display: 'none' }}
+                                        onChange={handleAvatarChange}
+                                    />
+                                    <IconButton color="primary" aria-label="upload picture" component="span" sx={{ bgcolor: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', '&:hover': { bgcolor: '#f0f0f0' } }}>
+                                        <PhotoCamera fontSize="small" />
+                                    </IconButton>
+                                </label>
+                            </Box>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                                Mặc định: Logo Long Wedding (Bấm icon máy ảnh để đổi)
+                            </Typography>
+                        </Box>
                         <TextField
                             label="Họ và tên khách hàng"
                             required

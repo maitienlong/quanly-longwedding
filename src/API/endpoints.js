@@ -48,5 +48,15 @@ export const ENDPOINTS = {
     LIST: "/api/album/admin/list",
     DETAIL: "/api/album/admin",
     SETTINGS: "/api/album/admin"
+  },
+  LOAI_HOPDONG: {
+    LIST: "/loaiHopDong/findAll",
+    CREATE: "/loaiHopDong/create",
+    UPDATE: "/loaiHopDong/update",
+    REMOVE: "/loaiHopDong/remove"
+  },
+  THI_DUA: {
+    STATS: "/api/thi-dua/stats",
+    UPDATE_TARGETS: "/api/thi-dua/update-targets"
   }
 };

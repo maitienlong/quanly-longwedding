@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
+import { useContractTypes } from '../../hooks/useContractTypes';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -42,24 +43,7 @@ import Checkbox from '@mui/material/Checkbox';
 
 import { formatLunarDateShort, getDetailedLunarInfo, convertLunarToSolar } from '../../utils/lunarDateUtils';
 
-const getDichVuChinhLabel = (id) => {
-    const options = {
-        1: 'Pre-Wedding',
-        2: 'Phóng Sự Ăn Hỏi',
-        3: 'Phóng Sự Cưới',
-        4: 'Beauty',
-        5: 'Ảnh Thẻ',
-        6: 'Bé',
-        7: 'Gia Đình',
-        8: 'Video Phóng Sự',
-        9: 'Thiệp Mời',
-        10: 'Livestream',
-        11: 'Trang điểm',
-        12: 'Cho thuê trang phục',
-        13: 'Khác'
-    };
-    return options[Number(id)] || 'Khác';
-};
+// getDichVuChinhLabel is now retrieved dynamically from useContractTypes hook
 
 const formatDateOnly = (dateString) => {
     if (!dateString) return "";
@@ -123,6 +107,7 @@ const isPastToday = (dateString, giaiDoan, tab) => {
 function LichCuaHang() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const { getDichVuChinhLabel } = useContractTypes();
     const [hopDong, setHopDong] = useState([]);
     const { showLoading, hideLoading } = useLoading();
 
@@ -355,7 +340,7 @@ function LichCuaHang() {
     const handleSyncAlbum = (link, isChinhSua = false) => {
         const urlToSync = typeof link === 'string' ? link : confirmLinkAnh;
         if (!urlToSync) {
-            toast.error("Chưa có đường dẫn ảnh. Vui lòng nhập link Google Drive.");
+            toast.error("Chưa có đường dẫn ảnh. Vui lòng nhập link Google Drive hoặc Google Photos.");
             return;
         }
         const contract = isChinhSua ? selectedHauKyContract : selectedChupHinhContract;
@@ -1774,12 +1759,12 @@ function LichCuaHang() {
 
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <TextField
-                                label="Đường dẫn ảnh gốc (Link ảnh)"
+                                label="Đường dẫn ảnh gốc (Google Drive / Photos)"
                                 variant="outlined"
                                 fullWidth
                                 value={confirmLinkAnh}
                                 onChange={(e) => setConfirmLinkAnh(e.target.value)}
-                                placeholder="https://drive.google.com/..."
+                                placeholder="Google Drive hoặc Google Photos link..."
                             />
                             <Button 
                                 variant="contained" 
@@ -1980,12 +1965,12 @@ function LichCuaHang() {
                             <Box display="flex" flexDirection="column" gap={2} p={2} border="1px solid #e0e0e0" borderRadius="8px" bgcolor="#fcfcfc">
                                 <Box display="flex" gap={1}>
                                     <TextField
-                                        label="Đường dẫn ảnh gốc (Link ảnh)"
+                                        label="Đường dẫn ảnh gốc (Google Drive / Photos)"
                                         variant="outlined"
                                         fullWidth
                                         value={confirmLinkAnh}
                                         onChange={(e) => setConfirmLinkAnh(e.target.value)}
-                                        placeholder="https://drive.google.com/..."
+                                        placeholder="Google Drive hoặc Google Photos link..."
                                         size="small"
                                     />
                                     <Button 
@@ -2001,12 +1986,12 @@ function LichCuaHang() {
 
                                 <Box display="flex" gap={1}>
                                     <TextField
-                                        label="Đường dẫn ảnh chỉnh sửa (Link ảnh)"
+                                        label="Đường dẫn ảnh chỉnh sửa (Google Drive / Photos)"
                                         variant="outlined"
                                         fullWidth
                                         value={confirmLinkAnhChinhSua}
                                         onChange={(e) => setConfirmLinkAnhChinhSua(e.target.value)}
-                                        placeholder="https://drive.google.com/..."
+                                        placeholder="Google Drive hoặc Google Photos link..."
                                         size="small"
                                     />
                                     <Button 

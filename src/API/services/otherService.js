@@ -35,7 +35,13 @@ const appService = {
    syncAlbum: (params) => axiosClient.post(ENDPOINTS.ALBUM.SYNC, params),
    listAlbums: (params) => axiosClient.get(ENDPOINTS.ALBUM.LIST, { params }),
    getAlbumDetail: (maHopDong) => axiosClient.get(`${ENDPOINTS.ALBUM.DETAIL}/${maHopDong}`),
-   updateAlbumSettings: (maHopDong, params) => axiosClient.put(`${ENDPOINTS.ALBUM.SETTINGS}/${maHopDong}/settings`, params)
+   updateAlbumSettings: (maHopDong, params) => axiosClient.put(`${ENDPOINTS.ALBUM.SETTINGS}/${maHopDong}/settings`, params),
+   findAllLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.LIST, params),
+   createLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.CREATE, params),
+   updateLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.UPDATE, params),
+   removeLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.REMOVE, params),
+   getThiDuaStats: (params) => axiosClient.post(ENDPOINTS.THI_DUA.STATS, params),
+   updateBatchTargets: (params) => axiosClient.post(ENDPOINTS.THI_DUA.UPDATE_TARGETS, params)
 };
 
 export default appService;

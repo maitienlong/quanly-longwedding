@@ -13,9 +13,12 @@ import QuanLyNhanVien from "../screens/QuanLyNhanVien/QuanLyNhanVien";
 import QuanLyKhachHang from "../screens/QuanLyKhachHang/QuanLyKhachHang";
 import QuanLyWebsite from "../screens/QuanLyWebsite/QuanLyWebsite";
 import SystemLogs from "../screens/SystemLogs/SystemLogs";
+import ThiDua from "../screens/ThiDua/ThiDua";
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../screens/Login/AuthContext/AuthContext';
 import { toast } from 'sonner';
+import otherService from "../API/services/otherService";
+import { updateContractTypesCache } from "../utils/contractTypesHelper";
 
 function MainV2() {
     const navigate = useNavigate();
@@ -36,6 +39,18 @@ function MainV2() {
         return () => clearInterval(timer);
     }, []);
 
+    useEffect(() => {
+        otherService.findAllLoaiHopDong()
+            .then(res => {
+                if (res.status === 'success' && res.data.loaiHopDong) {
+                    updateContractTypesCache(res.data.loaiHopDong);
+                }
+            })
+            .catch(err => {
+                console.error("Lỗi khi tải danh sách loại hợp đồng:", err);
+            });
+    }, []);
+
     const handleLogout = () => {
         logout();
         toast.success("Đăng xuất thành công!");
@@ -54,12 +69,13 @@ function MainV2() {
                 "/lich-soan-do",
                 "/quan-ly-kho",
                 "/quan-ly-khach-hang",
-                "/quan-ly-website"
+                "/quan-ly-website",
+                "/thi-dua"
             ].includes(path);
         }
 
         if (["Thợ chụp hình", "Thợ trang điểm", "Thợ chỉnh ảnh"].includes(role)) {
-            return ["/lich-cua-hang"].includes(path);
+            return ["/lich-cua-hang", "/thi-dua"].includes(path);
         }
 
         return false;
@@ -117,6 +133,9 @@ function MainV2() {
                             {hasAccess("/bao-cao-doanh-thu") && (
                                 <li><Link to="/bao-cao-doanh-thu" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
                             )}
+                            {hasAccess("/thi-dua") && (
+                                <li><Link to="/thi-dua" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-trophy"></i> THI ĐƯA & KPI</Link></li>
+                            )}
                             {hasAccess("/quan-ly-kho") && (
                                 <li><Link to="/quan-ly-kho" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
                             )}
@@ -158,6 +177,7 @@ function MainV2() {
                             <Route path="/quan-ly-chi-tieu" element={hasAccess("/quan-ly-chi-tieu") ? <QuanLyChiTieu /> : <Navigate to={getDefaultPath()} replace />} />
                             <Route path="/lich-soan-do" element={hasAccess("/lich-soan-do") ? <LichSoanDo /> : <Navigate to={getDefaultPath()} replace />} />
                             <Route path="/bao-cao-doanh-thu" element={hasAccess("/bao-cao-doanh-thu") ? <DoanhThu /> : <Navigate to={getDefaultPath()} replace />} />
+                            <Route path="/thi-dua" element={hasAccess("/thi-dua") ? <ThiDua /> : <Navigate to={getDefaultPath()} replace />} />
                             <Route path="/quan-ly-kho" element={hasAccess("/quan-ly-kho") ? <QuanLyKho /> : <Navigate to={getDefaultPath()} replace />} />
                             <Route path="/quan-ly-nhan-vien" element={hasAccess("/quan-ly-nhan-vien") ? <QuanLyNhanVien /> : <Navigate to={getDefaultPath()} replace />} />
                             <Route path="/quan-ly-khach-hang" element={hasAccess("/quan-ly-khach-hang") ? <QuanLyKhachHang /> : <Navigate to={getDefaultPath()} replace />} />
@@ -183,7 +203,7 @@ function MainV2() {
                         </button>
 
                         <img
-                            src={user?.avatar || "https://scontent.fhan5-9.fna.fbcdn.net/v/t39.30808-6/540694805_2780834042087100_7085640180785329332_n.jpg?_nc_cat=110&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=vGwBach99ogQ7kNvwHlCCyz&_nc_oc=AdkPsams-aoLPGXTLiDj9UD1EYedRsgzJ4foDlb3anqV2ggGa3tBwDAzYTapDRxSTWY&_nc_zt=23&_nc_ht=scontent.fhan5-9.fna&_nc_gid=U4OIpzD-nFY3oSELh1v_wQ&oh=00_Afd5c05opBDNkeSxbT4cPHYHOoBbKCSODUxFp27PHabglQ&oe=68F04A4D"}
+                            src={user?.avatar || logo}
                             alt="avatar"
                             className="dialog-avatar"
                         />

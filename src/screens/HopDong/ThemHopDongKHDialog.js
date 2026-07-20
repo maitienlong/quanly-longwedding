@@ -8,6 +8,7 @@ import otherService from '../../API/services/otherService';
 import TextField from '@mui/material/TextField';
 import { toast } from 'sonner';
 import { useLoading } from "../../context/LoadingContext";
+import { useContractTypes } from "../../hooks/useContractTypes";
 import { NumericFormat } from 'react-number-format';
 import { styled } from '@mui/material/styles';
 import Divider from '@mui/material/Divider';
@@ -66,21 +67,7 @@ function ThemHopDongKHDialog(props) {
         return isNaN(date.getTime()) ? null : date.toISOString();
     }
 
-    const loaiHopDongOptions = [
-        { label: 'Pre-Wedding', id: 1 },
-        { label: 'Phóng Sự Ăn Hỏi', id: 2 },
-        { label: 'Phóng Sự Cưới', id: 3 },
-        { label: 'Beauty', id: 4 },
-        { label: 'Ảnh Thẻ', id: 5 },
-        { label: 'Bé', id: 6 },
-        { label: 'Gia Đình', id: 7 },
-        { label: 'Video Phóng Sự', id: 8 },
-        { label: 'Thiệp Mời', id: 9 },
-        { label: 'Livestream', id: 10 },
-        { label: 'Trang điểm', id: 11 },
-        { label: 'Cho thuê trang phục', id: 12 },
-        { label: 'Khác', id: 13 }
-    ]
+    const { loaiHopDongOptions } = useContractTypes();
 
     const itemMethodPayment = [
         { label: 'Chuyển khoản', id: 0 },
@@ -1359,6 +1346,16 @@ function ThemHopDongKHDialog(props) {
                                             <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />
                                             <label>Địa điểm chụp</label>
                                         </div>
+
+                                        <div className="floating-label" style={{ marginTop: '5px' }}>
+                                            <input type="date" name="ngayTraAnh" value={ngayTraAnh} onChange={(e) => setNgayTraAnh(e.target.value)} />
+                                            <label>Ngày trả ảnh</label>
+                                        </div>
+                                        {ngayTraAnh && (
+                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
+                                                Âm lịch: {formatLunarDateFull(ngayTraAnh)}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

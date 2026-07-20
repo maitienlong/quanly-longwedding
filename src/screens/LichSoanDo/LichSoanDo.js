@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
 import { toast } from 'sonner';
+import { useContractTypes } from '../../hooks/useContractTypes';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 
@@ -45,6 +46,7 @@ function LichSoanDo() {
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { showLoading, hideLoading } = useLoading();
     const { user } = useAuth();
+    const { getDichVuChinhLabel } = useContractTypes();
     const loggedInUserFullname = user?.fullname || '';
     const [hopDongs, setHopDongs] = useState([]);
     const [trangPhucList, setTrangPhucList] = useState([]);
@@ -154,13 +156,7 @@ function LichSoanDo() {
         return `${hh}:${mm} ${dd}/${MM}/${yyyy}`;
     };
 
-    const getDichVuChinhLabel = (id) => {
-        const labels = {
-            1: "Pre-Wedding",
-            12: "Cho thuê trang phục"
-        };
-        return labels[id] || "Khác";
-    };
+    // getDichVuChinhLabel is now loaded dynamically from useContractTypes hook
 
     // Filter items based on time, status and search keyword
     const getFilteredHopDongs = () => {

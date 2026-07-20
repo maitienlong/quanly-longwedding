@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
+import { useContractTypes } from '../../hooks/useContractTypes';
 import ThemHopDongKHDialog from './ThemHopDongKHDialog';
 import { formatDate } from '../utils/convertDate';
 import { formatLunarDateShort } from '../../utils/lunarDateUtils';
@@ -29,28 +30,12 @@ import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import IconButton from '@mui/material/IconButton';
 import DetailHopDongKhachHangDialog from './DetailHopDongKhachHangDialog';
 
-const getDichVuChinhLabel = (id) => {
-    const options = {
-        1: 'Pre-Wedding',
-        2: 'Phóng Sự Ăn Hỏi',
-        3: 'Phóng Sự Cưới',
-        4: 'Beauty',
-        5: 'Ảnh Thẻ',
-        6: 'Bé',
-        7: 'Gia Đình',
-        8: 'Video Phóng Sự',
-        9: 'Thiệp Mời',
-        10: 'Livestream',
-        11: 'Trang điểm',
-        12: 'Cho thuê trang phục',
-        13: 'Khác'
-    };
-    return options[Number(id)] || 'Khác';
-};
+// getDichVuChinhLabel is now retrieved dynamically from useContractTypes hook
 
 function HopDongKhachHang() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const { getDichVuChinhLabel } = useContractTypes();
     const [hopDong, setHopDong] = useState([]);
     const { showLoading, hideLoading } = useLoading();
 
