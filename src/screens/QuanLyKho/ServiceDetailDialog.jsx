@@ -169,9 +169,11 @@ function ServiceDetailDialog(props) {
     if (!data) return null;
 
     const getLoaiDichVuLabel = (type) => {
-        if (type === 1) return "Trang Phục";
-        if (type === 2) return "Gói Dịch Vụ";
-        if (type === 3) return "Ảnh";
+        const num = Number(type);
+        if (num === 1) return "Trang Phục";
+        if (num === 2) return "Gói Dịch Vụ";
+        if (num === 3) return "Ảnh";
+        if (num === 4) return "Trang Điểm";
         return "Khác";
     };
 
@@ -208,6 +210,7 @@ function ServiceDetailDialog(props) {
                                         <MenuItem value={1}>Trang Phục</MenuItem>
                                         <MenuItem value={2}>Gói Dịch Vụ</MenuItem>
                                         <MenuItem value={3}>Ảnh</MenuItem>
+                                        <MenuItem value={4}>Trang Điểm</MenuItem>
                                     </Select>
                                 </FormControl>
 

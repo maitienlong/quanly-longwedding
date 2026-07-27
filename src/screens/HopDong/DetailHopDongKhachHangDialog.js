@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { useLoading } from "../../context/LoadingContext";
 import { useContractTypes } from '../../hooks/useContractTypes';
 import Autocomplete from '@mui/material/Autocomplete';
-import { Box, Switch, FormControlLabel, Tabs, Tab } from '@mui/material';
+import { Box, Switch, FormControlLabel, Tabs, Tab, IconButton } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
@@ -31,10 +31,12 @@ import {
     faWandMagicSparkles,
     faPrint,
     faCircleCheck,
-    faHeart
+    faHeart,
+    faDownload
 } from '@fortawesome/free-solid-svg-icons';
 import MobileAccordion from '../../components/MobileAccordion';
 import LocAnhMayTinhDialog from './LocAnhMayTinhDialog';
+import { downloadPhoto } from '../../utils/downloadHelper';
 // getDichVuChinhLabel is now retrieved dynamically from useContractTypes hook
 
 function DetailHopDongKhachHangDialog(props) {
@@ -55,6 +57,22 @@ function DetailHopDongKhachHangDialog(props) {
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const day = String(today.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    };
+
+    const getClientLoginUrl = (userVal) => {
+        if (!userVal) return '';
+        const hostname = window.location.hostname;
+        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+        const baseUrl = process.env.REACT_APP_CLIENT_WEBSITE_URL || (isLocal ? 'http://localhost:3000' : 'https://longwedding.vn');
+        return `${baseUrl}/khach-hang?user=${encodeURIComponent(userVal)}`;
+    };
+
+    const getSharedAlbumUrl = (shareLinkCode) => {
+        if (!shareLinkCode) return '';
+        const hostname = window.location.hostname;
+        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+        const baseUrl = process.env.REACT_APP_CLIENT_WEBSITE_URL || (isLocal ? 'http://localhost:3000' : 'https://longwedding.vn');
+        return `${baseUrl}/shared-album/${shareLinkCode}`;
     };
 
 
@@ -128,6 +146,7 @@ function DetailHopDongKhachHangDialog(props) {
     const [linkAnhChinhSua, setLinkAnhChinhSua] = useState("");
     const [danhSachAnhIn, setDanhSachAnhIn] = useState([]);
     const [albumData, setAlbumData] = useState(null);
+    const [isLoadingAlbum, setIsLoadingAlbum] = useState(false);
     const [isSyncingAlbum, setIsSyncingAlbum] = useState(false);
     const [isSyncingAlbumChinhSua, setIsSyncingAlbumChinhSua] = useState(false);
     const [openAlbumDetailDialog, setOpenAlbumDetailDialog] = useState(false);
@@ -313,6 +332,7 @@ function DetailHopDongKhachHangDialog(props) {
     }, [open, data]);
 
     const fetchAlbumData = (maHD) => {
+        setIsLoadingAlbum(true);
         otherService.getAlbumDetail(maHD)
             .then(res => {
                 if (res && res.album) {
@@ -328,6 +348,9 @@ function DetailHopDongKhachHangDialog(props) {
             .catch(err => {
                 console.error("Lỗi khi lấy thông tin album:", err);
                 setAlbumData(null);
+            })
+            .finally(() => {
+                setIsLoadingAlbum(false);
             });
     };
 
@@ -1186,6 +1209,21 @@ function DetailHopDongKhachHangDialog(props) {
                                             />
                                             <label>Link / ID Facebook 1</label>
                                         </div>
+                                        {(phoneKH1 || facebookKH1) && (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                onClick={() => {
+                                                    const targetUser = phoneKH1 || facebookKH1;
+                                                    const link = getClientLoginUrl(targetUser);
+                                                    navigator.clipboard.writeText(link);
+                                                    toast.success("Đã sao chép link đăng nhập KH 1!");
+                                                }}
+                                                style={{ textTransform: 'none', fontSize: '0.73rem', color: '#2563eb', borderColor: '#bfdbfe', marginTop: '6px', width: '100%', borderRadius: '6px' }}
+                                            >
+                                                🔗 Copy link đăng nhập KH 1
+                                            </Button>
+                                        )}
                                     </MobileAccordion>
 
                                     <MobileAccordion title="Thông tin khách hàng 2" className="dialog-section-khachhang-item" defaultExpanded={false}>
@@ -1219,6 +1257,21 @@ function DetailHopDongKhachHangDialog(props) {
                                             />
                                             <label>Link / ID Facebook 2</label>
                                         </div>
+                                        {(phoneKH2 || facebookKH2) && (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                onClick={() => {
+                                                    const targetUser = phoneKH2 || facebookKH2;
+                                                    const link = getClientLoginUrl(targetUser);
+                                                    navigator.clipboard.writeText(link);
+                                                    toast.success("Đã sao chép link đăng nhập KH 2!");
+                                                }}
+                                                style={{ textTransform: 'none', fontSize: '0.73rem', color: '#2563eb', borderColor: '#bfdbfe', marginTop: '6px', width: '100%', borderRadius: '6px' }}
+                                            >
+                                                🔗 Copy link đăng nhập KH 2
+                                            </Button>
+                                        )}
                                     </MobileAccordion>
 
                                 </div>
@@ -1543,17 +1596,125 @@ function DetailHopDongKhachHangDialog(props) {
                                                     </Box>
 
                                                     {/* Sub-section Settings */}
-                                                    <Box p={2} border="1px solid #e2e8f0" borderRadius="10px" bgcolor="#ffffff">
-                                                        <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#0f172a', marginBottom: '14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <Box p={2} border="1px solid #e2e8f0" borderRadius="10px" bgcolor="#ffffff" textAlign="left">
+                                                        <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#0f172a', marginBottom: '14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', textAlign: 'left' }}>
                                                             ⚙️ Cài đặt chọn ảnh cho khách hàng
                                                         </Typography>
 
-                                                        <Box display="flex" flexDirection="column" gap={1.5}>
+                                                        <Box display="flex" flexDirection="column" gap={1.5} textAlign="left">
+                                                            {/* Setting 0: Customer Quick Login Link & Shared Album Link Box */}
+                                                            {(() => {
+                                                                const customerUser = phoneKH1 || facebookKH1 || phoneKH2 || facebookKH2 || "";
+                                                                const loginUrl = getClientLoginUrl(customerUser);
+                                                                const shareCode = albumData?.shareLink;
+                                                                const sharedWebUrl = getSharedAlbumUrl(shareCode);
+
+                                                                return (
+                                                                    <Box display="flex" flexDirection="column" gap={1.5} mb={1}>
+                                                                        {/* Link 1: Login & Photo Selection Link */}
+                                                                        <Box p={1.5} bgcolor="#f8fafc" borderRadius="8px" display="flex" flexDirection="column" gap={1} style={{ border: '1px solid #e2e8f0' }}>
+                                                                            <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                                                <Typography variant="body2" style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.82rem', textAlign: 'left' }}>
+                                                                                    🔑 Link đăng nhập khách hàng (Điền sẵn tài khoản)
+                                                                                </Typography>
+                                                                                {customerUser && (
+                                                                                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                                                                                        Tài khoản: <strong>{customerUser}</strong>
+                                                                                    </span>
+                                                                                )}
+                                                                            </Box>
+                                                                            <Box display="flex" alignItems="center" gap={1}>
+                                                                                <TextField
+                                                                                    size="small"
+                                                                                    fullWidth
+                                                                                    readOnly
+                                                                                    value={customerUser ? loginUrl : "Chưa có SĐT/FB khách hàng để tạo link"}
+                                                                                    inputProps={{ style: { fontSize: '0.78rem', color: customerUser ? '#2563eb' : '#94a3b8', backgroundColor: '#ffffff' } }}
+                                                                                    variant="outlined"
+                                                                                    style={{ flex: 1 }}
+                                                                                />
+                                                                                <Button
+                                                                                    variant="contained"
+                                                                                    size="small"
+                                                                                    disabled={!customerUser}
+                                                                                    onClick={() => {
+                                                                                        navigator.clipboard.writeText(loginUrl);
+                                                                                        toast.success("Đã sao chép link đăng nhập khách hàng!");
+                                                                                    }}
+                                                                                    style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '6px 14px', backgroundColor: '#2563eb', color: '#ffffff', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                                                                                >
+                                                                                    📋 Sao chép
+                                                                                </Button>
+                                                                                <Button
+                                                                                    variant="outlined"
+                                                                                    size="small"
+                                                                                    disabled={!customerUser}
+                                                                                    onClick={() => {
+                                                                                        window.open(loginUrl, '_blank');
+                                                                                    }}
+                                                                                    style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '5px 14px', borderColor: '#2563eb', color: '#2563eb', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                                                                                >
+                                                                                    🌐 Mở link
+                                                                                </Button>
+                                                                            </Box>
+                                                                        </Box>
+
+                                                                        {/* Link 2: Shared Edited Album Web Link */}
+                                                                        <Box p={1.5} bgcolor="#f0fdf4" borderRadius="8px" display="flex" flexDirection="column" gap={1} style={{ border: '1px solid #bbf7d0' }}>
+                                                                            <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                                                <Typography variant="body2" style={{ fontWeight: 700, color: '#166534', fontSize: '0.82rem', textAlign: 'left' }}>
+                                                                                    ✨ Link chia sẻ Album ảnh chỉnh sửa trên Web
+                                                                                </Typography>
+                                                                                {shareCode && (
+                                                                                    <span style={{ fontSize: '0.72rem', color: '#15803d' }}>
+                                                                                        Mã chia sẻ: <strong>{shareCode}</strong>
+                                                                                    </span>
+                                                                                )}
+                                                                            </Box>
+                                                                            <Box display="flex" alignItems="center" gap={1}>
+                                                                                <TextField
+                                                                                    size="small"
+                                                                                    fullWidth
+                                                                                    readOnly
+                                                                                    value={shareCode ? sharedWebUrl : (albumData ? "Đang khởi tạo mã chia sẻ..." : "Cần đồng bộ album để lấy link chia sẻ")}
+                                                                                    inputProps={{ style: { fontSize: '0.78rem', color: shareCode ? '#16a34a' : '#94a3b8', backgroundColor: '#ffffff' } }}
+                                                                                    variant="outlined"
+                                                                                    style={{ flex: 1 }}
+                                                                                />
+                                                                                <Button
+                                                                                    variant="contained"
+                                                                                    size="small"
+                                                                                    disabled={!shareCode}
+                                                                                    onClick={() => {
+                                                                                        navigator.clipboard.writeText(sharedWebUrl);
+                                                                                        toast.success("Đã sao chép link chia sẻ album ảnh chỉnh sửa!");
+                                                                                    }}
+                                                                                    style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '6px 14px', backgroundColor: '#16a34a', color: '#ffffff', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                                                                                >
+                                                                                    📋 Sao chép
+                                                                                </Button>
+                                                                                <Button
+                                                                                    variant="outlined"
+                                                                                    size="small"
+                                                                                    disabled={!shareCode}
+                                                                                    onClick={() => {
+                                                                                        window.open(sharedWebUrl, '_blank');
+                                                                                    }}
+                                                                                    style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '5px 14px', borderColor: '#16a34a', color: '#16a34a', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                                                                                >
+                                                                                    🌐 Mở link
+                                                                                </Button>
+                                                                            </Box>
+                                                                        </Box>
+                                                                    </Box>
+                                                                );
+                                                            })()}
+
                                                             {/* Setting 1: Limit Photo limit */}
                                                             <Box display="flex" alignItems="center" justifyContent="space-between" pb={1.5} borderBottom="1px solid #f1f5f9">
-                                                                <Box>
-                                                                    <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem' }}>Giới hạn số lượng ảnh</Typography>
-                                                                    <Typography variant="caption" style={{ color: '#64748b', fontSize: '0.72rem' }}>Yêu cầu khách hàng chọn tối đa số ảnh quy định</Typography>
+                                                                <Box textAlign="left">
+                                                                    <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem', textAlign: 'left' }}>Giới hạn số lượng ảnh</Typography>
+                                                                    <Typography variant="caption" style={{ color: '#64748b', fontSize: '0.72rem', display: 'block', textAlign: 'left' }}>Yêu cầu khách hàng chọn tối đa số ảnh quy định</Typography>
                                                                 </Box>
                                                                 <Box display="flex" alignItems="center" gap={1.5}>
                                                                     {coGioiHanAnh && (
@@ -1579,9 +1740,9 @@ function DetailHopDongKhachHangDialog(props) {
 
                                                             {/* Setting 2: Lock Album */}
                                                             <Box display="flex" alignItems="center" justifyContent="space-between" pb={1.5} borderBottom="1px solid #f1f5f9">
-                                                                <Box>
-                                                                    <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem' }}>Khóa album</Typography>
-                                                                    <Typography variant="caption" style={{ color: '#64748b', fontSize: '0.72rem' }}>Đánh dấu khách hàng đã hoàn thành việc chọn ảnh</Typography>
+                                                                <Box textAlign="left">
+                                                                    <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem', textAlign: 'left' }}>Khóa album</Typography>
+                                                                    <Typography variant="caption" style={{ color: '#64748b', fontSize: '0.72rem', display: 'block', textAlign: 'left' }}>Đánh dấu khách hàng đã hoàn thành việc chọn ảnh</Typography>
                                                                 </Box>
                                                                 <Switch
                                                                     checked={khachHangXacNhan}
@@ -1593,9 +1754,9 @@ function DetailHopDongKhachHangDialog(props) {
 
                                                             {/* Setting 3: Special Collection */}
                                                             <Box display="flex" alignItems="center" justifyContent="space-between">
-                                                                <Box>
-                                                                    <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem' }}>Bộ sưu tập đặc biệt</Typography>
-                                                                    <Typography variant="caption" style={{ color: '#64748b', fontSize: '0.72rem' }}>Hiển thị hình ảnh album này lên trang chủ & trang bộ sưu tập</Typography>
+                                                                <Box textAlign="left">
+                                                                    <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem', textAlign: 'left' }}>Bộ sưu tập đặc biệt</Typography>
+                                                                    <Typography variant="caption" style={{ color: '#64748b', fontSize: '0.72rem', display: 'block', textAlign: 'left' }}>Hiển thị hình ảnh album này lên trang chủ & trang bộ sưu tập</Typography>
                                                                 </Box>
                                                                 <Switch
                                                                     checked={isSpecialCollection}
@@ -1613,8 +1774,8 @@ function DetailHopDongKhachHangDialog(props) {
                                                             </Box>
 
                                                             {/* Setting 4: Theme / Concept */}
-                                                            <Box display="flex" flexDirection="column" gap={1} mt={1.5} pt={1.5} borderTop="1px solid #f1f5f9">
-                                                                <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem' }}>Chủ đề / Concept của Album</Typography>
+                                                            <Box display="flex" flexDirection="column" gap={1} mt={1.5} pt={1.5} borderTop="1px solid #f1f5f9" textAlign="left">
+                                                                <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem', textAlign: 'left' }}>Chủ đề / Concept của Album</Typography>
                                                                 <TextField
                                                                     placeholder="Ví dụ: Concept Studio nhẹ nhàng, Concept Cổ phục Hàn Quốc, ..."
                                                                     fullWidth
@@ -2044,10 +2205,11 @@ function DetailHopDongKhachHangDialog(props) {
                                     }}
                                 >In hợp đồng</Button>
 
-                                {albumData && albumData.danhSachAnh && albumData.danhSachAnh.length > 0 && (
+                                {(linkAnhGoc || linkAnhChinhSua || albumData || isLoadingAlbum) && (
                                     <Button
                                         variant="contained"
                                         color="info"
+                                        disabled={isLoadingAlbum}
                                         onClick={() => setOpenAlbumDetailDialog(true)}
                                         sx={{
                                             whiteSpace: 'nowrap',
@@ -2055,7 +2217,7 @@ function DetailHopDongKhachHangDialog(props) {
                                             padding: { xs: '4px 8px', sm: '6px 16px' }
                                         }}
                                     >
-                                        Xem Ảnh Khách Hàng
+                                        {isLoadingAlbum ? "Đang Tải Ảnh..." : "Xem Ảnh Khách Hàng"}
                                     </Button>
                                 )}
 
@@ -2287,11 +2449,50 @@ function DetailHopDongKhachHangDialog(props) {
                     )}
                 </DialogTitle>
                 <DialogContent dividers>
+                    {(!albumData || (!albumData.danhSachAnh?.length && !albumData.danhSachAnhChinhSua?.length)) && (
+                        <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                            <Typography variant="h6" color="textSecondary" style={{ marginBottom: '16px' }}>
+                                {albumData?.trangThai === 'Đang xử lý' || isSyncingAlbum || isSyncingAlbumChinhSua
+                                    ? 'Đang đồng bộ danh sách ảnh từ Google Drive, vui lòng chờ giây lát...'
+                                    : 'Chưa có dữ liệu ảnh nào trong album này.'}
+                            </Typography>
+                            <Button 
+                                variant="contained" 
+                                color="primary"
+                                disabled={isSyncingAlbum || isSyncingAlbumChinhSua}
+                                onClick={() => handleSyncAlbum(linkAnhGoc || linkAnhChinhSua, linkAnhChinhSua ? 'chinhSua' : 'goc')}
+                            >
+                                {isSyncingAlbum || isSyncingAlbumChinhSua ? 'Đang đồng bộ...' : 'Đồng bộ ảnh ngay'}
+                            </Button>
+                        </div>
+                    )}
                     {albumData && albumDetailTab === 0 && (
                         <div className="admin-masonry-grid">
                             {albumData.danhSachAnh?.map((item) => (
                                 <div key={item.idDrive} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
                                     <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                downloadPhoto(item, {
+                                                    onStart: () => toast.info('Đang chuẩn bị tải ảnh...'),
+                                                    onSuccess: (msg) => toast.success(msg || 'Tải ảnh thành công!'),
+                                                    onError: (err) => toast.error(err || 'Có lỗi khi tải ảnh.')
+                                                });
+                                            }}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 10,
+                                                left: 10,
+                                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                color: '#fff',
+                                                zIndex: 5
+                                            }}
+                                            title="Tải ảnh này về máy"
+                                        >
+                                            <FontAwesomeIcon icon={faDownload} size="xs" />
+                                        </IconButton>
                                         <img
                                             src={`${item.urlNen}`}
                                             alt={item.tenFile}
@@ -2325,6 +2526,28 @@ function DetailHopDongKhachHangDialog(props) {
                                 <div key={index} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
                                     <Card style={{ borderRadius: '16px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
                                         <div style={{ position: 'relative' }}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    downloadPhoto(anh, {
+                                                        onStart: () => toast.info('Đang chuẩn bị tải ảnh...'),
+                                                        onSuccess: (msg) => toast.success(msg || 'Tải ảnh thành công!'),
+                                                        onError: (err) => toast.error(err || 'Có lỗi khi tải ảnh.')
+                                                    });
+                                                }}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 10,
+                                                    left: 10,
+                                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                    color: '#fff',
+                                                    zIndex: 5
+                                                }}
+                                                title="Tải ảnh này về máy"
+                                            >
+                                                <FontAwesomeIcon icon={faDownload} size="xs" />
+                                            </IconButton>
                                             <img
                                                 src={`${anh.urlNen}`}
                                                 alt={anh.tenFile}
@@ -2377,6 +2600,28 @@ function DetailHopDongKhachHangDialog(props) {
                                 <div key={index} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
                                     <Card style={{ borderRadius: '16px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
                                         <div style={{ position: 'relative' }}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    downloadPhoto(anh, {
+                                                        onStart: () => toast.info('Đang chuẩn bị tải ảnh...'),
+                                                        onSuccess: (msg) => toast.success(msg || 'Tải ảnh thành công!'),
+                                                        onError: (err) => toast.error(err || 'Có lỗi khi tải ảnh.')
+                                                    });
+                                                }}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 10,
+                                                    left: 10,
+                                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                    color: '#fff',
+                                                    zIndex: 5
+                                                }}
+                                                title="Tải ảnh này về máy"
+                                            >
+                                                <FontAwesomeIcon icon={faDownload} size="xs" />
+                                            </IconButton>
                                             <img
                                                 src={`${anh.urlNen}`}
                                                 alt={anh.tenFile}

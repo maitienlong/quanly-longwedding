@@ -160,6 +160,7 @@ function ServiceAddDialog(props) {
                                     <MenuItem value={1}>Trang Phục</MenuItem>
                                     <MenuItem value={2}>Gói Dịch Vụ</MenuItem>
                                     <MenuItem value={3}>Ảnh</MenuItem>
+                                    <MenuItem value={4}>Trang Điểm</MenuItem>
                                 </Select>
                             </FormControl>
 

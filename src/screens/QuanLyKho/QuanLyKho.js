@@ -28,6 +28,11 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import Chip from '@mui/material/Chip';
 import { toast } from 'sonner';
 import { useContractTypes } from '../../hooks/useContractTypes';
 import { updateContractTypesCache } from '../../utils/contractTypesHelper';
@@ -44,6 +49,7 @@ const QuanLyKho = () => {
     const [listSeviceAPI, setListSeviceAPI] = useState([]);
     const { showLoading, hideLoading } = useLoading();
     const [keyword, setKeyword] = useState("");
+    const [filterLoaiDichVu, setFilterLoaiDichVu] = useState("all");
     const [openAddDialog, setOpenAddDialog] = useState(false);
     const [selectedService, setSelectedService] = useState(null);
 
@@ -55,6 +61,24 @@ const QuanLyKho = () => {
     const [typeName, setTypeName] = useState("");
 
     const commonHeight = 56;
+
+    const getLoaiDichVuLabel = (type) => {
+        const num = Number(type);
+        if (num === 1) return "Trang Phục";
+        if (num === 2) return "Gói Dịch Vụ";
+        if (num === 3) return "Ảnh";
+        if (num === 4) return "Trang Điểm";
+        return "Khác";
+    };
+
+    const getLoaiDichVuChipColor = (type) => {
+        const num = Number(type);
+        if (num === 1) return "primary";
+        if (num === 2) return "secondary";
+        if (num === 3) return "warning";
+        if (num === 4) return "success";
+        return "default";
+    };
 
     const handleTabChange = (event, newValue) => {
         setActiveTab(newValue);
@@ -162,7 +186,24 @@ const QuanLyKho = () => {
                                 </div>
                             )}
                         </div>
-                        <div className="filters" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '15px' }}>
+                        <div className="filters" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '15px', alignItems: isMobile ? 'stretch' : 'center' }}>
+                            <FormControl variant="outlined" size={isMobile ? "small" : "medium"} sx={{ minWidth: isMobile ? '100%' : 180 }}>
+                                <InputLabel id="filter-service-type-label">Loại dịch vụ</InputLabel>
+                                <Select
+                                    labelId="filter-service-type-label"
+                                    value={filterLoaiDichVu}
+                                    label="Loại dịch vụ"
+                                    onChange={(e) => setFilterLoaiDichVu(e.target.value)}
+                                    sx={{ height: isMobile ? 42 : commonHeight }}
+                                >
+                                    <MenuItem value="all">Tất cả dịch vụ</MenuItem>
+                                    <MenuItem value={1}>Trang Phục</MenuItem>
+                                    <MenuItem value={2}>Gói Dịch Vụ</MenuItem>
+                                    <MenuItem value={3}>Ảnh</MenuItem>
+                                    <MenuItem value={4}>Trang Điểm</MenuItem>
+                                </Select>
+                            </FormControl>
+
                             <TextField id="outlined-basic" label="Tìm kiếm" variant="outlined" InputProps={{
                                 sx: { height: isMobile ? 42 : commonHeight }
                             }}
@@ -187,109 +228,124 @@ const QuanLyKho = () => {
                         </div>
                     </div>
 
-                    {isMobile ? (
-                        <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
-                            <Stack spacing={2}>
-                            {listSeviceAPI
-                                .filter(item => 
-                                    !keyword || 
-                                    item.maDichVu.toLowerCase().includes(keyword.toLowerCase()) || 
-                                    item.tenDichVu.toLowerCase().includes(keyword.toLowerCase())
-                                )
-                                .map((data, index) => (
-                                    <Card 
-                                        key={data.maDichVu} 
-                                        onClick={() => setSelectedService(data)}
-                                        sx={{ 
-                                            cursor: 'pointer',
-                                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                            border: selectedService?.maDichVu === data.maDichVu ? '2px solid #1976d2' : 'none'
-                                        }}
-                                    >
-                                        <CardContent>
-                                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                                <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                                                    {data.tenDichVu}
-                                                </Typography>
-                                                <Typography variant="body2" sx={{ backgroundColor: '#e3f2fd', color: '#1976d2', px: 1, borderRadius: '4px', fontWeight: 'bold' }}>
-                                                    Kho: {data.tonKhoDichVu}
-                                                </Typography>
-                                            </Box>
-                                            
-                                            <Grid container spacing={1}>
-                                                <Grid item xs={5}><Typography variant="body2" color="textSecondary">Mã dịch vụ:</Typography></Grid>
-                                                <Grid item xs={7}><Typography variant="body2">{data.maDichVu}</Typography></Grid>
+                    {(() => {
+                        const filteredServices = listSeviceAPI.filter(item => {
+                            const matchKeyword = !keyword || 
+                                (item.maDichVu && item.maDichVu.toLowerCase().includes(keyword.toLowerCase())) || 
+                                (item.tenDichVu && item.tenDichVu.toLowerCase().includes(keyword.toLowerCase()));
+                            const matchLoai = filterLoaiDichVu === "all" || Number(item.loaiDichVu) === Number(filterLoaiDichVu);
+                            return matchKeyword && matchLoai;
+                        });
 
-                                                <Grid item xs={5}><Typography variant="body2" color="textSecondary">Giá thành:</Typography></Grid>
-                                                <Grid item xs={7}><Typography variant="body2" fontWeight="bold" color="error.main">{data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : '0 đ'}</Typography></Grid>
-
-                                                <Grid item xs={5}><Typography variant="body2" color="textSecondary">Giá thuê:</Typography></Grid>
-                                                <Grid item xs={7}><Typography variant="body2" fontWeight="bold" color="success.main">{data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : '0 đ'}</Typography></Grid>
-
-                                                {data.moTaDichVu && (
-                                                    <>
-                                                        <Grid item xs={12}><Typography variant="body2" color="textSecondary">Mô tả:</Typography></Grid>
-                                                        <Grid item xs={12}><Typography variant="body2" sx={{ fontStyle: 'italic', color: '#555' }}>{data.moTaDichVu}</Typography></Grid>
-                                                    </>
-                                                )}
-                                            </Grid>
-                                        </CardContent>
-                                    </Card>
-                                ))
-                            }
-                            {listSeviceAPI.filter(item => !keyword || item.maDichVu.toLowerCase().includes(keyword.toLowerCase()) || item.tenDichVu.toLowerCase().includes(keyword.toLowerCase())).length === 0 && (
-                                <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
-                                    Không tìm thấy dịch vụ nào.
-                                </div>
-                            )}
-                            </Stack>
-                        </div>
-                    ) : (
-                        <TableContainer component={Paper} style={{ maxHeight: 'calc(100vh - 280px)', overflow: 'auto' }}>
-                            <Table stickyHeader aria-label="simple table">
-                                <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
-                                    <TableRow>
-                                        <TableCell align="center" style={{ width: '5%' }}>STT</TableCell>
-                                        <TableCell style={{ width: '15%' }}>ID</TableCell>
-                                        <TableCell style={{ width: '25%' }}>DỊCH VỤ</TableCell>
-                                        <TableCell style={{ width: '15%' }}>GIÁ THÀNH</TableCell>
-                                        <TableCell style={{ width: '15%' }}>GIÁ THUÊ</TableCell>
-                                        <TableCell align="center" style={{ width: '10%' }}>TỒN KHO</TableCell>
-                                        <TableCell style={{ width: '15%' }}>MÔ TẢ</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {listSeviceAPI
-                                        .filter(item => 
-                                            !keyword || 
-                                            item.maDichVu.toLowerCase().includes(keyword.toLowerCase()) || 
-                                            item.tenDichVu.toLowerCase().includes(keyword.toLowerCase())
-                                        )
-                                        .map((data, index) => (
-                                        <TableRow key={data.maDichVu}
-                                            sx={{
-                                                '&:nth-of-type(odd)': {
-                                                    backgroundColor: '#f5f5f5c4',
-                                                }, '&:last-child td, &:last-child th': { border: 0 }
-                                            }}
-                                            selected={selectedService?.maDichVu === data.maDichVu}
+                        return isMobile ? (
+                            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
+                                <Stack spacing={2}>
+                                {filteredServices.map((data, index) => (
+                                        <Card 
+                                            key={data.maDichVu} 
                                             onClick={() => setSelectedService(data)}
+                                            sx={{ 
+                                                cursor: 'pointer',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                                border: selectedService?.maDichVu === data.maDichVu ? '2px solid #1976d2' : 'none'
+                                            }}
                                         >
-                                            <TableCell align="center" component="th" scope="row">
-                                                {index + 1}
-                                            </TableCell>
-                                            <TableCell>{data.maDichVu}</TableCell>
-                                            <TableCell>{data.tenDichVu}</TableCell>
-                                            <TableCell>{data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : '0 đ'}</TableCell>
-                                            <TableCell>{data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : '0 đ'}</TableCell>
-                                            <TableCell align="center">{data.tonKhoDichVu}</TableCell>
-                                            <TableCell>{data.moTaDichVu}</TableCell>
+                                            <CardContent>
+                                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                                    <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                                                        {data.tenDichVu}
+                                                    </Typography>
+                                                    <Box display="flex" gap={1} alignItems="center">
+                                                        <Chip 
+                                                            label={getLoaiDichVuLabel(data.loaiDichVu)} 
+                                                            size="small" 
+                                                            color={getLoaiDichVuChipColor(data.loaiDichVu)} 
+                                                            variant="outlined" 
+                                                        />
+                                                        <Typography variant="body2" sx={{ backgroundColor: '#e3f2fd', color: '#1976d2', px: 1, py: 0.2, borderRadius: '4px', fontWeight: 'bold' }}>
+                                                            Kho: {data.tonKhoDichVu}
+                                                        </Typography>
+                                                    </Box>
+                                                </Box>
+                                                
+                                                <Grid container spacing={1}>
+                                                    <Grid item xs={5}><Typography variant="body2" color="textSecondary">Mã dịch vụ:</Typography></Grid>
+                                                    <Grid item xs={7}><Typography variant="body2">{data.maDichVu}</Typography></Grid>
+
+                                                    <Grid item xs={5}><Typography variant="body2" color="textSecondary">Giá thành:</Typography></Grid>
+                                                    <Grid item xs={7}><Typography variant="body2" fontWeight="bold" color="error.main">{data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : '0 đ'}</Typography></Grid>
+
+                                                    <Grid item xs={5}><Typography variant="body2" color="textSecondary">Giá thuê:</Typography></Grid>
+                                                    <Grid item xs={7}><Typography variant="body2" fontWeight="bold" color="success.main">{data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : '0 đ'}</Typography></Grid>
+
+                                                    {data.moTaDichVu && (
+                                                        <>
+                                                            <Grid item xs={12}><Typography variant="body2" color="textSecondary">Mô tả:</Typography></Grid>
+                                                            <Grid item xs={12}><Typography variant="body2" sx={{ fontStyle: 'italic', color: '#555' }}>{data.moTaDichVu}</Typography></Grid>
+                                                        </>
+                                                    )}
+                                                </Grid>
+                                            </CardContent>
+                                        </Card>
+                                    ))
+                                }
+                                {filteredServices.length === 0 && (
+                                    <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
+                                        Không tìm thấy dịch vụ nào.
+                                    </div>
+                                )}
+                                </Stack>
+                            </div>
+                        ) : (
+                            <TableContainer component={Paper} style={{ maxHeight: 'calc(100vh - 280px)', overflow: 'auto' }}>
+                                <Table stickyHeader aria-label="simple table">
+                                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
+                                        <TableRow>
+                                            <TableCell align="center" style={{ width: '5%' }}>STT</TableCell>
+                                            <TableCell style={{ width: '12%' }}>ID</TableCell>
+                                            <TableCell style={{ width: '22%' }}>DỊCH VỤ</TableCell>
+                                            <TableCell style={{ width: '14%' }}>LOẠI DỊCH VỤ</TableCell>
+                                            <TableCell style={{ width: '13%' }}>GIÁ THÀNH</TableCell>
+                                            <TableCell style={{ width: '13%' }}>GIÁ THUÊ</TableCell>
+                                            <TableCell align="center" style={{ width: '9%' }}>TỒN KHO</TableCell>
+                                            <TableCell style={{ width: '12%' }}>MÔ TẢ</TableCell>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    )}
+                                    </TableHead>
+                                    <TableBody>
+                                        {filteredServices.map((data, index) => (
+                                            <TableRow key={data.maDichVu}
+                                                sx={{
+                                                    '&:nth-of-type(odd)': {
+                                                        backgroundColor: '#f5f5f5c4',
+                                                    }, '&:last-child td, &:last-child th': { border: 0 }
+                                                }}
+                                                selected={selectedService?.maDichVu === data.maDichVu}
+                                                onClick={() => setSelectedService(data)}
+                                            >
+                                                <TableCell align="center" component="th" scope="row">
+                                                    {index + 1}
+                                                </TableCell>
+                                                <TableCell>{data.maDichVu}</TableCell>
+                                                <TableCell>{data.tenDichVu}</TableCell>
+                                                <TableCell>
+                                                    <Chip 
+                                                        label={getLoaiDichVuLabel(data.loaiDichVu)} 
+                                                        size="small" 
+                                                        color={getLoaiDichVuChipColor(data.loaiDichVu)} 
+                                                        variant="outlined" 
+                                                    />
+                                                </TableCell>
+                                                <TableCell>{data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : '0 đ'}</TableCell>
+                                                <TableCell>{data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : '0 đ'}</TableCell>
+                                                <TableCell align="center">{data.tonKhoDichVu}</TableCell>
+                                                <TableCell>{data.moTaDichVu}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        );
+                    })()}
                 </>
             ) : (
                 /* ================= TAB 2: QUAN LY LOAI HOP DONG ================= */

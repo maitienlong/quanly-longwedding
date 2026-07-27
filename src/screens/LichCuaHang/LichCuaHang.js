@@ -42,6 +42,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 
 import { formatLunarDateShort, getDetailedLunarInfo, convertLunarToSolar } from '../../utils/lunarDateUtils';
+import WeddingDateLookupModal from '../../components/WeddingDateLookupModal';
 
 // getDichVuChinhLabel is now retrieved dynamically from useContractTypes hook
 
@@ -124,6 +125,7 @@ function LichCuaHang() {
 
     // Dialog tra cứu lịch âm
     const [openLunarLookup, setOpenLunarLookup] = useState(false);
+    const [openWeddingDateLookup, setOpenWeddingDateLookup] = useState(false);
     const [lookupSolarDate, setLookupSolarDate] = useState(() => {
         const d = new Date();
         const pad = (n) => String(n).padStart(2, '0');
@@ -294,7 +296,7 @@ function LichCuaHang() {
             
             setChupHinhTab(0);
             setAlbumData(null);
-            if (hd.linkAnhGoc) {
+            if (hd.maHopDong) {
                 otherService.getAlbumDetail(hd.maHopDong)
                     .then(res => {
                         if (res && res.album) {
@@ -317,7 +319,7 @@ function LichCuaHang() {
             setConfirmLinkAnhChinhSua(hd.linkAnhChinhSua || "");
             
             setAlbumData(null);
-            if (hd.linkAnhGoc || hd.linkAnhChinhSua) {
+            if (hd.maHopDong) {
                 otherService.getAlbumDetail(hd.maHopDong)
                     .then(res => {
                         if (res && res.album) {
@@ -1235,6 +1237,26 @@ function LichCuaHang() {
                     >
                         <i className="fa-solid fa-circle-info" style={{ marginRight: '6px' }}></i>
                         Tra cứu Lịch Âm
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => setOpenWeddingDateLookup(true)}
+                        size={isMobile ? "small" : "medium"}
+                        sx={{ 
+                            height: isMobile ? 42 : commonHeight, 
+                            textTransform: 'none', 
+                            fontWeight: 'bold', 
+                            order: 4,
+                            background: 'linear-gradient(45deg, #e91e63 30%, #ff4081 90%)',
+                            color: '#fff',
+                            boxShadow: '0 3px 10px rgba(233,30,99,0.3)',
+                            '&:hover': {
+                                background: 'linear-gradient(45deg, #c2185b 30%, #e91e63 90%)',
+                            }
+                        }}
+                    >
+                        <i className="fa-solid fa-heart" style={{ marginRight: '6px' }}></i>
+                        Ngày đẹp Cưới Hỏi
                     </Button>
                 </Stack>
             </div>
@@ -2482,6 +2504,18 @@ function LichCuaHang() {
                         >
                             Âm lịch ➔ Dương lịch
                         </Button>
+                        <Button 
+                            variant="outlined" 
+                            color="secondary"
+                            onClick={() => {
+                                setOpenLunarLookup(false);
+                                setOpenWeddingDateLookup(true);
+                            }}
+                            style={{ textTransform: 'none', fontWeight: 'bold', borderColor: '#e91e63', color: '#e91e63' }}
+                        >
+                            <i className="fa-solid fa-heart" style={{ marginRight: '4px' }}></i>
+                            Ngày đẹp Cưới Hỏi
+                        </Button>
                     </Box>
 
                     {lookupTab === 0 ? (
@@ -2671,6 +2705,14 @@ function LichCuaHang() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Dialog Tổng hợp Ngày đẹp Cưới Hỏi */}
+            <WeddingDateLookupModal 
+                open={openWeddingDateLookup}
+                onClose={() => setOpenWeddingDateLookup(false)}
+                initialYear={currentYear}
+                initialMonth={currentMonth + 1}
+            />
         </div>
     );
 }

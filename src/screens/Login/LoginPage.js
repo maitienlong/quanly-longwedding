@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { faUser, faLock, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import './login.css'; // File CSS chúng ta sẽ tạo ở bước 2
 import logo from '../../assets/logo/BETA-1 VANG.png';
@@ -15,7 +15,16 @@ const LoginPage = ({ onLoginSuccess }) => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
     const { login, isLoggedIn } = useAuth();
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        if (searchParams.get('reason') === 'expired') {
+            toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+            navigate('/login', { replace: true });
+        }
+    }, [location, navigate]);
 
     useEffect(() => {
         if (isLoggedIn) navigate('/');

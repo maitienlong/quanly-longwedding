@@ -1,5 +1,6 @@
 // src/api/axiosClient.js
 import axios from "axios";
+import { isTokenExpired, logoutAndRedirect } from "../utils/authUtils";
 
 const axiosClient = axios.create({
   baseURL: process.env.REACT_APP_API_URL,
@@ -8,11 +9,16 @@ const axiosClient = axios.create({
   },
 });
 
-// ✅ Thêm interceptor để tự động gắn token
+// ✅ Thêm interceptor để tự động gắn token & kiểm tra hết hạn
 axiosClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access_token");
     if (token) {
+      if (isTokenExpired(token)) {
+        console.warn("Token expired! Logging out...");
+        logoutAndRedirect("expired");
+        return Promise.reject(new Error("Token expired"));
+      }
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -20,17 +26,18 @@ axiosClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ Xử lý response & lỗi tập trung
+// ✅ Xử lý response & lỗi 401, 403 tập trung
 axiosClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    if (error.response?.status === 401) {
-      // Xử lý logout, refresh token...
-      console.warn("Unauthorized! Redirecting to login...");
-      // window.location.href = "/login";
+    const status = error.response?.status;
+    if (status === 401 || status === 403) {
+      console.warn(`Unauthorized/Forbidden (${status})! Redirecting to login...`);
+      logoutAndRedirect("expired");
     }
     return Promise.reject(error.response?.data || error);
   }
 );
 
 export default axiosClient;
+
