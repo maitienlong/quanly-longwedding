@@ -40,6 +40,13 @@ import Tooltip from '@mui/material/Tooltip';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
+import Chip from '@mui/material/Chip';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faCamera,
+    faWandMagicSparkles,
+    faPrint
+} from '@fortawesome/free-solid-svg-icons';
 
 import { formatLunarDateShort, getDetailedLunarInfo, convertLunarToSolar } from '../../utils/lunarDateUtils';
 import WeddingDateLookupModal from '../../components/WeddingDateLookupModal';
@@ -1310,10 +1317,36 @@ function LichCuaHang() {
                 
                                                     <Grid item xs={4}><Typography variant="body2" color="textSecondary">Liên hệ:</Typography></Grid>
                                                     <Grid item xs={8}>
-                                                        <Typography variant="body2" fontWeight="500">
-                                                            {hd.khachHang1?.soDienThoai}
-                                                            {hd.khachHang2?.soDienThoai && ` / ${hd.khachHang2.soDienThoai}`}
-                                                        </Typography>
+                                                        <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                                                            <Typography variant="body2" fontWeight="500">
+                                                                {hd.khachHang1?.soDienThoai}
+                                                                {hd.khachHang2?.soDienThoai && ` / ${hd.khachHang2.soDienThoai}`}
+                                                            </Typography>
+                                                            {hd.khachHang1?.facebookId && (
+                                                                <a 
+                                                                    href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer" 
+                                                                    style={{ color: '#1877f2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.85rem' }}
+                                                                    title="Mở Facebook Khách hàng 1"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <i className="fa-brands fa-facebook"></i> FB 1
+                                                                </a>
+                                                            )}
+                                                            {hd.khachHang2?.facebookId && (
+                                                                <a 
+                                                                    href={hd.khachHang2.facebookId.startsWith('http') ? hd.khachHang2.facebookId : `https://facebook.com/${hd.khachHang2.facebookId}`} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer" 
+                                                                    style={{ color: '#1877f2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.85rem' }}
+                                                                    title="Mở Facebook Khách hàng 2"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <i className="fa-brands fa-facebook"></i> FB 2
+                                                                </a>
+                                                            )}
+                                                        </Box>
                                                     </Grid>
                 
                                                     <Grid item xs={4}><Typography variant="body2" color="textSecondary">Dịch vụ:</Typography></Grid>
@@ -1601,12 +1634,39 @@ function LichCuaHang() {
 
                                             {/* 5. Số điện thoại */}
                                             <TableCell align='left'>
-                                                {hd.khachHang1?.soDienThoai}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span>{hd.khachHang1?.soDienThoai}</span>
+                                                    {hd.khachHang1?.facebookId && (
+                                                        <a 
+                                                            href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer" 
+                                                            style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                            title="Mở Facebook Khách hàng 1"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <i className="fa-brands fa-facebook"></i>
+                                                        </a>
+                                                    )}
+                                                </div>
                                                 {hd.khachHang2?.soDienThoai && (
                                                     <>
-                                                        <br />
                                                         <hr style={{ opacity: "40%", margin: "4px 0" }} />
-                                                        {hd.khachHang2.soDienThoai}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <span>{hd.khachHang2.soDienThoai}</span>
+                                                            {hd.khachHang2?.facebookId && (
+                                                                <a 
+                                                                    href={hd.khachHang2.facebookId.startsWith('http') ? hd.khachHang2.facebookId : `https://facebook.com/${hd.khachHang2.facebookId}`} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer" 
+                                                                    style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                                    title="Mở Facebook Khách hàng 2"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <i className="fa-brands fa-facebook"></i>
+                                                                </a>
+                                                            )}
+                                                        </div>
                                                     </>
                                                 )}
                                             </TableCell>
@@ -1696,122 +1756,309 @@ function LichCuaHang() {
             />
 
             {/* Dialog Cập nhật lịch chụp hình & Gọi điện xác nhận cho Tab Chụp Hình */}
-            <Dialog open={openChupHinhDialog} onClose={() => setOpenChupHinhDialog(false)} maxWidth="md" fullWidth>
-                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2', paddingBottom: 0 }}>
-                    XÁC NHẬN LỊCH CHỤP HÌNH - HĐ: {selectedChupHinhContract?.maHopDong}
-                    <Tabs 
-                        value={chupHinhTab} 
-                        onChange={(e, val) => setChupHinhTab(val)} 
-                        indicatorColor="primary" 
-                        textColor="primary"
-                        style={{ marginTop: '10px' }}
-                    >
-                        <Tab label="Thông tin" />
-                        <Tab label="Ảnh đồng bộ" />
-                    </Tabs>
-                </DialogTitle>
-                <DialogContent dividers>
-                    {chupHinhTab === 0 && (
-                        <Box display="flex" flexDirection="column" gap={2} mt={1}>
-                            <FormControl fullWidth variant="outlined">
-                            <InputLabel id="confirm-chot-lich-label">Gọi điện xác nhận / Chốt lịch</InputLabel>
-                            <Select
-                                labelId="confirm-chot-lich-label"
-                                value={confirmChotLich}
-                                onChange={(e) => setConfirmChotLich(e.target.value)}
-                                label="Gọi điện xác nhận / Chốt lịch"
+            <Dialog 
+                open={openChupHinhDialog} 
+                onClose={() => setOpenChupHinhDialog(false)} 
+                maxWidth="md" 
+                fullWidth
+                PaperProps={{
+                    style: {
+                        borderRadius: '16px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        overflow: 'hidden'
+                    }
+                }}
+            >
+                {/* Header section with gradient background & customer summary */}
+                <Box 
+                    sx={{ 
+                        p: 2.5, 
+                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', 
+                        color: '#ffffff',
+                        position: 'relative'
+                    }}
+                >
+                    <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1.5}>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                            <Box 
+                                sx={{ 
+                                    width: 44, 
+                                    height: 44, 
+                                    borderRadius: '12px', 
+                                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    color: '#ffffff',
+                                    fontSize: '1.25rem',
+                                    boxShadow: '0 4px 12px rgba(37,99,235,0.4)'
+                                }}
                             >
-                                <MenuItem value="Chưa gọi điện">Chưa gọi điện</MenuItem>
-                                <MenuItem value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</MenuItem>
-                                <MenuItem value="Đã chốt lịch">Đã chốt lịch</MenuItem>
-                            </Select>
-                        </FormControl>
+                                <FontAwesomeIcon icon={faCamera} />
+                            </Box>
+                            <Box>
+                                <Typography variant="h6" style={{ fontWeight: 700, fontSize: '1.1rem', letterSpacing: '-0.2px', color: '#ffffff' }}>
+                                    XÁC NHẬN LỊCH CHỤP HÌNH
+                                </Typography>
+                                <Typography variant="caption" style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                                    Cập nhật thông tin chốt lịch, phân công thợ & đồng bộ ảnh
+                                </Typography>
+                            </Box>
+                        </Box>
 
-                        <FormControl fullWidth variant="outlined">
-                            <InputLabel id="confirm-tho-chup-label">Thợ chụp hình</InputLabel>
-                            <Select
-                                labelId="confirm-tho-chup-label"
-                                value={confirmThoChupHinh}
-                                onChange={(e) => setConfirmThoChupHinh(e.target.value)}
-                                label="Thợ chụp hình"
-                            >
-                                <MenuItem value="">Chưa phân công</MenuItem>
-                                {(() => {
-                                    const staff = listStaff.filter(s => s.positon === 'Thợ chụp hình');
-                                    const names = staff.map(s => s.fullname || s.username);
-                                    if (confirmThoChupHinh && !names.includes(confirmThoChupHinh)) {
-                                        names.push(confirmThoChupHinh);
-                                    }
-                                    return names.map((name, i) => (
-                                        <MenuItem key={i} value={name}>{name}</MenuItem>
-                                    ));
-                                })()}
-                            </Select>
-                        </FormControl>
-
-                        <FormControl fullWidth variant="outlined">
-                            <InputLabel id="confirm-tho-makeup-label">Thợ makeup</InputLabel>
-                            <Select
-                                labelId="confirm-tho-makeup-label"
-                                value={confirmThoMakeUp}
-                                onChange={(e) => setConfirmThoMakeUp(e.target.value)}
-                                label="Thợ makeup"
-                            >
-                                <MenuItem value="">Chưa phân công</MenuItem>
-                                {(() => {
-                                    const staff = listStaff.filter(s => s.positon === 'Thợ trang điểm');
-                                    const names = staff.map(s => s.fullname || s.username);
-                                    if (confirmThoMakeUp && !names.includes(confirmThoMakeUp)) {
-                                        names.push(confirmThoMakeUp);
-                                    }
-                                    return names.map((name, i) => (
-                                        <MenuItem key={i} value={name}>{name}</MenuItem>
-                                    ));
-                                })()}
-                            </Select>
-                        </FormControl>
-
-                        <TextField
-                            label="Địa điểm chụp"
-                            variant="outlined"
-                            fullWidth
-                            value={confirmDiaDiem}
-                            onChange={(e) => setConfirmDiaDiem(e.target.value)}
-                        />
-
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <TextField
-                                label="Đường dẫn ảnh gốc (Google Drive / Photos)"
-                                variant="outlined"
-                                fullWidth
-                                value={confirmLinkAnh}
-                                onChange={(e) => setConfirmLinkAnh(e.target.value)}
-                                placeholder="Google Drive hoặc Google Photos link..."
+                        <Box display="flex" alignItems="center" gap={1}>
+                            <Chip 
+                                label={`Mã HĐ: ${selectedChupHinhContract?.maHopDong || ''}`} 
+                                sx={{ 
+                                    bgcolor: 'rgba(255,255,255,0.12)', 
+                                    color: '#38bdf8', 
+                                    fontWeight: 700, 
+                                    fontSize: '0.82rem',
+                                    border: '1px solid rgba(56,189,248,0.3)'
+                                }} 
                             />
-                            <Button 
-                                variant="contained" 
-                                color="primary" 
-                                onClick={handleSyncAlbum}
-                                disabled={isSyncingAlbum || !selectedChupHinhContract}
-                                style={{ minWidth: '150px' }}
-                            >
-                                {isSyncingAlbum ? "Đang đồng bộ..." : "Đồng bộ ảnh KH"}
-                            </Button>
-                        </div>
+                        </Box>
                     </Box>
+
+                    {/* Customer Quick Summary Bar */}
+                    {selectedChupHinhContract && (
+                        <Box 
+                            mt={2} 
+                            p={1.5} 
+                            borderRadius="10px" 
+                            sx={{ 
+                                backgroundColor: 'rgba(255,255,255,0.06)', 
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 2.5,
+                                fontSize: '0.8rem',
+                                color: '#cbd5e1'
+                            }}
+                        >
+                            <Box display="flex" alignItems="center" gap={0.8}>
+                                <span style={{ color: '#60a5fa' }}>👤</span>
+                                <span>Khách hàng: <strong style={{ color: '#ffffff' }}>{selectedChupHinhContract.khachHang1?.tenKhachHang || 'Khách hàng'}</strong></span>
+                            </Box>
+                            {selectedChupHinhContract.khachHang1?.soDienThoai && (
+                                <Box display="flex" alignItems="center" gap={0.8}>
+                                    <span style={{ color: '#4ade80' }}>📞</span>
+                                    <span>SĐT: <strong style={{ color: '#ffffff' }}>{selectedChupHinhContract.khachHang1.soDienThoai}</strong></span>
+                                    {selectedChupHinhContract.khachHang1?.facebookId && (
+                                        <a 
+                                            href={selectedChupHinhContract.khachHang1.facebookId.startsWith('http') ? selectedChupHinhContract.khachHang1.facebookId : `https://facebook.com/${selectedChupHinhContract.khachHang1.facebookId}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{ color: '#38bdf8', textDecoration: 'none', marginLeft: '6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                            title="Mở Facebook Khách hàng"
+                                        >
+                                            <i className="fa-brands fa-facebook"></i> Facebook
+                                        </a>
+                                    )}
+                                </Box>
+                            )}
+                            {selectedChupHinhContract.cacNgay?.ngayChup && (
+                                <Box display="flex" alignItems="center" gap={0.8}>
+                                    <span style={{ color: '#facc15' }}>📅</span>
+                                    <span>Ngày chụp: <strong style={{ color: '#ffffff' }}>{formatDateOnly(selectedChupHinhContract.cacNgay.ngayChup)}</strong></span>
+                                </Box>
+                            )}
+                        </Box>
+                    )}
+
+                    {/* Custom Segmented Tabs */}
+                    <Box mt={2}>
+                        <Tabs 
+                            value={chupHinhTab} 
+                            onChange={(e, val) => setChupHinhTab(val)} 
+                            sx={{
+                                minHeight: '36px',
+                                '& .MuiTabs-indicator': {
+                                    backgroundColor: '#38bdf8',
+                                    height: '3px',
+                                    borderRadius: '3px'
+                                },
+                                '& .MuiTab-root': {
+                                    color: '#94a3b8',
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    fontSize: '0.85rem',
+                                    minHeight: '36px',
+                                    padding: '6px 16px',
+                                    '&.Mui-selected': {
+                                        color: '#ffffff',
+                                        fontWeight: 700
+                                    }
+                                }
+                            }}
+                        >
+                            <Tab label="📋 Thông tin xác nhận" />
+                            <Tab label="📷 Ảnh đồng bộ" />
+                        </Tabs>
+                    </Box>
+                </Box>
+
+                <DialogContent dividers sx={{ p: 3, bgcolor: '#f8fafc' }}>
+                    {chupHinhTab === 0 && (
+                        <Box display="flex" flexDirection="column" gap={2.5}>
+                            {/* Section 1: Phân công & Chốt lịch */}
+                            <Box p={2.5} borderRadius="12px" bgcolor="#ffffff" boxShadow="0 1px 3px rgba(0,0,0,0.05)" border="1px solid #e2e8f0">
+                                <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#1e293b', marginBottom: '16px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ color: '#2563eb' }}>👥</span> Trạng thái xác nhận & Phân công nhân sự
+                                </Typography>
+
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} sm={6}>
+                                        <FormControl fullWidth size="small">
+                                            <InputLabel id="confirm-chot-lich-label">Gọi điện xác nhận / Chốt lịch</InputLabel>
+                                            <Select
+                                                labelId="confirm-chot-lich-label"
+                                                value={confirmChotLich}
+                                                onChange={(e) => setConfirmChotLich(e.target.value)}
+                                                label="Gọi điện xác nhận / Chốt lịch"
+                                                sx={{ borderRadius: '8px' }}
+                                            >
+                                                <MenuItem value="Chưa gọi điện">
+                                                    <Box display="flex" alignItems="center" gap={1}>
+                                                        <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+                                                        <span>Chưa gọi điện</span>
+                                                    </Box>
+                                                </MenuItem>
+                                                <MenuItem value="Đã gọi điện xác nhận">
+                                                    <Box display="flex" alignItems="center" gap={1}>
+                                                        <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#3b82f6' }} />
+                                                        <span>Đã gọi điện xác nhận</span>
+                                                    </Box>
+                                                </MenuItem>
+                                                <MenuItem value="Đã chốt lịch">
+                                                    <Box display="flex" alignItems="center" gap={1}>
+                                                        <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10b981' }} />
+                                                        <span style={{ fontWeight: 600, color: '#059669' }}>Đã chốt lịch</span>
+                                                    </Box>
+                                                </MenuItem>
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
+
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            label="Địa điểm chụp"
+                                            variant="outlined"
+                                            fullWidth
+                                            size="small"
+                                            value={confirmDiaDiem}
+                                            onChange={(e) => setConfirmDiaDiem(e.target.value)}
+                                            placeholder="Ví dụ: Studio Long Wedding, Phim trường..."
+                                            InputProps={{ style: { borderRadius: '8px' } }}
+                                        />
+                                    </Grid>
+
+                                    <Grid item xs={12} sm={6}>
+                                        <FormControl fullWidth size="small">
+                                            <InputLabel id="confirm-tho-chup-label">Thợ chụp hình (Photo)</InputLabel>
+                                            <Select
+                                                labelId="confirm-tho-chup-label"
+                                                value={confirmThoChupHinh}
+                                                onChange={(e) => setConfirmThoChupHinh(e.target.value)}
+                                                label="Thợ chụp hình (Photo)"
+                                                sx={{ borderRadius: '8px' }}
+                                            >
+                                                <MenuItem value=""><em>-- Chưa phân công --</em></MenuItem>
+                                                {(() => {
+                                                    const staff = listStaff.filter(s => s.positon === 'Thợ chụp hình');
+                                                    const names = staff.map(s => s.fullname || s.username);
+                                                    if (confirmThoChupHinh && !names.includes(confirmThoChupHinh)) {
+                                                        names.push(confirmThoChupHinh);
+                                                    }
+                                                    return names.map((name, i) => (
+                                                        <MenuItem key={i} value={name}>📸 {name}</MenuItem>
+                                                    ));
+                                                })()}
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
+
+                                    <Grid item xs={12} sm={6}>
+                                        <FormControl fullWidth size="small">
+                                            <InputLabel id="confirm-tho-makeup-label">Thợ makeup (Trang điểm)</InputLabel>
+                                            <Select
+                                                labelId="confirm-tho-makeup-label"
+                                                value={confirmThoMakeUp}
+                                                onChange={(e) => setConfirmThoMakeUp(e.target.value)}
+                                                label="Thợ makeup (Trang điểm)"
+                                                sx={{ borderRadius: '8px' }}
+                                            >
+                                                <MenuItem value=""><em>-- Chưa phân công --</em></MenuItem>
+                                                {(() => {
+                                                    const staff = listStaff.filter(s => s.positon === 'Thợ trang điểm');
+                                                    const names = staff.map(s => s.fullname || s.username);
+                                                    if (confirmThoMakeUp && !names.includes(confirmThoMakeUp)) {
+                                                        names.push(confirmThoMakeUp);
+                                                    }
+                                                    return names.map((name, i) => (
+                                                        <MenuItem key={i} value={name}>💄 {name}</MenuItem>
+                                                    ));
+                                                })()}
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
+                                </Grid>
+                            </Box>
+
+                            {/* Section 2: Link Drive & Đồng bộ */}
+                            <Box p={2.5} borderRadius="12px" bgcolor="#ffffff" boxShadow="0 1px 3px rgba(0,0,0,0.05)" border="1px solid #e2e8f0">
+                                <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#1e293b', marginBottom: '12px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ color: '#0284c7' }}>☁️</span> Đường dẫn ảnh gốc (Google Drive / Photos)
+                                </Typography>
+
+                                <Box display="flex" gap={1.5} alignItems="center" flexWrap="wrap">
+                                    <TextField
+                                        label="Đường dẫn ảnh gốc"
+                                        variant="outlined"
+                                        fullWidth
+                                        size="small"
+                                        value={confirmLinkAnh}
+                                        onChange={(e) => setConfirmLinkAnh(e.target.value)}
+                                        placeholder="https://drive.google.com/drive/folders/..."
+                                        InputProps={{ style: { borderRadius: '8px' } }}
+                                        sx={{ flex: 1, minWidth: '240px' }}
+                                    />
+                                    <Button 
+                                        variant="contained" 
+                                        onClick={handleSyncAlbum}
+                                        disabled={isSyncingAlbum || !selectedChupHinhContract}
+                                        sx={{ 
+                                            borderRadius: '8px',
+                                            textTransform: 'none', 
+                                            fontWeight: 700, 
+                                            fontSize: '0.82rem',
+                                            padding: '8px 18px',
+                                            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                            boxShadow: '0 2px 6px rgba(37,99,235,0.3)',
+                                            whiteSpace: 'nowrap',
+                                            '&:hover': {
+                                                background: 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)'
+                                            }
+                                        }}
+                                    >
+                                        {isSyncingAlbum ? "Đang đồng bộ..." : "⚡ Đồng bộ ảnh KH"}
+                                    </Button>
+                                </Box>
+                            </Box>
+                        </Box>
                     )}
                     
                     {chupHinhTab === 1 && (
                         <Box mt={1}>
                             {!albumData || !albumData.danhSachAnh || albumData.danhSachAnh.length === 0 ? (
-                                <Typography color="textSecondary" align="center" style={{ padding: '20px' }}>
-                                    Chưa có ảnh nào được đồng bộ. Vui lòng sang tab Thông tin để thực hiện đồng bộ.
+                                <Typography color="textSecondary" align="center" style={{ padding: '40px 20px', fontSize: '0.9rem' }}>
+                                    Chưa có ảnh nào được đồng bộ. Vui lòng sang tab <strong>Thông tin xác nhận</strong> để thực hiện đồng bộ.
                                 </Typography>
                             ) : (
                                 <>
-                                    <Box sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
-                                        <Typography variant="subtitle2" style={{ fontWeight: 'bold', marginBottom: '8px', color: '#1976d2' }}>
-                                            CÀI ĐẶT CHỌN ẢNH CHO KHÁCH HÀNG
+                                    <Box sx={{ mb: 3, p: 2.5, border: '1px solid #e2e8f0', borderRadius: '12px', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                        <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: '12px', color: '#1e293b', fontSize: '0.88rem' }}>
+                                            ⚙️ CÀI ĐẶT CHỌN ẢNH CHO KHÁCH HÀNG
                                         </Typography>
                                         
                                         <Box display="flex" alignItems="center" flexWrap="wrap" gap={2}>
@@ -1823,7 +2070,7 @@ function LichCuaHang() {
                                                         color="primary"
                                                     />
                                                 }
-                                                label="Giới hạn số lượng ảnh khách chọn"
+                                                label={<Typography variant="body2" style={{ fontWeight: 600, fontSize: '0.85rem' }}>Giới hạn số lượng ảnh khách chọn</Typography>}
                                             />
                                             
                                             {coGioiHanAnh && (
@@ -1833,8 +2080,8 @@ function LichCuaHang() {
                                                     size="small"
                                                     value={soLuongAnhGioiHan}
                                                     onChange={(e) => setSoLuongAnhGioiHan(e.target.value)}
-                                                    InputProps={{ inputProps: { min: 1 } }}
-                                                    style={{ width: '150px' }}
+                                                    InputProps={{ inputProps: { min: 1 }, style: { borderRadius: '8px' } }}
+                                                    style={{ width: '140px' }}
                                                 />
                                             )}
 
@@ -1843,12 +2090,13 @@ function LichCuaHang() {
                                                 size="small" 
                                                 color="primary" 
                                                 onClick={handleSaveAlbumSettings}
+                                                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                                             >
                                                 Lưu Cài Đặt
                                             </Button>
                                         </Box>
 
-                                        <Box mt={2} p={1.5} borderRadius="4px" bgcolor={khachHangXacNhan ? '#e8f5e9' : '#fff3e0'}>
+                                        <Box mt={2} p={1.5} borderRadius="8px" bgcolor={khachHangXacNhan ? '#f0fdf4' : '#fffbe6'} border={khachHangXacNhan ? '1px solid #bbf7d0' : '1px solid #ffe58f'}>
                                             <FormControlLabel
                                                 control={
                                                     <Switch
@@ -1858,24 +2106,24 @@ function LichCuaHang() {
                                                     />
                                                 }
                                                 label={
-                                                    <Typography variant="body2" style={{ fontWeight: 'bold', color: khachHangXacNhan ? '#2e7d32' : '#ed6c02' }}>
+                                                    <Typography variant="body2" style={{ fontWeight: 700, color: khachHangXacNhan ? '#166534' : '#d97706' }}>
                                                         Khóa album (Khách hàng đã chọn ảnh xong)
                                                     </Typography>
                                                 }
                                             />
-                                            <Typography variant="caption" display="block" style={{ color: '#666', marginTop: '4px' }}>
+                                            <Typography variant="caption" display="block" style={{ color: '#64748b', marginTop: '2px' }}>
                                                 Khi bật công tắc này, khách hàng sẽ không thể chọn thêm hay bỏ chọn ảnh trên website.
                                             </Typography>
                                         </Box>
                                     </Box>
 
-                                    <Typography variant="subtitle1" gutterBottom style={{ fontWeight: 'bold' }}>
-                                        Tổng số ảnh gốc: {albumData.danhSachAnh.length}
+                                    <Typography variant="subtitle1" gutterBottom style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.92rem' }}>
+                                        📷 Tổng số ảnh gốc: {albumData.danhSachAnh.length}
                                     </Typography>
-                                    <Box sx={{ width: '100%', columnCount: 3, columnGap: '16px', mt: 2 }}>
+                                    <Box sx={{ width: '100%', columnCount: { xs: 2, sm: 3 }, columnGap: '16px', mt: 2 }}>
                                         {albumData.danhSachAnh.map((item) => (
                                             <Box key={item.idDrive} sx={{ mb: '16px', breakInside: 'avoid' }}>
-                                                <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+                                                <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.08)' }}>
                                                     <img
                                                         src={`${item.urlNen}`}
                                                         alt={item.tenFile}
@@ -1890,7 +2138,7 @@ function LichCuaHang() {
                                                         padding: '20px 12px 10px',
                                                         background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
                                                         color: 'white',
-                                                        fontSize: '0.8rem',
+                                                        fontSize: '0.78rem',
                                                         fontWeight: '500',
                                                         whiteSpace: 'nowrap',
                                                         overflow: 'hidden',
@@ -1907,199 +2155,374 @@ function LichCuaHang() {
                         </Box>
                     )}
                 </DialogContent>
-                <DialogActions style={{ padding: '16px 24px' }}>
-                    <Button onClick={() => setOpenChupHinhDialog(false)} color="inherit">
-                        Hủy
+
+                <DialogActions sx={{ p: '14px 24px', bgcolor: '#ffffff', borderTop: '1px solid #e2e8f0', justifyContent: 'space-between' }}>
+                    <Button 
+                        onClick={() => setOpenChupHinhDialog(false)} 
+                        sx={{ color: '#64748b', fontWeight: 600, textTransform: 'none', fontSize: '0.85rem' }}
+                    >
+                        Hủy bỏ
                     </Button>
-                    <Button onClick={() => handleUpdateChupHinh(false)} variant="outlined" color="primary">
-                        Cập nhật
-                    </Button>
-                    <Button onClick={() => handleUpdateChupHinh(true)} variant="contained" color="success">
-                        Chuyển sang hậu kỳ
-                    </Button>
+                    <Box display="flex" gap={1.5}>
+                        <Button 
+                            onClick={() => handleUpdateChupHinh(false)} 
+                            variant="outlined" 
+                            sx={{ 
+                                borderRadius: '8px', 
+                                textTransform: 'none', 
+                                fontWeight: 600, 
+                                fontSize: '0.85rem',
+                                borderColor: '#cbd5e1',
+                                color: '#334155',
+                                '&:hover': { borderColor: '#94a3b8', bgcolor: '#f8fafc' }
+                            }}
+                        >
+                            Cập nhật thông tin
+                        </Button>
+                        <Button 
+                            onClick={() => handleUpdateChupHinh(true)} 
+                            variant="contained" 
+                            sx={{ 
+                                borderRadius: '8px', 
+                                textTransform: 'none', 
+                                fontWeight: 700, 
+                                fontSize: '0.85rem',
+                                padding: '6px 20px',
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                boxShadow: '0 4px 10px rgba(16,185,129,0.3)',
+                                '&:hover': { background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }
+                            }}
+                        >
+                            Chuyển sang hậu kỳ ➔
+                        </Button>
+                    </Box>
                 </DialogActions>
             </Dialog>
 
             {/* Dialog Cập nhật lịch hậu kỳ cho Tab Hậu Kỳ */}
-            <Dialog open={openHauKyDialog} onClose={() => setOpenHauKyDialog(false)} maxWidth="md" fullWidth PaperProps={{ style: { maxWidth: '780px' } }}>
-                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2', textTransform: 'uppercase' }}>
-                    CHI TIẾT HẬU KỲ - HĐ: {selectedHauKyContract?.maHopDong} - {selectedHauKyContract?.khachHang1?.tenKhachHang}
-                </DialogTitle>
-                <DialogContent dividers>
-                    <Box display="flex" flexDirection="column" gap={2} mt={1}>
-                        <FormControl fullWidth variant="outlined">
-                            <InputLabel id="confirm-tho-chinh-anh-label">Thợ chỉnh ảnh</InputLabel>
-                            <Select
-                                labelId="confirm-tho-chinh-anh-label"
-                                value={confirmThoChinhAnh}
-                                onChange={(e) => setConfirmThoChinhAnh(e.target.value)}
-                                label="Thợ chỉnh ảnh"
+            <Dialog 
+                open={openHauKyDialog} 
+                onClose={() => setOpenHauKyDialog(false)} 
+                maxWidth="md" 
+                fullWidth 
+                PaperProps={{ 
+                    style: { 
+                        maxWidth: '820px',
+                        borderRadius: '16px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        overflow: 'hidden'
+                    } 
+                }}
+            >
+                {/* Header section with gradient background */}
+                <Box 
+                    sx={{ 
+                        p: 2.5, 
+                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', 
+                        color: '#ffffff'
+                    }}
+                >
+                    <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1.5}>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                            <Box 
+                                sx={{ 
+                                    width: 44, 
+                                    height: 44, 
+                                    borderRadius: '12px', 
+                                    background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    color: '#ffffff',
+                                    fontSize: '1.25rem',
+                                    boxShadow: '0 4px 12px rgba(139,92,246,0.4)'
+                                }}
                             >
-                                <MenuItem value="">Chưa phân công</MenuItem>
-                                {(() => {
-                                    const staff = listStaff.filter(s => s.positon === 'Thợ chỉnh ảnh');
-                                    const names = staff.map(s => s.fullname || s.username);
-                                    if (confirmThoChinhAnh && !names.includes(confirmThoChinhAnh)) {
-                                        names.push(confirmThoChinhAnh);
-                                    }
-                                    return names.map((name, i) => (
-                                        <MenuItem key={i} value={name}>{name}</MenuItem>
-                                    ));
-                                })()}
-                            </Select>
-                        </FormControl>
+                                <FontAwesomeIcon icon={faWandMagicSparkles} />
+                            </Box>
+                            <Box>
+                                <Typography variant="h6" style={{ fontWeight: 700, fontSize: '1.1rem', letterSpacing: '-0.2px', color: '#ffffff' }}>
+                                    CHI TIẾT TIẾN TRÌNH HẬU KỲ
+                                </Typography>
+                                <Typography variant="caption" style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                                    Quản lý thợ chỉnh sửa, ngày trả ảnh & đồng bộ file hậu kỳ
+                                </Typography>
+                            </Box>
+                        </Box>
 
-                        <TextField
-                            label="Ngày bắt đầu hậu kỳ"
-                            type="date"
-                            variant="outlined"
-                            fullWidth
-                            value={confirmNgayChinhAnh}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                setConfirmNgayChinhAnh(val);
-                                if (val && !confirmNgayTraAnh) {
-                                    const d = new Date(val);
-                                    d.setDate(d.getDate() + 3);
-                                    const year = d.getFullYear();
-                                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                                    const day = String(d.getDate()).padStart(2, '0');
-                                    setConfirmNgayTraAnh(`${year}-${month}-${day}`);
-                                }
+                        <Chip 
+                            label={`Mã HĐ: ${selectedHauKyContract?.maHopDong || ''}`} 
+                            sx={{ 
+                                bgcolor: 'rgba(255,255,255,0.12)', 
+                                color: '#c084fc', 
+                                fontWeight: 700, 
+                                fontSize: '0.82rem',
+                                border: '1px solid rgba(192,132,252,0.3)'
+                            }} 
+                        />
+                    </Box>
+
+                    {/* Customer Quick Summary Bar */}
+                    {selectedHauKyContract && (
+                        <Box 
+                            mt={2} 
+                            p={1.5} 
+                            borderRadius="10px" 
+                            sx={{ 
+                                backgroundColor: 'rgba(255,255,255,0.06)', 
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 2.5,
+                                fontSize: '0.8rem',
+                                color: '#cbd5e1'
                             }}
-                            InputLabelProps={{ shrink: true }}
-                        />
+                        >
+                            <Box display="flex" alignItems="center" gap={0.8}>
+                                <span style={{ color: '#60a5fa' }}>👤</span>
+                                <span>Khách hàng: <strong style={{ color: '#ffffff' }}>{selectedHauKyContract.khachHang1?.tenKhachHang || 'Khách hàng'}</strong></span>
+                            </Box>
+                            {selectedHauKyContract.khachHang1?.soDienThoai && (
+                                <Box display="flex" alignItems="center" gap={0.8}>
+                                    <span style={{ color: '#4ade80' }}>📞</span>
+                                    <span>SĐT: <strong style={{ color: '#ffffff' }}>{selectedHauKyContract.khachHang1.soDienThoai}</strong></span>
+                                    {selectedHauKyContract.khachHang1?.facebookId && (
+                                        <a 
+                                            href={selectedHauKyContract.khachHang1.facebookId.startsWith('http') ? selectedHauKyContract.khachHang1.facebookId : `https://facebook.com/${selectedHauKyContract.khachHang1.facebookId}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{ color: '#c084fc', textDecoration: 'none', marginLeft: '6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                            title="Mở Facebook Khách hàng"
+                                        >
+                                            <i className="fa-brands fa-facebook"></i> Facebook
+                                        </a>
+                                    )}
+                                </Box>
+                            )}
+                        </Box>
+                    )}
+                </Box>
 
-                        <TextField
-                            label="Ngày trả ảnh"
-                            type="date"
-                            variant="outlined"
-                            fullWidth
-                            value={confirmNgayTraAnh}
-                            onChange={(e) => setConfirmNgayTraAnh(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                        />
-
-                        <Box mt={2}>
-                            <Typography variant="subtitle2" style={{ fontWeight: 'bold', color: '#1976d2', marginBottom: '8px' }}>
-                                ĐỒNG BỘ ẢNH (GỐC & CHỈNH SỬA)
+                <DialogContent dividers sx={{ p: 3, bgcolor: '#f8fafc' }}>
+                    <Box display="flex" flexDirection="column" gap={2.5}>
+                        {/* Section 1: Phân công & Lịch hậu kỳ */}
+                        <Box p={2.5} borderRadius="12px" bgcolor="#ffffff" boxShadow="0 1px 3px rgba(0,0,0,0.05)" border="1px solid #e2e8f0">
+                            <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#1e293b', marginBottom: '16px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ color: '#7c3aed' }}>🎨</span> Phân công nhân sự & Thời gian trả ảnh
                             </Typography>
-                            <Box display="flex" flexDirection="column" gap={2} p={2} border="1px solid #e0e0e0" borderRadius="8px" bgcolor="#fcfcfc">
-                                <Box display="flex" gap={1}>
+
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={4}>
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel id="confirm-tho-chinh-anh-label">Thợ chỉnh ảnh</InputLabel>
+                                        <Select
+                                            labelId="confirm-tho-chinh-anh-label"
+                                            value={confirmThoChinhAnh}
+                                            onChange={(e) => setConfirmThoChinhAnh(e.target.value)}
+                                            label="Thợ chỉnh ảnh"
+                                            sx={{ borderRadius: '8px' }}
+                                        >
+                                            <MenuItem value=""><em>-- Chưa phân công --</em></MenuItem>
+                                            {(() => {
+                                                const staff = listStaff.filter(s => s.positon === 'Thợ chỉnh ảnh');
+                                                const names = staff.map(s => s.fullname || s.username);
+                                                if (confirmThoChinhAnh && !names.includes(confirmThoChinhAnh)) {
+                                                    names.push(confirmThoChinhAnh);
+                                                }
+                                                return names.map((name, i) => (
+                                                    <MenuItem key={i} value={name}>🎨 {name}</MenuItem>
+                                                ));
+                                            })()}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+
+                                <Grid item xs={12} sm={4}>
                                     <TextField
-                                        label="Đường dẫn ảnh gốc (Google Drive / Photos)"
+                                        label="Ngày bắt đầu hậu kỳ"
+                                        type="date"
                                         variant="outlined"
                                         fullWidth
+                                        size="small"
+                                        value={confirmNgayChinhAnh}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setConfirmNgayChinhAnh(val);
+                                            if (val && !confirmNgayTraAnh) {
+                                                const d = new Date(val);
+                                                d.setDate(d.getDate() + 3);
+                                                const year = d.getFullYear();
+                                                const month = String(d.getMonth() + 1).padStart(2, '0');
+                                                const day = String(d.getDate()).padStart(2, '0');
+                                                setConfirmNgayTraAnh(`${year}-${month}-${day}`);
+                                            }
+                                        }}
+                                        InputLabelProps={{ shrink: true }}
+                                        InputProps={{ style: { borderRadius: '8px' } }}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={4}>
+                                    <TextField
+                                        label="Ngày trả ảnh"
+                                        type="date"
+                                        variant="outlined"
+                                        fullWidth
+                                        size="small"
+                                        value={confirmNgayTraAnh}
+                                        onChange={(e) => setConfirmNgayTraAnh(e.target.value)}
+                                        InputLabelProps={{ shrink: true }}
+                                        InputProps={{ style: { borderRadius: '8px' } }}
+                                    />
+                                </Grid>
+                            </Grid>
+                        </Box>
+
+                        {/* Section 2: Đường dẫn Drive & Đồng bộ */}
+                        <Box p={2.5} borderRadius="12px" bgcolor="#ffffff" boxShadow="0 1px 3px rgba(0,0,0,0.05)" border="1px solid #e2e8f0">
+                            <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#1e293b', marginBottom: '16px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ color: '#0284c7' }}>☁️</span> Đường dẫn ảnh Google Drive / Photos
+                            </Typography>
+
+                            <Box display="flex" flexDirection="column" gap={2}>
+                                <Box display="flex" gap={1.5} alignItems="center" flexWrap="wrap">
+                                    <TextField
+                                        label="Đường dẫn ảnh gốc"
+                                        variant="outlined"
+                                        fullWidth
+                                        size="small"
                                         value={confirmLinkAnh}
                                         onChange={(e) => setConfirmLinkAnh(e.target.value)}
                                         placeholder="Google Drive hoặc Google Photos link..."
-                                        size="small"
+                                        InputProps={{ style: { borderRadius: '8px' } }}
+                                        sx={{ flex: 1, minWidth: '240px' }}
                                     />
                                     <Button 
                                         variant="contained" 
                                         color="primary" 
                                         onClick={() => handleSyncAlbum(confirmLinkAnh, false)}
                                         disabled={isSyncingAlbum || !selectedHauKyContract}
-                                        style={{ minWidth: '150px' }}
+                                        sx={{ 
+                                            borderRadius: '8px', 
+                                            textTransform: 'none', 
+                                            fontWeight: 700, 
+                                            fontSize: '0.82rem',
+                                            padding: '8px 18px',
+                                            whiteSpace: 'nowrap'
+                                        }}
                                     >
-                                        {isSyncingAlbum ? "Đang đồng bộ..." : "Đồng bộ ảnh KH"}
+                                        {isSyncingAlbum ? "Đang đồng bộ..." : "⚡ Đồng bộ ảnh KH"}
                                     </Button>
                                 </Box>
 
-                                <Box display="flex" gap={1}>
+                                <Box display="flex" gap={1.5} alignItems="center" flexWrap="wrap">
                                     <TextField
-                                        label="Đường dẫn ảnh chỉnh sửa (Google Drive / Photos)"
+                                        label="Đường dẫn ảnh chỉnh sửa"
                                         variant="outlined"
                                         fullWidth
+                                        size="small"
                                         value={confirmLinkAnhChinhSua}
                                         onChange={(e) => setConfirmLinkAnhChinhSua(e.target.value)}
                                         placeholder="Google Drive hoặc Google Photos link..."
-                                        size="small"
+                                        InputProps={{ style: { borderRadius: '8px' } }}
+                                        sx={{ flex: 1, minWidth: '240px' }}
                                     />
                                     <Button 
                                         variant="contained" 
                                         color="secondary" 
                                         onClick={() => handleSyncAlbum(confirmLinkAnhChinhSua, true)}
                                         disabled={isSyncingAlbumChinhSua || !selectedHauKyContract}
-                                        style={{ minWidth: '150px' }}
+                                        sx={{ 
+                                            borderRadius: '8px', 
+                                            textTransform: 'none', 
+                                            fontWeight: 700, 
+                                            fontSize: '0.82rem',
+                                            padding: '8px 18px',
+                                            whiteSpace: 'nowrap'
+                                        }}
                                     >
-                                        {isSyncingAlbumChinhSua ? "Đang đồng bộ..." : "Đồng bộ ảnh C.Sửa"}
+                                        {isSyncingAlbumChinhSua ? "Đang đồng bộ..." : "⚡ Đồng bộ ảnh C.Sửa"}
                                     </Button>
                                 </Box>
                             </Box>
                         </Box>
 
+                        {/* Section 3: Thông tin Album */}
                         {albumData && (
-                            <Box mt={1} p={2} border="1px solid #ddd" borderRadius="4px" bgcolor="#f9f9f9">
-                                <Typography variant="subtitle2" style={{ fontWeight: 'bold', marginBottom: '8px', color: '#1976d2' }}>
-                                    THÔNG TIN ALBUM
+                            <Box p={2.5} borderRadius="12px" bgcolor="#ffffff" boxShadow="0 1px 3px rgba(0,0,0,0.05)" border="1px solid #e2e8f0">
+                                <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: '12px', color: '#1e293b', fontSize: '0.88rem' }}>
+                                    📷 THÔNG TIN ALBUM & KHÓA CHỌN ẢNH
                                 </Typography>
-                                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', fontSize: '0.85rem' }}>
-                                    <div>
+
+                                <Box display="flex" gap={2} flexWrap="wrap" fontSize="0.85rem" mb={2}>
+                                    <Box p={1.2} bgcolor="#f8fafc" border="1px solid #e2e8f0" borderRadius="8px">
                                         <b>ĐB ảnh gốc: </b> 
-                                        <span style={{ color: albumData.trangThai === 'Hoàn thành' ? 'green' : 'orange' }}>{albumData.trangThai}</span>
-                                    </div>
-                                    <div>
+                                        <span style={{ color: albumData.trangThai === 'Hoàn thành' ? '#059669' : '#d97706', fontWeight: 700 }}>{albumData.trangThai}</span>
+                                    </Box>
+                                    <Box p={1.2} bgcolor="#f8fafc" border="1px solid #e2e8f0" borderRadius="8px">
                                         <b>ĐB ảnh C.Sửa: </b> 
-                                        <span style={{ color: albumData.trangThaiChinhSua === 'Hoàn thành' ? 'green' : 'orange' }}>{albumData.trangThaiChinhSua || 'Chưa đồng bộ'}</span>
-                                    </div>
-                                    <div><b>Số ảnh gốc:</b> {albumData.danhSachAnh?.length || 0}</div>
-                                    <div><b style={{ color: '#d32f2f' }}>Đã tim:</b> {albumData.danhSachAnh?.filter(a => a.isHearted).length || 0}</div>
-                                    <div><b>Ảnh chỉnh sửa:</b> {albumData.danhSachAnhChinhSua?.length || 0}</div>
-                                </div>
-
-                                <Button
-                                    variant="contained"
-                                    color="secondary"
-                                    size="small"
-                                    style={{ marginTop: '10px', textTransform: 'none', fontWeight: 'bold' }}
-                                    onClick={() => setOpenLocAnhDialog(true)}
-                                >
-                                    💻 Lọc ảnh trên máy tính
-                                </Button>
-
-                                <Box mt={2} p={1.5} borderRadius="4px" bgcolor={khachHangXacNhan ? '#e8f5e9' : '#fff3e0'}>
-                                    <FormControlLabel
-                                        control={
-                                            <Switch
-                                                checked={khachHangXacNhan}
-                                                onChange={(e) => setKhachHangXacNhan(e.target.checked)}
-                                                color={khachHangXacNhan ? "success" : "warning"}
-                                            />
-                                        }
-                                        label={
-                                            <Typography variant="body2" style={{ fontWeight: 'bold', color: khachHangXacNhan ? '#2e7d32' : '#ed6c02' }}>
-                                                Khóa album (Khách hàng đã chọn ảnh xong)
-                                            </Typography>
-                                        }
-                                    />
+                                        <span style={{ color: albumData.trangThaiChinhSua === 'Hoàn thành' ? '#059669' : '#d97706', fontWeight: 700 }}>{albumData.trangThaiChinhSua || 'Chưa đồng bộ'}</span>
+                                    </Box>
+                                    <Box p={1.2} bgcolor="#f8fafc" border="1px solid #e2e8f0" borderRadius="8px"><b>Số ảnh gốc:</b> {albumData.danhSachAnh?.length || 0}</Box>
+                                    <Box p={1.2} bgcolor="#f8fafc" border="1px solid #e2e8f0" borderRadius="8px"><b style={{ color: '#dc2626' }}>❤️ Đã tim:</b> {albumData.danhSachAnh?.filter(a => a.isHearted).length || 0}</Box>
+                                    <Box p={1.2} bgcolor="#f8fafc" border="1px solid #e2e8f0" borderRadius="8px"><b>Ảnh chỉnh sửa:</b> {albumData.danhSachAnhChinhSua?.length || 0}</Box>
                                 </Box>
 
-                                <Button 
-                                    variant="outlined" 
-                                    size="small" 
-                                    color="primary" 
-                                    onClick={handleSaveAlbumSettings}
-                                    style={{ marginTop: '10px' }}
-                                >
-                                    Lưu Cài Đặt Khóa Album
-                                </Button>
+                                <Box display="flex" gap={1.5} alignItems="center" flexWrap="wrap">
+                                    <Button
+                                        variant="outlined"
+                                        color="secondary"
+                                        size="small"
+                                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                                        onClick={() => setOpenLocAnhDialog(true)}
+                                    >
+                                        💻 Lọc ảnh trên máy tính
+                                    </Button>
+
+                                    <Box display="flex" alignItems="center" gap={1} p={1} borderRadius="8px" bgcolor={khachHangXacNhan ? '#f0fdf4' : '#fffbe6'} border={khachHangXacNhan ? '1px solid #bbf7d0' : '1px solid #ffe58f'}>
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    checked={khachHangXacNhan}
+                                                    onChange={(e) => setKhachHangXacNhan(e.target.checked)}
+                                                    color={khachHangXacNhan ? "success" : "warning"}
+                                                    size="small"
+                                                />
+                                            }
+                                            label={
+                                                <Typography variant="body2" style={{ fontWeight: 700, color: khachHangXacNhan ? '#166534' : '#d97706', fontSize: '0.82rem' }}>
+                                                    Khóa album (Khách chọn xong)
+                                                </Typography>
+                                            }
+                                        />
+                                    </Box>
+
+                                    <Button 
+                                        variant="outlined" 
+                                        size="small" 
+                                        color="primary" 
+                                        onClick={handleSaveAlbumSettings}
+                                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+                                    >
+                                        Lưu cài đặt khóa album
+                                    </Button>
+                                </Box>
 
                                 {albumData.danhSachAnhChinhSua && albumData.danhSachAnhChinhSua.some(p => p.comments && p.comments.length > 0) && (
-                                    <Box mt={3} p={2} border="1px solid #e0e0e0" borderRadius="8px" bgcolor="#fff">
-                                        <Typography variant="subtitle2" style={{ fontWeight: 'bold', color: '#1976d2', marginBottom: '8px' }}>
-                                            BÌNH LUẬN ẢNH CHỈNH SỬA
+                                    <Box mt={2.5} p={2} border="1px solid #e2e8f0" borderRadius="10px" bgcolor="#fafafa">
+                                        <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#2563eb', marginBottom: '8px', fontSize: '0.85rem' }}>
+                                            💬 BÌNH LUẬN ẢNH CHỈNH SỬA
                                         </Typography>
-                                        <Box style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '5px' }}>
+                                        <Box style={{ maxHeight: '180px', overflowY: 'auto', paddingRight: '5px' }}>
                                             {albumData.danhSachAnhChinhSua.filter(p => p.comments && p.comments.length > 0).map(photo => (
-                                                <div key={photo.idDrive} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #eee' }}>
-                                                    <Typography variant="body2" fontWeight="bold" style={{ color: '#d32f2f' }}>
+                                                <div key={photo.idDrive} style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px dashed #e2e8f0' }}>
+                                                    <Typography variant="body2" fontWeight="bold" style={{ color: '#dc2626', fontSize: '0.82rem' }}>
                                                         📷 {photo.tenFile}
                                                     </Typography>
                                                     {photo.comments.map((c, i) => (
-                                                        <Box key={i} mt={0.5} ml={2} p={1} bgcolor="#f5f5f5" borderRadius="4px">
-                                                            <Typography variant="body2">{c.noiDung}</Typography>
-                                                            <Typography variant="caption" color="textSecondary" display="block" style={{ marginTop: '4px' }}>
+                                                        <Box key={i} mt={0.5} ml={2} p={1} bgcolor="#ffffff" borderRadius="6px" border="1px solid #f1f5f9">
+                                                            <Typography variant="body2" style={{ fontSize: '0.82rem' }}>{c.noiDung}</Typography>
+                                                            <Typography variant="caption" color="textSecondary" display="block" style={{ marginTop: '2px', fontSize: '0.72rem' }}>
                                                                 🕒 {new Date(c.ngayTao).toLocaleString()}
                                                             </Typography>
                                                         </Box>
@@ -2113,64 +2536,110 @@ function LichCuaHang() {
                         )}
                     </Box>
                 </DialogContent>
-                <DialogActions style={{ padding: '16px 24px', justifyContent: 'space-between' }}>
-                    <Button onClick={() => {
-                        setOpenHauKyDialog(false);
-                        setSendData(selectedHauKyContract);
-                        setOpenDetailDialog(true);
-                    }} variant="outlined" color="info">
-                        Xem chi tiết HĐ
+
+                <DialogActions sx={{ p: '14px 24px', bgcolor: '#ffffff', borderTop: '1px solid #e2e8f0', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                    <Button 
+                        onClick={() => {
+                            setOpenHauKyDialog(false);
+                            setSendData(selectedHauKyContract);
+                            setOpenDetailDialog(true);
+                        }} 
+                        variant="outlined" 
+                        color="info"
+                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, fontSize: '0.85rem' }}
+                    >
+                        📄 Xem chi tiết HĐ
                     </Button>
-                    <Box display="flex" gap={1}>
-                        <Button onClick={() => setOpenHauKyDialog(false)} color="inherit">
+                    <Box display="flex" gap={1.2} flexWrap="wrap">
+                        <Button 
+                            onClick={() => setOpenHauKyDialog(false)} 
+                            sx={{ color: '#64748b', fontWeight: 600, textTransform: 'none', fontSize: '0.85rem' }}
+                        >
                             Hủy
                         </Button>
-                        <Button onClick={() => handleUpdateHauKy(null)} variant="outlined" color="primary">
-                            Cập nhật
+                        <Button 
+                            onClick={() => handleUpdateHauKy(null)} 
+                            variant="outlined" 
+                            sx={{ 
+                                borderRadius: '8px', 
+                                textTransform: 'none', 
+                                fontWeight: 600, 
+                                fontSize: '0.85rem',
+                                borderColor: '#cbd5e1',
+                                color: '#334155'
+                            }}
+                        >
+                            Cập nhật thông tin
                         </Button>
-                        <Button onClick={() => {
-                            if (!confirmLinkAnhChinhSua.trim()) {
-                                toast.error("Vui lòng nhập đường dẫn ảnh chỉnh sửa trước khi chuyển sang in ảnh!");
-                                return;
-                            }
-                            
-                            let initialList = [];
-                            if (selectedHauKyContract?.danhSachAnhIn && selectedHauKyContract.danhSachAnhIn.length > 0) {
-                                initialList = [...selectedHauKyContract.danhSachAnhIn];
-                            } else if (selectedHauKyContract && Array.isArray(selectedHauKyContract.gioHang)) {
-                                let q16x21 = 0;
-                                let q20x30 = 0;
-                                let q60x90 = 0;
+                        <Button 
+                            onClick={() => {
+                                if (!confirmLinkAnhChinhSua.trim()) {
+                                    toast.error("Vui lòng nhập đường dẫn ảnh chỉnh sửa trước khi chuyển sang in ảnh!");
+                                    return;
+                                }
                                 
-                                selectedHauKyContract.gioHang.forEach(item => {
-                                    const qty = item.soLuong || 1;
-                                    q16x21 += (Number(item.soLuongAnh16x21) || 0) * qty;
-                                    q20x30 += (Number(item.soLuongAnh20x30) || 0) * qty;
-                                    q60x90 += (Number(item.soLuongAnh60x90) || 0) * qty;
-                                });
+                                let initialList = [];
+                                if (selectedHauKyContract?.danhSachAnhIn && selectedHauKyContract.danhSachAnhIn.length > 0) {
+                                    initialList = [...selectedHauKyContract.danhSachAnhIn];
+                                } else if (selectedHauKyContract && Array.isArray(selectedHauKyContract.gioHang)) {
+                                    let q16x21 = 0;
+                                    let q20x30 = 0;
+                                    let q60x90 = 0;
+                                    
+                                    selectedHauKyContract.gioHang.forEach(item => {
+                                        const qty = item.soLuong || 1;
+                                        q16x21 += (Number(item.soLuongAnh16x21) || 0) * qty;
+                                        q20x30 += (Number(item.soLuongAnh20x30) || 0) * qty;
+                                        q60x90 += (Number(item.soLuongAnh60x90) || 0) * qty;
+                                    });
+                                    
+                                    if (q16x21 > 0) {
+                                        initialList.push({ kichThuoc: "16x21", soLuong: q16x21 });
+                                    }
+                                    if (q20x30 > 0) {
+                                        initialList.push({ kichThuoc: "20x30", soLuong: q20x30 });
+                                    }
+                                    if (q60x90 > 0) {
+                                        initialList.push({ kichThuoc: "60x90", soLuong: q60x90 });
+                                    }
+                                }
                                 
-                                if (q16x21 > 0) {
-                                    initialList.push({ kichThuoc: "16x21", soLuong: q16x21 });
-                                }
-                                if (q20x30 > 0) {
-                                    initialList.push({ kichThuoc: "20x30", soLuong: q20x30 });
-                                }
-                                if (q60x90 > 0) {
-                                    initialList.push({ kichThuoc: "60x90", soLuong: q60x90 });
-                                }
-                            }
-                            
-                            setTempDanhSachAnhIn(initialList);
-                            setTempKichThuoc("");
-                            setTempSoLuong(1);
-                            setNewlyAddedPhotos([]);
-                            setSelectedDichVuOption(null);
-                            setOpenInAnhInputDialog(true);
-                        }} variant="contained" color="warning">
-                            Chuyển sang in ảnh
+                                setTempDanhSachAnhIn(initialList);
+                                setTempKichThuoc("");
+                                setTempSoLuong(1);
+                                setNewlyAddedPhotos([]);
+                                setSelectedDichVuOption(null);
+                                setOpenInAnhInputDialog(true);
+                            }} 
+                            variant="contained" 
+                            sx={{ 
+                                borderRadius: '8px', 
+                                textTransform: 'none', 
+                                fontWeight: 700, 
+                                fontSize: '0.85rem',
+                                padding: '6px 18px',
+                                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                boxShadow: '0 4px 10px rgba(245,158,11,0.3)',
+                                '&:hover': { background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' }
+                            }}
+                        >
+                            Chuyển sang in ảnh ➔
                         </Button>
-                        <Button onClick={() => handleUpdateHauKy(5)} variant="contained" color="success">
-                            Hoàn thành
+                        <Button 
+                            onClick={() => handleUpdateHauKy(5)} 
+                            variant="contained" 
+                            sx={{ 
+                                borderRadius: '8px', 
+                                textTransform: 'none', 
+                                fontWeight: 700, 
+                                fontSize: '0.85rem',
+                                padding: '6px 18px',
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                boxShadow: '0 4px 10px rgba(16,185,129,0.3)',
+                                '&:hover': { background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }
+                            }}
+                        >
+                            Hoàn thành ➔
                         </Button>
                     </Box>
                 </DialogActions>
@@ -2183,16 +2652,67 @@ function LichCuaHang() {
             />
 
             {/* Dialog nhập kích thước & số lượng khi chuyển sang in ảnh */}
-            <Dialog open={openInAnhInputDialog} onClose={() => setOpenInAnhInputDialog(false)} maxWidth="sm" fullWidth>
-                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2' }}>
-                    NHẬP THÔNG TIN ẢNH IN - HĐ: {selectedHauKyContract?.maHopDong}
-                </DialogTitle>
-                <DialogContent dividers>
-                    <Box display="flex" flexDirection="column" gap={2} mt={1}>
-                        <p style={{ fontSize: '0.9rem', color: '#555', margin: 0 }}>
+            <Dialog 
+                open={openInAnhInputDialog} 
+                onClose={() => setOpenInAnhInputDialog(false)} 
+                maxWidth="sm" 
+                fullWidth
+                PaperProps={{
+                    style: {
+                        borderRadius: '16px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        overflow: 'hidden'
+                    }
+                }}
+            >
+                <Box 
+                    sx={{ 
+                        p: 2.5, 
+                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', 
+                        color: '#ffffff'
+                    }}
+                >
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                            <Box 
+                                sx={{ 
+                                    width: 40, 
+                                    height: 40, 
+                                    borderRadius: '10px', 
+                                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    color: '#ffffff',
+                                    fontSize: '1.1rem'
+                                }}
+                            >
+                                <FontAwesomeIcon icon={faPrint} />
+                            </Box>
+                            <Typography variant="h6" style={{ fontWeight: 700, fontSize: '1.05rem', color: '#ffffff' }}>
+                                NHẬP THÔNG TIN ẢNH IN
+                            </Typography>
+                        </Box>
+
+                        <Chip 
+                            label={`Mã HĐ: ${selectedHauKyContract?.maHopDong || ''}`} 
+                            sx={{ 
+                                bgcolor: 'rgba(255,255,255,0.12)', 
+                                color: '#fbbf24', 
+                                fontWeight: 700, 
+                                fontSize: '0.8rem'
+                            }} 
+                        />
+                    </Box>
+                </Box>
+
+                <DialogContent dividers sx={{ p: 3, bgcolor: '#f8fafc' }}>
+                    <Box display="flex" flexDirection="column" gap={2}>
+                        <Typography variant="body2" style={{ color: '#475569', fontSize: '0.85rem' }}>
                             Chọn dịch vụ ảnh từ danh sách hoặc nhập kích thước tự do:
-                        </p>
-                        <Box display="flex" flexDirection="column" gap={1.5}>
+                        </Typography>
+
+                        <Box display="flex" flexDirection="column" gap={1.5} p={2} bgcolor="#ffffff" borderRadius="10px" border="1px solid #e2e8f0">
                             <Autocomplete
                                 options={listDichVu}
                                 getOptionLabel={(option) => `${option.tenDichVu} (${option.maDichVu}) - ${Number(option.giaChoThueDichVu || 0).toLocaleString("vi-VN")}đ`}
@@ -2209,6 +2729,7 @@ function LichCuaHang() {
                                         label="Tìm kiếm dịch vụ ảnh"
                                         variant="outlined"
                                         size="small"
+                                        InputProps={{ ...params.InputProps, style: { borderRadius: '8px' } }}
                                     />
                                 )}
                                 fullWidth
@@ -2221,6 +2742,7 @@ function LichCuaHang() {
                                     onChange={(e) => setTempKichThuoc(e.target.value)}
                                     size="small"
                                     style={{ flex: 2 }}
+                                    InputProps={{ style: { borderRadius: '8px' } }}
                                 />
                                 <TextField
                                     label="Số lượng"
@@ -2231,10 +2753,12 @@ function LichCuaHang() {
                                     size="small"
                                     style={{ flex: 1 }}
                                     inputProps={{ min: 1 }}
+                                    InputProps={{ style: { borderRadius: '8px' } }}
                                 />
                                 <Button
                                     variant="contained"
                                     color="primary"
+                                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
                                     onClick={() => {
                                         if (!tempKichThuoc.trim()) {
                                             toast.warning("Vui lòng nhập kích thước hoặc chọn dịch vụ!");
@@ -2284,29 +2808,30 @@ function LichCuaHang() {
                             </Box>
                         </Box>
 
-                        <Box style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '8px' }}>
+                        <Box style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', backgroundColor: '#ffffff' }}>
                             {tempDanhSachAnhIn.length === 0 ? (
-                                <p style={{ textAlign: 'center', color: '#999', fontSize: '0.85rem', margin: '16px 0' }}>Chưa có ảnh in nào trong danh sách</p>
+                                <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', margin: '16px 0' }}>Chưa có ảnh in nào trong danh sách</p>
                             ) : (
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                                     <thead>
-                                        <tr style={{ borderBottom: '1px solid #eee', textAlign: 'left' }}>
-                                            <th style={{ padding: '6px' }}>STT</th>
-                                            <th style={{ padding: '6px' }}>Kích thước</th>
-                                            <th style={{ padding: '6px' }}>Số lượng</th>
-                                            <th style={{ padding: '6px', textAlign: 'center' }}>Hành động</th>
+                                        <tr style={{ borderBottom: '1px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>
+                                            <th style={{ padding: '8px' }}>STT</th>
+                                            <th style={{ padding: '8px' }}>Kích thước</th>
+                                            <th style={{ padding: '8px' }}>Số lượng</th>
+                                            <th style={{ padding: '8px', textAlign: 'center' }}>Hành động</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {tempDanhSachAnhIn.map((item, idx) => (
-                                            <tr key={idx} style={{ borderBottom: '1px solid #f9f9f9' }}>
-                                                <td style={{ padding: '6px' }}>{idx + 1}</td>
-                                                <td style={{ padding: '6px' }}>{item.kichThuoc}</td>
-                                                <td style={{ padding: '6px' }}>{item.soLuong}</td>
-                                                <td style={{ padding: '6px', textAlign: 'center' }}>
+                                            <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                <td style={{ padding: '8px' }}>{idx + 1}</td>
+                                                <td style={{ padding: '8px', fontWeight: 600, color: '#1e293b' }}>{item.kichThuoc}</td>
+                                                <td style={{ padding: '8px', fontWeight: 700, color: '#2563eb' }}>{item.soLuong}</td>
+                                                <td style={{ padding: '8px', textAlign: 'center' }}>
                                                     <Button
                                                         size="small"
                                                         color="error"
+                                                        sx={{ textTransform: 'none' }}
                                                         onClick={() => {
                                                             const itemToDelete = tempDanhSachAnhIn[idx];
                                                             setTempDanhSachAnhIn(tempDanhSachAnhIn.filter((_, i) => i !== idx));
@@ -2326,8 +2851,8 @@ function LichCuaHang() {
                         </Box>
                     </Box>
                 </DialogContent>
-                <DialogActions style={{ padding: '16px 24px' }}>
-                    <Button onClick={() => setOpenInAnhInputDialog(false)} color="inherit">
+                <DialogActions sx={{ p: '14px 24px', bgcolor: '#ffffff', borderTop: '1px solid #e2e8f0', justifyContent: 'space-between' }}>
+                    <Button onClick={() => setOpenInAnhInputDialog(false)} sx={{ color: '#64748b', fontWeight: 600, textTransform: 'none' }}>
                         Quay lại
                     </Button>
                     <Button
@@ -2336,14 +2861,21 @@ function LichCuaHang() {
                                 toast.warning("Vui lòng thêm ít nhất một ảnh in!");
                                 return;
                             }
-                            // Trigger actual stage transition
                             handleUpdateHauKy(4);
                             setOpenInAnhInputDialog(false);
                         }}
                         variant="contained"
-                        color="success"
+                        sx={{ 
+                            borderRadius: '8px', 
+                            textTransform: 'none', 
+                            fontWeight: 700, 
+                            fontSize: '0.85rem',
+                            padding: '6px 20px',
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            boxShadow: '0 4px 10px rgba(16,185,129,0.3)'
+                        }}
                     >
-                        Xác nhận chuyển in ảnh
+                        Xác nhận chuyển in ảnh ➔
                     </Button>
                 </DialogActions>
             </Dialog>

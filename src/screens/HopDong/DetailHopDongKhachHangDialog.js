@@ -514,11 +514,24 @@ function DetailHopDongKhachHangDialog(props) {
     };
 
 
+    const handleDiscountItemChange = (dichVuId, value) => {
+        const discountVal = Math.max(0, parseFloat(value) || 0);
+        const updatedCart = gioHang.map(sp => {
+            const spId = sp.dichVu?._id || sp.dichVu || sp._id;
+            if (spId === dichVuId) {
+                return { ...sp, giamGiaDichVu: discountVal };
+            }
+            return sp;
+        });
+        updateCartAndTotal(updatedCart);
+    };
+
     const updateCartAndTotal = (newCart) => {
         setGioHang(newCart);
         const newTotal = newCart.reduce((sum, item) => {
-            const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
-            return sum + (price * (item.soLuong || 0));
+            const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
+            const discountItem = parseFloat(item.giamGiaDichVu || 0);
+            return sum + Math.max(0, (price * (item.soLuong || 0)) - discountItem);
         }, 0);
         setTongTien(newTotal);
     };
@@ -558,10 +571,11 @@ function DetailHopDongKhachHangDialog(props) {
     };
 
     const tinhTongThanhToan = () => {
-        // Tính tổng tiền gốc từ giỏ hàng
+        // Tính tổng tiền gốc từ giỏ hàng (đã trừ giảm giá từng dịch vụ)
         const tongGoc = gioHang.reduce((sum, item) => {
-            const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
-            return sum + (price * (item.soLuong || 0));
+            const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
+            const discountItem = parseFloat(item.giamGiaDichVu || 0);
+            return sum + Math.max(0, (price * (item.soLuong || 0)) - discountItem);
         }, 0);
 
         let tongSauGiam = tongGoc;
@@ -702,7 +716,9 @@ function DetailHopDongKhachHangDialog(props) {
             nhanVienSale: nhanVienSale,
             giaiDoan: giaiDoan,
             dichVuChinh: dichVuChinh,
-            khachThanhToanTruoc: khachThanhToanTruoc
+            khachThanhToanTruoc: khachThanhToanTruoc,
+            linkAnhGoc: linkAnhGoc,
+            linkAnhChinhSua: linkAnhChinhSua
         }).then((response) => {
             toast.success("Cập nhật hợp đồng thành công!");
             hideLoading();
@@ -737,6 +753,41 @@ function DetailHopDongKhachHangDialog(props) {
 
     const submitProgressUpdate = (stepNumber, progressData) => {
         if (!data || !data._id) return;
+
+        // Nếu bước cập nhật thuộc tiến trình trước giai đoạn hiện tại (ví dụ đã Hoàn thành), cập nhật thông tin dữ liệu mà giữ nguyên giai đoạn
+        if (stepNumber < giaiDoan) {
+            showLoading("Đang cập nhật thông tin...");
+            const updatePayload = {
+                _id: data._id,
+                maHopDong: maHopDong
+            };
+            if (stepNumber === 2 && progressData.linkAnhGoc) {
+                updatePayload.linkAnhGoc = progressData.linkAnhGoc;
+                setLinkAnhGoc(progressData.linkAnhGoc);
+            }
+            if (stepNumber === 3 && progressData.linkAnhChinhSua) {
+                updatePayload.linkAnhChinhSua = progressData.linkAnhChinhSua;
+                setLinkAnhChinhSua(progressData.linkAnhChinhSua);
+            }
+            if (stepNumber === 4 && progressData.danhSachAnhIn) {
+                updatePayload.danhSachAnhIn = progressData.danhSachAnhIn;
+                setDanhSachAnhIn(progressData.danhSachAnhIn);
+            }
+
+            otherService.UPDATE_HOPDONG(updatePayload)
+                .then(() => {
+                    toast.success("Cập nhật thông tin thành công!");
+                    setHasUpdated(true);
+                    hideLoading();
+                    setOpenProgressInput(false);
+                })
+                .catch((error) => {
+                    console.error(error);
+                    toast.error("Lỗi khi cập nhật: " + (error.response?.data?.message || error.message || error));
+                    hideLoading();
+                });
+            return;
+        }
 
         showLoading("Đang cập nhật tiến trình...");
         otherService.UPDATE_PROGRESS({
@@ -776,8 +827,26 @@ function DetailHopDongKhachHangDialog(props) {
     const handleStepClick = (stepNumber) => {
         if (stepNumber === giaiDoan) return;
 
-        // Không được phép đi lùi
+        // Nếu xem/sửa thông tin ở bước đã qua (ví dụ xem/sửa link ở bước Chụp hình hoặc Hậu kỳ khi HĐ đã hoàn thành)
         if (stepNumber < giaiDoan) {
+            setTargetStep(stepNumber);
+            if (stepNumber === 2) {
+                setInputLinkAnhGoc(linkAnhGoc || "");
+                setOpenProgressInput(true);
+                return;
+            }
+            if (stepNumber === 3) {
+                setInputLinkAnhChinhSua(linkAnhChinhSua || "");
+                setOpenProgressInput(true);
+                return;
+            }
+            if (stepNumber === 4) {
+                setInputDanhSachAnhIn(danhSachAnhIn || []);
+                setNewKichThuoc("");
+                setNewSoLuong(1);
+                setOpenProgressInput(true);
+                return;
+            }
             toast.error("Không thể quay lại tiến trình trước đó!");
             return;
         }
@@ -1003,24 +1072,27 @@ function DetailHopDongKhachHangDialog(props) {
                 <table class="items-table">
                     <thead>
                         <tr>
-                            <th style="width: 50px; text-align: center;">STT</th>
+                            <th style="width: 40px; text-align: center;">STT</th>
                             <th>Tên Dịch Vụ / Sản Phẩm</th>
-                            <th style="width: 80px; text-align: center;">Số lượng</th>
-                            <th style="width: 130px; text-align: right;">Đơn giá</th>
-                            <th style="width: 150px; text-align: right;">Thành tiền</th>
+                            <th style="width: 60px; text-align: center;">Số lượng</th>
+                            <th style="width: 110px; text-align: right;">Đơn giá</th>
+                            <th style="width: 110px; text-align: right;">Giảm giá</th>
+                            <th style="width: 130px; text-align: right;">Thành tiền</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${gioHang.length === 0 ? `<tr><td colspan="5" style="text-align: center; color: #999;">Chưa đăng ký dịch vụ nào</td></tr>` :
+                        ${gioHang.length === 0 ? `<tr><td colspan="6" style="text-align: center; color: #999;">Chưa đăng ký dịch vụ nào</td></tr>` :
                 gioHang.map((item, index) => {
-                    const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
-                    const total = price * (item.soLuong || 0);
+                    const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
+                    const discountItem = parseFloat(item.giamGiaDichVu || 0);
+                    const total = Math.max(0, (price * (item.soLuong || 0)) - discountItem);
                     return `
                                 <tr>
                                     <td style="text-align: center;">${index + 1}</td>
                                     <td>${item.tenDichVuSnapshot || item.tenDichVu}</td>
                                     <td style="text-align: center;">${item.soLuong}</td>
                                     <td style="text-align: right;">${price.toLocaleString('vi-VN')} đ</td>
+                                    <td style="text-align: right; color: ${discountItem > 0 ? '#dc2626' : '#666'};">${discountItem > 0 ? `-${discountItem.toLocaleString('vi-VN')} đ` : '0 đ'}</td>
                                     <td style="text-align: right; font-weight: bold;">${total.toLocaleString('vi-VN')} đ</td>
                                 </tr>
                             `;
@@ -1050,10 +1122,16 @@ function DetailHopDongKhachHangDialog(props) {
                             <td class="label">Tổng giá trị dịch vụ:</td>
                             <td class="value">${tongGoc.toLocaleString('vi-VN')} đ</td>
                         </tr>
+                        ${gioHang.some(i => Number(i.giamGiaDichVu) > 0) ? `
+                        <tr>
+                            <td class="label" style="color: #dc2626;">Tổng giảm giá dịch vụ:</td>
+                            <td class="value" style="color: #dc2626;">-${gioHang.reduce((s, i) => s + (Number(i.giamGiaDichVu) || 0), 0).toLocaleString('vi-VN')} đ</td>
+                        </tr>
+                        ` : ''}
                         ${giamGia > 0 ? `
                         <tr>
-                            <td class="label">Giảm giá:</td>
-                            <td class="value">-${giamGia.toLocaleString('vi-VN')}${loaiGiamGia === 1 ? '%' : ' đ'}</td>
+                            <td class="label" style="color: #dc2626;">Giảm giá hợp đồng:</td>
+                            <td class="value" style="color: #dc2626;">-${giamGia.toLocaleString('vi-VN')}${loaiGiamGia === 1 ? '%' : ' đ'}</td>
                         </tr>
                         ` : ''}
                         <tr class="total">
@@ -1476,9 +1554,62 @@ function DetailHopDongKhachHangDialog(props) {
                                     </div>
                                 </MobileAccordion>
 
-                                {(linkAnhGoc || linkAnhChinhSua || (danhSachAnhIn && danhSachAnhIn.length > 0) || albumData) && (
-                                    <MobileAccordion title="THÔNG TIN ALBUM" className="dialog-section" style={{ marginTop: '20px' }}>
+                                    <MobileAccordion title="THÔNG TIN ALBUM & ĐỒNG BỘ ẢNH" className="dialog-section" style={{ marginTop: '20px' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 15px', backgroundColor: '#fcfcfc', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
+
+                                            {/* Ô nhập đường dẫn & nút Đồng bộ trực tiếp */}
+                                            <Box p={2} border="1px solid #e2e8f0" borderRadius="10px" bgcolor="#ffffff">
+                                                <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#1e293b', marginBottom: '12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    🔗 Đường dẫn Drive & Đồng bộ hình ảnh (Hỗ trợ cả khi HĐ Hoàn thành)
+                                                </Typography>
+                                                <Box display="flex" flexDirection="column" gap={1.5}>
+                                                    <Box display="flex" gap={1} alignItems="center">
+                                                        <TextField
+                                                            label="Đường dẫn ảnh gốc (Google Drive / Photos)"
+                                                            variant="outlined"
+                                                            fullWidth
+                                                            size="small"
+                                                            value={linkAnhGoc}
+                                                            onChange={(e) => setLinkAnhGoc(e.target.value)}
+                                                            placeholder="https://drive.google.com/drive/folders/..."
+                                                            inputProps={{ style: { fontSize: '0.82rem' } }}
+                                                        />
+                                                        <Button
+                                                            variant="contained"
+                                                            color="primary"
+                                                            size="small"
+                                                            disabled={isSyncingAlbum || !linkAnhGoc}
+                                                            onClick={() => handleSyncAlbum(linkAnhGoc, 'goc')}
+                                                            style={{ whiteSpace: 'nowrap', textTransform: 'none', fontWeight: 600, minWidth: '130px' }}
+                                                        >
+                                                            {isSyncingAlbum ? "Đang đồng bộ..." : "Đồng bộ ảnh gốc"}
+                                                        </Button>
+                                                    </Box>
+
+                                                    <Box display="flex" gap={1} alignItems="center">
+                                                        <TextField
+                                                            label="Đường dẫn ảnh chỉnh sửa (Google Drive / Photos)"
+                                                            variant="outlined"
+                                                            fullWidth
+                                                            size="small"
+                                                            value={linkAnhChinhSua}
+                                                            onChange={(e) => setLinkAnhChinhSua(e.target.value)}
+                                                            placeholder="https://drive.google.com/drive/folders/..."
+                                                            inputProps={{ style: { fontSize: '0.82rem' } }}
+                                                        />
+                                                        <Button
+                                                            variant="contained"
+                                                            color="secondary"
+                                                            size="small"
+                                                            disabled={isSyncingAlbumChinhSua || !linkAnhChinhSua}
+                                                            onClick={() => handleSyncAlbum(linkAnhChinhSua, 'chinhSua')}
+                                                            style={{ whiteSpace: 'nowrap', textTransform: 'none', fontWeight: 600, minWidth: '130px' }}
+                                                        >
+                                                            {isSyncingAlbumChinhSua ? "Đang đồng bộ..." : "Đồng bộ ảnh C.Sửa"}
+                                                        </Button>
+                                                    </Box>
+                                                </Box>
+                                            </Box>
 
 
                                             {albumData && (
@@ -1826,7 +1957,6 @@ function DetailHopDongKhachHangDialog(props) {
                                             )}
                                         </div>
                                     </MobileAccordion>
-                                )}
                             </div>
 
                             <div className="left-column">
@@ -1865,9 +1995,10 @@ function DetailHopDongKhachHangDialog(props) {
                                                 <tr>
                                                     <th>Tên SP</th>
                                                     <th style={{ textAlign: "center" }}>Số lượng</th>
-                                                    <th>Giá</th>
+                                                    <th>Đơn giá</th>
+                                                    <th style={{ width: '130px' }}>Giảm giá (đ)</th>
                                                     <th>Thành tiền</th>
-                                                    <th>Hành động</th> {/* Thêm cột mới */}
+                                                    <th>Hành động</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1875,11 +2006,12 @@ function DetailHopDongKhachHangDialog(props) {
                                                     gioHang.map((item, index) => {
                                                         const productId = item.dichVu?._id || item.dichVu || item._id;
                                                         const price = item.donGia || item.giaChoThueDichVu || 0;
-                                                        const total = price * (item.soLuong || 0);
+                                                        const discountItem = parseFloat(item.giamGiaDichVu || 0);
+                                                        const total = Math.max(0, (price * (item.soLuong || 0)) - discountItem);
                                                         const loaiDichVuVal = item.loaiDichVu ?? item.dichVu?.loaiDichVu;
 
                                                         return (
-                                                            <Fragment key={productId}>
+                                                            <Fragment key={productId || index}>
                                                                 <tr style={{ backgroundColor: Number(loaiDichVuVal) !== 1 ? '#f5f8fc' : 'transparent' }}>
                                                                     <td style={{ fontWeight: Number(loaiDichVuVal) !== 1 ? '600' : 'normal' }}>{item.tenDichVuSnapshot || item.tenDichVu}</td>
                                                                     <td style={{ textAlign: "center" }}>
@@ -1888,7 +2020,30 @@ function DetailHopDongKhachHangDialog(props) {
                                                                         <button className="btn-qty" onClick={() => handleSelectProduct(item)}>+</button>
                                                                     </td>
                                                                     <td>{price.toLocaleString("vi-VN")}đ</td>
-                                                                    <td>{total.toLocaleString("vi-VN")}đ</td>
+                                                                    <td>
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            placeholder="0"
+                                                                            value={item.giamGiaDichVu !== undefined && item.giamGiaDichVu !== null ? item.giamGiaDichVu : ''}
+                                                                            onChange={(e) => handleDiscountItemChange(productId, e.target.value)}
+                                                                            style={{
+                                                                                width: '100px',
+                                                                                padding: '4px 8px',
+                                                                                borderRadius: '6px',
+                                                                                border: '1px solid #cbd5e1',
+                                                                                fontSize: '0.85rem'
+                                                                            }}
+                                                                        />
+                                                                    </td>
+                                                                    <td style={{ fontWeight: 'bold', color: discountItem > 0 ? '#059669' : 'inherit' }}>
+                                                                        {total.toLocaleString("vi-VN")}đ
+                                                                        {discountItem > 0 && (
+                                                                            <div style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: '500' }}>
+                                                                                (Giảm: -{discountItem.toLocaleString("vi-VN")}đ)
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
                                                                     <td style={{ textAlign: "center" }}>
                                                                         <Button
                                                                             size="small"
@@ -1904,7 +2059,7 @@ function DetailHopDongKhachHangDialog(props) {
                                                     })
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan={5} style={{ textAlign: "center", color: "#999" }}>
+                                                        <td colSpan={6} style={{ textAlign: "center", color: "#999" }}>
                                                             Chưa sử dụng dịch vụ
                                                         </td>
                                                     </tr>
@@ -2439,7 +2594,33 @@ function DetailHopDongKhachHangDialog(props) {
             {/* Dialog Xem Chi Tiết Ảnh Khách Chọn */}
             <Dialog open={openAlbumDetailDialog} onClose={() => setOpenAlbumDetailDialog(false)} maxWidth="lg" fullWidth>
                 <DialogTitle>
-                    Chi Tiết Ảnh Khách Hàng - {data?.maHopDong}
+                    <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+                        <Typography variant="h6" style={{ fontWeight: 700, color: '#1e293b', fontSize: '1.1rem' }}>
+                            Chi Tiết Ảnh Khách Hàng - {data?.maHopDong}
+                        </Typography>
+                        <Box display="flex" gap={1}>
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                size="small"
+                                disabled={isSyncingAlbum || !linkAnhGoc}
+                                onClick={() => handleSyncAlbum(linkAnhGoc, 'goc')}
+                                style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8rem' }}
+                            >
+                                {isSyncingAlbum ? "Đang đồng bộ ảnh gốc..." : "🔄 Đồng bộ ảnh gốc"}
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                color="secondary"
+                                size="small"
+                                disabled={isSyncingAlbumChinhSua || !linkAnhChinhSua}
+                                onClick={() => handleSyncAlbum(linkAnhChinhSua, 'chinhSua')}
+                                style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8rem' }}
+                            >
+                                {isSyncingAlbumChinhSua ? "Đang đồng bộ ảnh C.Sửa..." : "🔄 Đồng bộ ảnh C.Sửa"}
+                            </Button>
+                        </Box>
+                    </Box>
                     {albumData && (
                         <Tabs value={albumDetailTab} onChange={(e, newValue) => setAlbumDetailTab(newValue)} style={{ marginTop: '10px' }}>
                             <Tab label="Tất Cả Ảnh Gốc" />

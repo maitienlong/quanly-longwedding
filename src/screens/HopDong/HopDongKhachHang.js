@@ -29,6 +29,10 @@ import AddIcon from '@mui/icons-material/Add';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import IconButton from '@mui/material/IconButton';
 import DetailHopDongKhachHangDialog from './DetailHopDongKhachHangDialog';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
 
 // getDichVuChinhLabel is now retrieved dynamically from useContractTypes hook
 
@@ -50,6 +54,7 @@ function HopDongKhachHang() {
 
     const locTrangThai = [
         { label: 'Tất cả trạng thái', id: 'all' },
+        { label: '🔴 Chưa xếp lịch chụp', id: 'no_schedule' },
         { label: 'Tạo hợp đồng', id: 1 },
         { label: 'Chụp hình', id: 2 },
         { label: 'Hậu kỳ', id: 3 },
@@ -60,6 +65,7 @@ function HopDongKhachHang() {
     const [selectedTime, setSelectedTime] = useState(locThoiGian[1]);
     const [selectedStatus, setSelectedStatus] = useState(locTrangThai[0]);
     const [searchInput, setSearchInput] = useState("");
+    const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
 
     // LOGIC DIALOG KHÁCH HÀNG
     const [openDialogHD, setOpenDialogHD] = React.useState(false);
@@ -77,7 +83,7 @@ function HopDongKhachHang() {
         if (timeVal && timeVal !== 'all') {
             params.filter = timeVal;
         }
-        if (statusVal && statusVal !== 'all') {
+        if (statusVal && statusVal !== 'all' && statusVal !== 'no_schedule') {
             params.status = statusVal;
         }
         if (searchVal) {
@@ -132,10 +138,23 @@ function HopDongKhachHang() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hopDong, sendData?._id]);
 
-    const filteredHopDong = hopDong || [];
+    const isUnscheduledShooting = (hd) => {
+        if (!hd) return false;
+        if (hd.giaiDoan === 5) return false; // Hợp đồng đã hoàn thành không tính là chưa xếp lịch
+        return !hd.cacNgay?.ngayChup;
+    };
 
-    const convertTrangThai = (giaiDoan) => {
-        switch (giaiDoan) {
+    const filteredHopDong = (hopDong || []).filter(hd => {
+        if (selectedStatus?.id === 'no_schedule') {
+            return isUnscheduledShooting(hd);
+        }
+        return true;
+    });
+
+    const convertTrangThai = (hd) => {
+        const giaiDoanVal = typeof hd === 'object' && hd !== null ? (isUnscheduledShooting(hd) ? 'no_schedule' : hd.giaiDoan) : hd;
+        if (giaiDoanVal === 'no_schedule') return "Chưa xếp lịch chụp";
+        switch (giaiDoanVal) {
             case 1:
                 return "Tạo hợp đồng";
             case 2:
@@ -147,24 +166,45 @@ function HopDongKhachHang() {
             case 5:
                 return "Hoàn thành";
             default:
-                return "Giai đoạn " + giaiDoan;
+                return "Giai đoạn " + (giaiDoanVal || "");
         }
     };
 
-    const getRowBackgroundColor = (giaiDoan) => {
-        switch (giaiDoan) {
+    const getTrangThaiColor = (hd) => {
+        const giaiDoanVal = typeof hd === 'object' && hd !== null ? (isUnscheduledShooting(hd) ? 'no_schedule' : hd.giaiDoan) : hd;
+        if (giaiDoanVal === 'no_schedule') return "#dc2626"; // Đỏ nổi bật (Red)
+        switch (giaiDoanVal) {
             case 1:
-                return '#f3f4f6'; // Ghi (Grey) nhạt
+                return "#64748b"; // Ghi Slate
             case 2:
-                return '#fffbeb'; // Vàng (Yellow) nhạt
+                return "#d97706"; // Cam / Vàng
             case 3:
-                return '#eff6ff'; // Xanh nước biển (Blue) nhạt
+                return "#2563eb"; // Xanh dương
             case 4:
-                return '#faf5f0'; // Nâu (Brown) nhạt
+                return "#7c3aed"; // Tím
             case 5:
-                return '#f0fdf4'; // Xanh lá cây (Green) nhạt
+                return "#10b981"; // Xanh lá
             default:
-                return 'inherit';
+                return "#64748b";
+        }
+    };
+
+    const getRowBackgroundColor = (hd) => {
+        const giaiDoanVal = typeof hd === 'object' && hd !== null ? (isUnscheduledShooting(hd) ? 'no_schedule' : hd.giaiDoan) : hd;
+        if (giaiDoanVal === 'no_schedule') return '#fef2f2'; // Đỏ nhạt (Light Red)
+        switch (giaiDoanVal) {
+            case 1:
+                return '#f8fafc'; // Ghi xám nhạt
+            case 2:
+                return '#fffbeb'; // Vàng nhạt
+            case 3:
+                return '#eff6ff'; // Xanh dương nhạt
+            case 4:
+                return '#faf5ff'; // Tím nhạt
+            case 5:
+                return '#f0fdf4'; // Xanh lá nhạt
+            default:
+                return '#ffffff';
         }
     };
 
@@ -220,6 +260,23 @@ function HopDongKhachHang() {
                         />
                     </Stack>
 
+                    <ToggleButtonGroup
+                        value={viewMode}
+                        exclusive
+                        onChange={(e, newMode) => {
+                            if (newMode !== null) setViewMode(newMode);
+                        }}
+                        size="small"
+                        sx={{ height: isMobile ? 38 : commonHeight, bgcolor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', flexShrink: 0 }}
+                    >
+                        <ToggleButton value="table" title="Dạng Bảng" sx={{ px: 1.5, fontSize: '0.82rem', fontWeight: 600, textTransform: 'none' }}>
+                            <ViewListIcon fontSize="small" sx={{ mr: 0.5 }} /> Bảng
+                        </ToggleButton>
+                        <ToggleButton value="grid" title="Dạng Lưới" sx={{ px: 1.5, fontSize: '0.82rem', fontWeight: 600, textTransform: 'none' }}>
+                            <ViewModuleIcon fontSize="small" sx={{ mr: 0.5 }} /> Lưới
+                        </ToggleButton>
+                    </ToggleButtonGroup>
+
                     {!isMobile && (
                         <Button
                             onClick={handleClickOpenDialog}
@@ -237,26 +294,39 @@ function HopDongKhachHang() {
             {/* ===== DANH SÁCH HỢP ĐỒNG ===== */}
             {isMobile ? (
                 <Box sx={{ pb: 10 }}>
-                    {hopDong && hopDong.length > 0 ? (
+                    {filteredHopDong && filteredHopDong.length > 0 ? (
                         filteredHopDong.map((hd, index) => (
                             <Card 
                                 key={index} 
-                                sx={{ mb: 2, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}
+                                sx={{ 
+                                    mb: 2, 
+                                    borderRadius: 2, 
+                                    border: isUnscheduledShooting(hd) ? '1px solid #fca5a5' : '1px solid #e0e0e0', 
+                                    bgcolor: getRowBackgroundColor(hd),
+                                    boxShadow: 'none' 
+                                }}
                                 onClick={() => {
                                     setSendData(hd);
                                     handleClickOpenDetailDialog();
                                 }}
                             >
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                                <Box sx={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    alignItems: 'center', 
+                                    p: 1.5, 
+                                    bgcolor: isUnscheduledShooting(hd) ? '#fee2e2' : '#f5f5f5', 
+                                    borderBottom: '1px solid #e0e0e0' 
+                                }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: isUnscheduledShooting(hd) ? '#991b1b' : 'inherit' }}>
                                         {hd.maHopDong}
                                     </Typography>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Chip 
-                                            label={convertTrangThai(hd.giaiDoan)} 
+                                            label={convertTrangThai(hd)} 
                                             size="small" 
                                             sx={{ 
-                                                bgcolor: hd.giaiDoan === 5 ? '#2e7d32' : (hd.giaiDoan === 1 ? '#9e9e9e' : '#ed6c02'), 
+                                                bgcolor: getTrangThaiColor(hd), 
                                                 color: '#fff',
                                                 fontWeight: 'bold',
                                                 fontSize: '0.75rem',
@@ -276,7 +346,21 @@ function HopDongKhachHang() {
                                         </Grid>
                                         <Grid item xs={6}>
                                             <Typography variant="caption" color="text.secondary">Liên hệ</Typography>
-                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{hd.khachHang1?.soDienThoai}</Typography>
+                                            <Box display="flex" alignItems="center" gap={0.8}>
+                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{hd.khachHang1?.soDienThoai}</Typography>
+                                                {hd.khachHang1?.facebookId && (
+                                                    <a 
+                                                        href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer" 
+                                                        style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                        title="Mở Facebook"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <i className="fa-brands fa-facebook" style={{ fontSize: '1.1rem' }}></i>
+                                                    </a>
+                                                )}
+                                            </Box>
                                         </Grid>
                                         <Grid item xs={6}>
                                             <Typography variant="caption" color="text.secondary">Dịch vụ</Typography>
@@ -296,7 +380,190 @@ function HopDongKhachHang() {
                         <Typography sx={{ textAlign: 'center', mt: 4 }}>Không có dữ liệu hợp đồng khách hàng.</Typography>
                     )}
                 </Box>
+            ) : viewMode === 'grid' ? (
+                /* ===== DẠNG LƯỚI (GRID VIEW) ===== */
+                <Box sx={{ pb: 10, pt: 1 }}>
+                    {filteredHopDong && filteredHopDong.length > 0 ? (
+                        <Grid container spacing={2.5}>
+                            {filteredHopDong.map((hd, index) => {
+                                return (
+                                    <Grid item xs={12} sm={6} md={4} lg={3} key={hd._id || index}>
+                                        <Card 
+                                            sx={{ 
+                                                borderRadius: '14px', 
+                                                border: isUnscheduledShooting(hd) ? '1px solid #fca5a5' : '1px solid #e2e8f0', 
+                                                bgcolor: getRowBackgroundColor(hd),
+                                                boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                                                transition: 'all 0.25s ease-in-out',
+                                                height: '100%',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'space-between',
+                                                cursor: 'pointer',
+                                                '&:hover': {
+                                                    boxShadow: '0 12px 28px rgba(0,0,0,0.1)',
+                                                    borderColor: isUnscheduledShooting(hd) ? '#f87171' : '#94a3b8',
+                                                    transform: 'translateY(-3px)'
+                                                }
+                                            }}
+                                            onClick={() => {
+                                                setSendData(hd);
+                                                handleClickOpenDetailDialog();
+                                            }}
+                                        >
+                                            <Box>
+                                                {/* Header Card */}
+                                                <Box 
+                                                    sx={{ 
+                                                        p: 1.5, 
+                                                        background: isUnscheduledShooting(hd) ? 'linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%)' : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', 
+                                                        color: '#ffffff',
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        borderTopLeftRadius: '14px',
+                                                        borderTopRightRadius: '14px'
+                                                    }}
+                                                >
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#38bdf8', fontSize: '0.92rem' }}>
+                                                        {hd.maHopDong}
+                                                    </Typography>
+                                                    <Chip 
+                                                        label={convertTrangThai(hd)} 
+                                                        size="small" 
+                                                        sx={{ 
+                                                            bgcolor: getTrangThaiColor(hd), 
+                                                            color: '#ffffff',
+                                                            fontWeight: 700,
+                                                            fontSize: '0.72rem',
+                                                            height: '22px'
+                                                        }} 
+                                                    />
+                                                </Box>
+
+                                                {/* Card Content */}
+                                                <Box p={2} display="flex" flexDirection="column" gap={1.5}>
+                                                    {/* Khách hàng 1 */}
+                                                    <Box>
+                                                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block', mb: 0.3 }}>
+                                                            👤 KHÁCH HÀNG 1:
+                                                        </Typography>
+                                                        <Box display="flex" alignItems="center" justifyContent="space-between">
+                                                            <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                                                                {hd.khachHang1?.tenKhachHang || 'Chưa cập nhật'}
+                                                            </Typography>
+                                                            {hd.khachHang1?.soDienThoai && (
+                                                                <Box display="flex" alignItems="center" gap={0.6}>
+                                                                    <span style={{ fontSize: '0.82rem', color: '#475569', fontWeight: 500 }}>{hd.khachHang1.soDienThoai}</span>
+                                                                    {hd.khachHang1?.facebookId && (
+                                                                        <a 
+                                                                            href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
+                                                                            target="_blank" 
+                                                                            rel="noopener noreferrer" 
+                                                                            style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                                            title="Mở Facebook Khách 1"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <i className="fa-brands fa-facebook"></i>
+                                                                        </a>
+                                                                    )}
+                                                                </Box>
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+
+                                                    {/* Khách hàng 2 */}
+                                                    {hd.khachHang2?.tenKhachHang && (
+                                                        <Box pt={1} borderTop="1px dashed #e2e8f0">
+                                                            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block', mb: 0.3 }}>
+                                                                👤 KHÁCH HÀNG 2:
+                                                            </Typography>
+                                                            <Box display="flex" alignItems="center" justifyContent="space-between">
+                                                                <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                                                                    {hd.khachHang2.tenKhachHang}
+                                                                </Typography>
+                                                                {hd.khachHang2?.soDienThoai && (
+                                                                    <Box display="flex" alignItems="center" gap={0.6}>
+                                                                        <span style={{ fontSize: '0.82rem', color: '#475569', fontWeight: 500 }}>{hd.khachHang2.soDienThoai}</span>
+                                                                        {hd.khachHang2?.facebookId && (
+                                                                            <a 
+                                                                                href={hd.khachHang2.facebookId.startsWith('http') ? hd.khachHang2.facebookId : `https://facebook.com/${hd.khachHang2.facebookId}`} 
+                                                                                target="_blank" 
+                                                                                rel="noopener noreferrer" 
+                                                                                style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                                                title="Mở Facebook Khách 2"
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                            >
+                                                                                <i className="fa-brands fa-facebook"></i>
+                                                                            </a>
+                                                                        )}
+                                                                    </Box>
+                                                                )}
+                                                            </Box>
+                                                        </Box>
+                                                    )}
+
+                                                    {/* Chi tiết dịch vụ & Lịch trình */}
+                                                    <Box p={1.2} bgcolor="#f8fafc" borderRadius="10px" border="1px solid #f1f5f9" display="flex" flexDirection="column" gap={0.8}>
+                                                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Dịch vụ chính:</span>
+                                                            <strong style={{ fontSize: '0.82rem', color: '#0284c7' }}>{getDichVuChinhLabel(hd.dichVuChinh)}</strong>
+                                                        </Box>
+                                                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Ngày hợp đồng:</span>
+                                                            <span style={{ fontSize: '0.78rem', color: '#334155', fontWeight: 500 }}>
+                                                                {hd.ngayHopDong ? formatDate(hd.ngayHopDong) : '-'}
+                                                            </span>
+                                                        </Box>
+                                                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Ngày chụp ảnh:</span>
+                                                            {hd.cacNgay?.ngayChup ? (
+                                                                <strong style={{ fontSize: '0.78rem', color: '#d97706' }}>
+                                                                    {formatDate(hd.cacNgay.ngayChup)}
+                                                                </strong>
+                                                            ) : (
+                                                                <strong style={{ fontSize: '0.78rem', color: '#dc2626' }}>
+                                                                    ⚠️ Chưa xếp lịch
+                                                                </strong>
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+                                                </Box>
+                                            </Box>
+
+                                            {/* Card Footer Button */}
+                                            <Box p={1.5} borderTop="1px solid #f1f5f9" bgcolor="#fafafa" borderBottomLeftRadius="14px" borderBottomRightRadius="14px">
+                                                <Button
+                                                    fullWidth
+                                                    variant="outlined"
+                                                    size="small"
+                                                    sx={{
+                                                        borderRadius: '8px',
+                                                        textTransform: 'none',
+                                                        fontWeight: 600,
+                                                        fontSize: '0.82rem',
+                                                        borderColor: '#cbd5e1',
+                                                        color: '#0284c7',
+                                                        '&:hover': {
+                                                            borderColor: '#0284c7',
+                                                            bgcolor: '#f0f9ff'
+                                                        }
+                                                    }}
+                                                >
+                                                    📄 Xem chi tiết hợp đồng
+                                                </Button>
+                                            </Box>
+                                        </Card>
+                                    </Grid>
+                                );
+                            })}
+                        </Grid>
+                    ) : (
+                        <Typography sx={{ textAlign: 'center', mt: 4, color: '#64748b' }}>Không có dữ liệu hợp đồng khách hàng.</Typography>
+                    )}
+                </Box>
             ) : (
+                /* ===== DẠNG BẢNG (TABLE VIEW) ===== */
                 <TableContainer component={Paper} style={{ maxHeight: 'calc(100vh - 280px)', overflow: 'auto' }}>
                 <Table stickyHeader aria-label="simple table">
 
@@ -314,12 +581,12 @@ function HopDongKhachHang() {
                     </TableHead>
 
                     <TableBody>
-                        {hopDong && hopDong.length > 0 ? (
+                        {filteredHopDong && filteredHopDong.length > 0 ? (
                             filteredHopDong.map((hd, index) => (
                                 <TableRow key={index}
                                     style={{ 
                                         cursor: "pointer",
-                                        backgroundColor: getRowBackgroundColor(hd.giaiDoan)
+                                        backgroundColor: getRowBackgroundColor(hd)
                                     }}
                                     sx={{
                                         '&:hover': {
@@ -333,7 +600,7 @@ function HopDongKhachHang() {
                                     }}
                                 >
                                     <TableCell align='center'>{index + 1}</TableCell>
-                                    <TableCell align='center'>{hd.maHopDong}</TableCell>
+                                    <TableCell align='center' style={{ fontWeight: 'bold' }}>{hd.maHopDong}</TableCell>
                                     <TableCell align='left'>
                                         {hd.khachHang1?.tenKhachHang}
                                         {hd.khachHang2?.tenKhachHang && (
@@ -345,16 +612,56 @@ function HopDongKhachHang() {
                                         )}
                                     </TableCell>
                                     <TableCell align='left'>
-                                        {hd.khachHang1?.soDienThoai}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span>{hd.khachHang1?.soDienThoai}</span>
+                                            {hd.khachHang1?.facebookId && (
+                                                <a 
+                                                    href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                    title="Mở Facebook Khách hàng 1"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <i className="fa-brands fa-facebook"></i>
+                                                </a>
+                                            )}
+                                        </div>
                                         {hd.khachHang2?.soDienThoai && (
                                             <>
-                                                <br />
-                                                {hd.khachHang2.soDienThoai}
+                                                <hr style={{ opacity: "40%", margin: '4px 0' }} />
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span>{hd.khachHang2.soDienThoai}</span>
+                                                    {hd.khachHang2?.facebookId && (
+                                                        <a 
+                                                            href={hd.khachHang2.facebookId.startsWith('http') ? hd.khachHang2.facebookId : `https://facebook.com/${hd.khachHang2.facebookId}`} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer" 
+                                                            style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                            title="Mở Facebook Khách hàng 2"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <i className="fa-brands fa-facebook"></i>
+                                                        </a>
+                                                    )}
+                                                </div>
                                             </>
                                         )}
                                     </TableCell>
                                     <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
-                                    <TableCell align='center'><span style={{ fontWeight: '600', fontSize: '0.85rem' }}>{convertTrangThai(hd.giaiDoan)}</span></TableCell>
+                                    <TableCell align='center'>
+                                        <Chip 
+                                            label={convertTrangThai(hd)} 
+                                            size="small" 
+                                            sx={{ 
+                                                bgcolor: getTrangThaiColor(hd), 
+                                                color: '#fff',
+                                                fontWeight: 'bold',
+                                                fontSize: '0.75rem',
+                                                height: '24px'
+                                            }} 
+                                        />
+                                    </TableCell>
                                     <TableCell align='center'>
                                         {hd.ngayHopDong ? (
                                             <>
@@ -373,7 +680,9 @@ function HopDongKhachHang() {
                                                     (Âm: {formatLunarDateShort(hd.cacNgay.ngayChup)})
                                                 </div>
                                             </>
-                                        ) : "Đang cập nhật"}
+                                        ) : (
+                                            <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '0.82rem' }}>⚠️ Chưa xếp lịch</span>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))

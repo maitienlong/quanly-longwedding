@@ -773,10 +773,38 @@ function LichSoanDo() {
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            {hd.khachHang1 ? hd.khachHang1.soDienThoai : ''}
-                                            {hd.khachHang2 && hd.khachHang2.soDienThoai && (
-                                                <> / <br /> {hd.khachHang2.soDienThoai}</>
-                                            )}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span>{hd.khachHang1 ? hd.khachHang1.soDienThoai : ''}</span>
+                                                {hd.khachHang1?.facebookId && (
+                                                    <a 
+                                                        href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer" 
+                                                        style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                        title="Mở Facebook Khách hàng 1"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <i className="fa-brands fa-facebook"></i>
+                                                    </a>
+                                                )}
+                                            </div>
+                                             {hd.khachHang2 && hd.khachHang2.soDienThoai && (
+                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                                                     <span>{hd.khachHang2.soDienThoai}</span>
+                                                     {hd.khachHang2?.facebookId && (
+                                                         <a 
+                                                             href={hd.khachHang2.facebookId.startsWith('http') ? hd.khachHang2.facebookId : `https://facebook.com/${hd.khachHang2.facebookId}`} 
+                                                             target="_blank" 
+                                                             rel="noopener noreferrer" 
+                                                             style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                             title="Mở Facebook Khách hàng 2"
+                                                             onClick={(e) => e.stopPropagation()}
+                                                         >
+                                                             <i className="fa-brands fa-facebook"></i>
+                                                         </a>
+                                                     )}
+                                                 </div>
+                                             )}
                                         </TableCell>
                                         <TableCell align="center">{formatDate(hd.soanDo ? hd.soanDo.ngaySoan : null)}</TableCell>
                                         <TableCell style={{ maxLines: 2, overflow: 'hidden', textOverflow: 'ellipsis' }}>

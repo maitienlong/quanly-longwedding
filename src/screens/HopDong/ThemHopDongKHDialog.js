@@ -239,6 +239,7 @@ function ThemHopDongKHDialog(props) {
                 updatedGioHang = [...gioHang, {
                     ...product,
                     soLuong: 1,
+                    giamGiaDichVu: 0,
                     dichVu: product._id,
                     soLuongAnhChinhSua: Number(product.soLuongAnhChinhSua) || 0,
                     soLuongAnh16x21: Number(product.soLuongAnh16x21) || 0,
@@ -261,9 +262,9 @@ function ThemHopDongKHDialog(props) {
 
         // 3. Tính toán tổng tiền
         const newTotal = updatedGioHang.reduce((sum, item) => {
-            // Chuyển đổi giá về dạng số để tính toán (đề phòng giá là chuỗi)
             const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
-            return sum + (price * (item.soLuong || 0));
+            const discountItem = parseFloat(item.giamGiaDichVu || 0);
+            return sum + Math.max(0, (price * (item.soLuong || 0)) - discountItem);
         }, 0);
 
         // 4. Cập nhật state tổng tiền
@@ -285,11 +286,23 @@ function ThemHopDongKHDialog(props) {
     };
 
 
+    const handleDiscountItemChange = (maDichVu, value) => {
+        const discountVal = Math.max(0, parseFloat(value) || 0);
+        const updatedCart = gioHang.map(sp => {
+            if (sp.maDichVu === maDichVu) {
+                return { ...sp, giamGiaDichVu: discountVal };
+            }
+            return sp;
+        });
+        updateCartAndTotal(updatedCart);
+    };
+
     const updateCartAndTotal = (newCart) => {
         setGioHang(newCart);
         const newTotal = newCart.reduce((sum, item) => {
             const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
-            return sum + (price * (item.soLuong || 0));
+            const discountItem = parseFloat(item.giamGiaDichVu || 0);
+            return sum + Math.max(0, (price * (item.soLuong || 0)) - discountItem);
         }, 0);
         setTongTien(newTotal);
     };
@@ -318,10 +331,11 @@ function ThemHopDongKHDialog(props) {
     };
 
     const tinhTongThanhToan = () => {
-        // Tính tổng tiền gốc từ giỏ hàng
+        // Tính tổng tiền gốc từ giỏ hàng (đã khấu trừ giảm giá từng dịch vụ)
         const tongGoc = gioHang.reduce((sum, item) => {
             const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
-            return sum + (price * (item.soLuong || 0));
+            const discountItem = parseFloat(item.giamGiaDichVu || 0);
+            return sum + Math.max(0, (price * (item.soLuong || 0)) - discountItem);
         }, 0);
 
         let tongSauGiam = tongGoc;
@@ -894,24 +908,27 @@ function ThemHopDongKHDialog(props) {
                 <table class="items-table">
                     <thead>
                         <tr>
-                            <th style="width: 50px; text-align: center;">STT</th>
+                            <th style="width: 40px; text-align: center;">STT</th>
                             <th>Tên Dịch Vụ / Sản Phẩm</th>
-                            <th style="width: 80px; text-align: center;">Số lượng</th>
-                            <th style="width: 130px; text-align: right;">Đơn giá</th>
-                            <th style="width: 150px; text-align: right;">Thành tiền</th>
+                            <th style="width: 60px; text-align: center;">Số lượng</th>
+                            <th style="width: 110px; text-align: right;">Đơn giá</th>
+                            <th style="width: 110px; text-align: right;">Giảm giá</th>
+                            <th style="width: 130px; text-align: right;">Thành tiền</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${gioHang.length === 0 ? `<tr><td colspan="5" style="text-align: center; color: #999;">Chưa đăng ký dịch vụ nào</td></tr>` : 
+                        ${gioHang.length === 0 ? `<tr><td colspan="6" style="text-align: center; color: #999;">Chưa đăng ký dịch vụ nào</td></tr>` : 
                           gioHang.map((item, index) => {
                             const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
-                            const total = price * (item.soLuong || 0);
+                            const discountItem = parseFloat(item.giamGiaDichVu || 0);
+                            const total = Math.max(0, (price * (item.soLuong || 0)) - discountItem);
                             return `
                                 <tr>
                                     <td style="text-align: center;">${index + 1}</td>
                                     <td>${item.tenDichVu}</td>
                                     <td style="text-align: center;">${item.soLuong}</td>
                                     <td style="text-align: right;">${price.toLocaleString('vi-VN')} đ</td>
+                                    <td style="text-align: right; color: ${discountItem > 0 ? '#dc2626' : '#666'};">${discountItem > 0 ? `-${discountItem.toLocaleString('vi-VN')} đ` : '0 đ'}</td>
                                     <td style="text-align: right; font-weight: bold;">${total.toLocaleString('vi-VN')} đ</td>
                                 </tr>
                             `;
@@ -941,10 +958,16 @@ function ThemHopDongKHDialog(props) {
                             <td class="label">Tổng giá trị dịch vụ:</td>
                             <td class="value">${tongGoc.toLocaleString('vi-VN')} đ</td>
                         </tr>
+                        ${gioHang.some(i => Number(i.giamGiaDichVu) > 0) ? `
+                        <tr>
+                            <td class="label" style="color: #dc2626;">Tổng giảm giá dịch vụ:</td>
+                            <td class="value" style="color: #dc2626;">-${gioHang.reduce((s, i) => s + (Number(i.giamGiaDichVu) || 0), 0).toLocaleString('vi-VN')} đ</td>
+                        </tr>
+                        ` : ''}
                         ${giamGia > 0 ? `
                         <tr>
-                            <td class="label">Giảm giá:</td>
-                            <td class="value">-${giamGia.toLocaleString('vi-VN')}${loaiGiamGia === 1 ? '%' : ' đ'}</td>
+                            <td class="label" style="color: #dc2626;">Giảm giá hợp đồng:</td>
+                            <td class="value" style="color: #dc2626;">-${giamGia.toLocaleString('vi-VN')}${loaiGiamGia === 1 ? '%' : ' đ'}</td>
                         </tr>
                         ` : ''}
                         <tr class="total">
@@ -1397,31 +1420,53 @@ function ThemHopDongKHDialog(props) {
                                         <tr>
                                             <th>Tên SP</th>
                                             <th style={{ textAlign: "center" }}>Số lượng</th>
-                                            <th>Giá</th>
+                                            <th>Đơn giá</th>
+                                            <th style={{ width: '130px' }}>Giảm giá (đ)</th>
                                             <th>Thành tiền</th>
-                                            <th>Hành động</th> {/* Thêm cột mới */}
+                                            <th>Hành động</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {Array.isArray(gioHang) && gioHang.length > 0 ? (
                                             gioHang.map((sp) => {
-                                                // Lưu ý: Dùng giaChoThueDichVu cho đồng nhất với logic search
                                                 const price = parseFloat(sp.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
-                                                const total = price * (sp.soLuong || 0);
+                                                const discountItem = parseFloat(sp.giamGiaDichVu || 0);
+                                                const total = Math.max(0, (price * (sp.soLuong || 0)) - discountItem);
 
                                                 return (
                                                     <Fragment key={sp.maDichVu}>
                                                         <tr style={{ backgroundColor: Number(sp.loaiDichVu) !== 1 ? '#f5f8fc' : 'transparent' }}>
                                                             <td style={{ fontWeight: Number(sp.loaiDichVu) !== 1 ? '600' : 'normal' }}>{sp.tenDichVu}</td>
                                                             <td style={{ textAlign: "center" }}>
-                                                                {/* Nút giảm số lượng */}
                                                                 <button className="btn-qty" onClick={() => handleDecreaseQuantity(sp.maDichVu)}>-</button>
                                                                 <span style={{ margin: "0 10px" }}>{sp.soLuong}</span>
-                                                                {/* Nút tăng số lượng (tận dụng lại logic thêm) */}
                                                                 <button className="btn-qty" onClick={() => handleSelectProduct(sp)}>+</button>
                                                             </td>
                                                             <td>{price.toLocaleString("vi-VN")}đ</td>
-                                                            <td>{total.toLocaleString("vi-VN")}đ</td>
+                                                            <td>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    placeholder="0"
+                                                                    value={sp.giamGiaDichVu !== undefined && sp.giamGiaDichVu !== null ? sp.giamGiaDichVu : ''}
+                                                                    onChange={(e) => handleDiscountItemChange(sp.maDichVu, e.target.value)}
+                                                                    style={{
+                                                                        width: '100px',
+                                                                        padding: '4px 8px',
+                                                                        borderRadius: '6px',
+                                                                        border: '1px solid #cbd5e1',
+                                                                        fontSize: '0.85rem'
+                                                                    }}
+                                                                />
+                                                            </td>
+                                                            <td style={{ fontWeight: 'bold', color: discountItem > 0 ? '#059669' : 'inherit' }}>
+                                                                {total.toLocaleString("vi-VN")}đ
+                                                                {discountItem > 0 && (
+                                                                    <div style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: '500' }}>
+                                                                        (Giảm: -{discountItem.toLocaleString("vi-VN")}đ)
+                                                                    </div>
+                                                                )}
+                                                            </td>
                                                             <td style={{ textAlign: "center" }}>
                                                                 <Button
                                                                     size="small"
@@ -1437,7 +1482,7 @@ function ThemHopDongKHDialog(props) {
                                             })
                                         ) : (
                                             <tr>
-                                                <td colSpan={5} style={{ textAlign: "center", color: "#999" }}>
+                                                <td colSpan={6} style={{ textAlign: "center", color: "#999" }}>
                                                     Chưa sử dụng dịch vụ
                                                 </td>
                                             </tr>
