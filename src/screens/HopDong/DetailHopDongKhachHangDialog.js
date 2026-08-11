@@ -1614,24 +1614,36 @@ function DetailHopDongKhachHangDialog(props) {
 
                                             {albumData && (
                                                 <Box mt={3} p={2.5} borderRadius="12px" border="1px solid #e2e8f0" bgcolor="#f8fafc" boxShadow="0 2px 8px rgba(0,0,0,0.03)">
-                                                    {/* Title & Filter Button */}
-                                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} pb={1.5} borderBottom="1px solid #e2e8f0">
+                                                    {/* Title & Actions */}
+                                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} pb={1.5} borderBottom="1px solid #e2e8f0" flexWrap="wrap" gap={1}>
                                                         <Box display="flex" alignItems="center" gap={1}>
                                                             <span style={{ fontSize: '1.1rem' }}>📷</span>
                                                             <Typography variant="subtitle1" style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem' }}>
                                                                 Album Khách Hàng Chọn Ảnh
                                                             </Typography>
                                                         </Box>
-                                                        <Button
-                                                            variant="outlined"
-                                                            color="secondary"
-                                                            size="small"
-                                                            startIcon={<span>💻</span>}
-                                                            style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px', borderColor: '#7c3aed', color: '#7c3aed' }}
-                                                            onClick={() => setOpenLocAnhDialog(true)}
-                                                        >
-                                                            Lọc ảnh trên máy tính
-                                                        </Button>
+                                                        <Box display="flex" alignItems="center" gap={1}>
+                                                            <Button
+                                                                variant="contained"
+                                                                color="primary"
+                                                                size="small"
+                                                                startIcon={<span>🖼️</span>}
+                                                                style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '5px 12px', borderRadius: '6px', backgroundColor: '#2563eb' }}
+                                                                onClick={() => setOpenAlbumDetailDialog(true)}
+                                                            >
+                                                                Xem danh sách ảnh dạng lưới
+                                                            </Button>
+                                                            <Button
+                                                                variant="outlined"
+                                                                color="secondary"
+                                                                size="small"
+                                                                startIcon={<span>💻</span>}
+                                                                style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px', borderColor: '#7c3aed', color: '#7c3aed' }}
+                                                                onClick={() => setOpenLocAnhDialog(true)}
+                                                            >
+                                                                Lọc ảnh trên máy tính
+                                                            </Button>
+                                                        </Box>
                                                     </Box>
 
                                                     {/* Info Grid */}
@@ -2648,10 +2660,23 @@ function DetailHopDongKhachHangDialog(props) {
                         </div>
                     )}
                     {albumData && albumDetailTab === 0 && (
-                        <div className="admin-masonry-grid">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px', padding: '10px 0' }}>
                             {albumData.danhSachAnh?.map((item) => (
-                                <div key={item.idDrive} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
-                                    <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+                                <Card 
+                                    key={item.idDrive} 
+                                    sx={{ 
+                                        borderRadius: '14px', 
+                                        overflow: 'hidden', 
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                                        border: item.isHearted ? '2px solid #ef4444' : '1px solid #e2e8f0',
+                                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                                        '&:hover': {
+                                            transform: 'translateY(-4px)',
+                                            boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
+                                        }
+                                    }}
+                                >
+                                    <div style={{ position: 'relative', paddingTop: '115%', backgroundColor: '#f1f5f9' }}>
                                         <IconButton
                                             size="small"
                                             onClick={(e) => {
@@ -2664,11 +2689,13 @@ function DetailHopDongKhachHangDialog(props) {
                                             }}
                                             style={{
                                                 position: 'absolute',
-                                                top: 10,
-                                                left: 10,
-                                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                top: 8,
+                                                left: 8,
+                                                backgroundColor: 'rgba(0, 0, 0, 0.65)',
                                                 color: '#fff',
-                                                zIndex: 5
+                                                zIndex: 5,
+                                                width: '28px',
+                                                height: '28px'
                                             }}
                                             title="Tải ảnh này về máy"
                                         >
@@ -2678,174 +2705,236 @@ function DetailHopDongKhachHangDialog(props) {
                                             src={`${item.urlNen}`}
                                             alt={item.tenFile}
                                             loading="lazy"
-                                            style={{ width: '100%', display: 'block' }}
+                                            style={{ 
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%', 
+                                                height: '100%', 
+                                                objectFit: 'cover',
+                                                display: 'block' 
+                                            }}
                                         />
+                                        {item.isHearted && (
+                                            <div style={{ position: 'absolute', top: 8, right: 8, color: '#ef4444', fontSize: '20px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))', zIndex: 5 }}>
+                                                <FontAwesomeIcon icon={faHeart} />
+                                            </div>
+                                        )}
                                         <div style={{
                                             position: 'absolute',
                                             bottom: 0,
                                             left: 0,
                                             right: 0,
-                                            padding: '20px 12px 10px',
-                                            background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
+                                            padding: '24px 10px 8px',
+                                            background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%)',
                                             color: 'white',
-                                            fontSize: '0.8rem',
-                                            fontWeight: '500',
+                                            fontSize: '0.78rem',
+                                            fontWeight: '600',
                                             whiteSpace: 'nowrap',
                                             overflow: 'hidden',
-                                            textOverflow: 'ellipsis'
+                                            textOverflow: 'ellipsis',
+                                            textAlign: 'left'
                                         }}>
                                             {item.tenFile}
                                         </div>
                                     </div>
-                                </div>
+                                </Card>
                             ))}
                         </div>
                     )}
                     {albumData && albumDetailTab === 1 && (
-                        <div className="admin-masonry-grid">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', padding: '10px 0' }}>
                             {albumData.danhSachAnh?.filter(a => a.isHearted || (a.comments && a.comments.length > 0)).map((anh, index) => (
-                                <div key={index} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
-                                    <Card style={{ borderRadius: '16px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
-                                        <div style={{ position: 'relative' }}>
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    downloadPhoto(anh, {
-                                                        onStart: () => toast.info('Đang chuẩn bị tải ảnh...'),
-                                                        onSuccess: (msg) => toast.success(msg || 'Tải ảnh thành công!'),
-                                                        onError: (err) => toast.error(err || 'Có lỗi khi tải ảnh.')
-                                                    });
-                                                }}
-                                                style={{
-                                                    position: 'absolute',
-                                                    top: 10,
-                                                    left: 10,
-                                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                                    color: '#fff',
-                                                    zIndex: 5
-                                                }}
-                                                title="Tải ảnh này về máy"
-                                            >
-                                                <FontAwesomeIcon icon={faDownload} size="xs" />
-                                            </IconButton>
-                                            <img
-                                                src={`${anh.urlNen}`}
-                                                alt={anh.tenFile}
-                                                loading="lazy"
-                                                style={{ width: '100%', display: 'block' }}
-                                            />
-                                            {anh.isHearted && (
-                                                <div style={{ position: 'absolute', top: 10, right: 10, color: 'red', fontSize: '24px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>
-                                                    <FontAwesomeIcon icon={faHeart} />
-                                                </div>
-                                            )}
-                                            <div style={{
+                                <Card 
+                                    key={index} 
+                                    sx={{ 
+                                        borderRadius: '14px', 
+                                        overflow: 'hidden', 
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                                        border: '1px solid #e2e8f0',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                                        '&:hover': {
+                                            transform: 'translateY(-4px)',
+                                            boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
+                                        }
+                                    }}
+                                >
+                                    <div style={{ position: 'relative', paddingTop: '100%', backgroundColor: '#f1f5f9' }}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                downloadPhoto(anh, {
+                                                    onStart: () => toast.info('Đang chuẩn bị tải ảnh...'),
+                                                    onSuccess: (msg) => toast.success(msg || 'Tải ảnh thành công!'),
+                                                    onError: (err) => toast.error(err || 'Có lỗi khi tải ảnh.')
+                                                });
+                                            }}
+                                            style={{
                                                 position: 'absolute',
-                                                bottom: 0,
+                                                top: 8,
+                                                left: 8,
+                                                backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                                                color: '#fff',
+                                                zIndex: 5,
+                                                width: '28px',
+                                                height: '28px'
+                                            }}
+                                            title="Tải ảnh này về máy"
+                                        >
+                                            <FontAwesomeIcon icon={faDownload} size="xs" />
+                                        </IconButton>
+                                        <img
+                                            src={`${anh.urlNen}`}
+                                            alt={anh.tenFile}
+                                            loading="lazy"
+                                            style={{ 
+                                                position: 'absolute',
+                                                top: 0,
                                                 left: 0,
-                                                right: 0,
-                                                padding: '20px 12px 10px',
-                                                background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
-                                                color: 'white',
-                                                fontSize: '0.8rem',
-                                                fontWeight: '500',
-                                                whiteSpace: 'nowrap',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis'
-                                            }}>
-                                                {anh.tenFile}
+                                                width: '100%', 
+                                                height: '100%', 
+                                                objectFit: 'cover',
+                                                display: 'block' 
+                                            }}
+                                        />
+                                        {anh.isHearted && (
+                                            <div style={{ position: 'absolute', top: 8, right: 8, color: '#ef4444', fontSize: '20px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))', zIndex: 5 }}>
+                                                <FontAwesomeIcon icon={faHeart} />
                                             </div>
-                                        </div>
-                                        {anh.comments && anh.comments.length > 0 && (
-                                            <CardContent style={{ padding: '12px' }}>
-                                                <div style={{ backgroundColor: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
-                                                    <Typography variant="caption" fontWeight="bold" style={{ color: '#1976d2' }}>Bình luận KH:</Typography>
-                                                    {anh.comments.map((cmt, idx) => (
-                                                        <Typography key={idx} variant="body2" style={{ marginTop: '4px', fontStyle: 'italic' }}>- {cmt.noiDung}</Typography>
-                                                    ))}
-                                                </div>
-                                            </CardContent>
                                         )}
-                                    </Card>
-                                </div>
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: 0,
+                                            left: 0,
+                                            right: 0,
+                                            padding: '24px 10px 8px',
+                                            background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%)',
+                                            color: 'white',
+                                            fontSize: '0.78rem',
+                                            fontWeight: '600',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            textAlign: 'left'
+                                        }}>
+                                            {anh.tenFile}
+                                        </div>
+                                    </div>
+                                    {anh.comments && anh.comments.length > 0 && (
+                                        <CardContent style={{ padding: '10px 12px', flex: 1, backgroundColor: '#f8fafc' }}>
+                                            <div style={{ backgroundColor: '#ffffff', padding: '8px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                <Typography variant="caption" fontWeight="bold" style={{ color: '#0284c7', fontSize: '0.75rem' }}>💬 Bình luận KH:</Typography>
+                                                {anh.comments.map((cmt, idx) => (
+                                                    <Typography key={idx} variant="body2" style={{ marginTop: '2px', fontStyle: 'italic', fontSize: '0.78rem', color: '#334155' }}>- {cmt.noiDung}</Typography>
+                                                ))}
+                                            </div>
+                                        </CardContent>
+                                    )}
+                                </Card>
                             ))}
                             {albumData.danhSachAnh?.filter(a => a.isHearted || (a.comments && a.comments.length > 0)).length === 0 && (
-                                <Typography variant="body1" style={{ padding: '20px', gridColumn: '1 / -1' }}>Khách hàng chưa chọn hoặc bình luận ảnh nào.</Typography>
+                                <Typography variant="body1" style={{ padding: '20px', gridColumn: '1 / -1', textAlign: 'center', color: '#64748b' }}>Khách hàng chưa chọn hoặc bình luận ảnh nào.</Typography>
                             )}
                         </div>
                     )}
                     {albumData && albumDetailTab === 2 && (
-                        <div className="admin-masonry-grid">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', padding: '10px 0' }}>
                             {albumData.danhSachAnhChinhSua?.map((anh, index) => (
-                                <div key={index} style={{ marginBottom: '16px', breakInside: 'avoid' }}>
-                                    <Card style={{ borderRadius: '16px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
-                                        <div style={{ position: 'relative' }}>
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    downloadPhoto(anh, {
-                                                        onStart: () => toast.info('Đang chuẩn bị tải ảnh...'),
-                                                        onSuccess: (msg) => toast.success(msg || 'Tải ảnh thành công!'),
-                                                        onError: (err) => toast.error(err || 'Có lỗi khi tải ảnh.')
-                                                    });
-                                                }}
-                                                style={{
-                                                    position: 'absolute',
-                                                    top: 10,
-                                                    left: 10,
-                                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                                    color: '#fff',
-                                                    zIndex: 5
-                                                }}
-                                                title="Tải ảnh này về máy"
-                                            >
-                                                <FontAwesomeIcon icon={faDownload} size="xs" />
-                                            </IconButton>
-                                            <img
-                                                src={`${anh.urlNen}`}
-                                                alt={anh.tenFile}
-                                                loading="lazy"
-                                                style={{ width: '100%', display: 'block' }}
-                                            />
-                                            {anh.isHearted && (
-                                                <div style={{ position: 'absolute', top: 10, right: 10, color: 'red', fontSize: '24px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>
-                                                    <FontAwesomeIcon icon={faHeart} />
-                                                </div>
-                                            )}
-                                            <div style={{
+                                <Card 
+                                    key={index} 
+                                    sx={{ 
+                                        borderRadius: '14px', 
+                                        overflow: 'hidden', 
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                                        border: '1px solid #e2e8f0',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                                        '&:hover': {
+                                            transform: 'translateY(-4px)',
+                                            boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
+                                        }
+                                    }}
+                                >
+                                    <div style={{ position: 'relative', paddingTop: '100%', backgroundColor: '#f1f5f9' }}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                downloadPhoto(anh, {
+                                                    onStart: () => toast.info('Đang chuẩn bị tải ảnh...'),
+                                                    onSuccess: (msg) => toast.success(msg || 'Tải ảnh thành công!'),
+                                                    onError: (err) => toast.error(err || 'Có lỗi khi tải ảnh.')
+                                                });
+                                            }}
+                                            style={{
                                                 position: 'absolute',
-                                                bottom: 0,
+                                                top: 8,
+                                                left: 8,
+                                                backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                                                color: '#fff',
+                                                zIndex: 5,
+                                                width: '28px',
+                                                height: '28px'
+                                            }}
+                                            title="Tải ảnh này về máy"
+                                        >
+                                            <FontAwesomeIcon icon={faDownload} size="xs" />
+                                        </IconButton>
+                                        <img
+                                            src={`${anh.urlNen}`}
+                                            alt={anh.tenFile}
+                                            loading="lazy"
+                                            style={{ 
+                                                position: 'absolute',
+                                                top: 0,
                                                 left: 0,
-                                                right: 0,
-                                                padding: '20px 12px 10px',
-                                                background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
-                                                color: 'white',
-                                                fontSize: '0.8rem',
-                                                fontWeight: '500',
-                                                whiteSpace: 'nowrap',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis'
-                                            }}>
-                                                {anh.tenFile}
+                                                width: '100%', 
+                                                height: '100%', 
+                                                objectFit: 'cover',
+                                                display: 'block' 
+                                            }}
+                                        />
+                                        {anh.isHearted && (
+                                            <div style={{ position: 'absolute', top: 8, right: 8, color: '#ef4444', fontSize: '20px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))', zIndex: 5 }}>
+                                                <FontAwesomeIcon icon={faHeart} />
                                             </div>
-                                        </div>
-                                        {anh.comments && anh.comments.length > 0 && (
-                                            <CardContent style={{ padding: '12px' }}>
-                                                <div style={{ backgroundColor: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
-                                                    <Typography variant="caption" fontWeight="bold" style={{ color: '#1976d2' }}>Bình luận KH:</Typography>
-                                                    {anh.comments.map((cmt, idx) => (
-                                                        <Typography key={idx} variant="body2" style={{ marginTop: '4px', fontStyle: 'italic' }}>- {cmt.noiDung}</Typography>
-                                                    ))}
-                                                </div>
-                                            </CardContent>
                                         )}
-                                    </Card>
-                                </div>
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: 0,
+                                            left: 0,
+                                            right: 0,
+                                            padding: '24px 10px 8px',
+                                            background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%)',
+                                            color: 'white',
+                                            fontSize: '0.78rem',
+                                            fontWeight: '600',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            textAlign: 'left'
+                                        }}>
+                                            {anh.tenFile}
+                                        </div>
+                                    </div>
+                                    {anh.comments && anh.comments.length > 0 && (
+                                        <CardContent style={{ padding: '10px 12px', flex: 1, backgroundColor: '#f8fafc' }}>
+                                            <div style={{ backgroundColor: '#ffffff', padding: '8px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                <Typography variant="caption" fontWeight="bold" style={{ color: '#0284c7', fontSize: '0.75rem' }}>💬 Bình luận KH:</Typography>
+                                                {anh.comments.map((cmt, idx) => (
+                                                    <Typography key={idx} variant="body2" style={{ marginTop: '2px', fontStyle: 'italic', fontSize: '0.78rem', color: '#334155' }}>- {cmt.noiDung}</Typography>
+                                                ))}
+                                            </div>
+                                        </CardContent>
+                                    )}
+                                </Card>
                             ))}
                             {(!albumData.danhSachAnhChinhSua || albumData.danhSachAnhChinhSua.length === 0) && (
-                                <Typography variant="body1" style={{ padding: '20px', gridColumn: '1 / -1' }}>Chưa có ảnh chỉnh sửa nào.</Typography>
+                                <Typography variant="body1" style={{ padding: '20px', gridColumn: '1 / -1', textAlign: 'center', color: '#64748b' }}>Chưa có ảnh chỉnh sửa nào.</Typography>
                             )}
                         </div>
                     )}

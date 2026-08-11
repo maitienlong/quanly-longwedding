@@ -20,8 +20,12 @@ const LoginPage = ({ onLoginSuccess }) => {
 
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
-        if (searchParams.get('reason') === 'expired') {
+        const reason = searchParams.get('reason');
+        if (reason === 'expired') {
             toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+            navigate('/login', { replace: true });
+        } else if (reason === 'inactivity') {
+            toast.error("Bạn đã bị đăng xuất tự động do không có hoạt động trong 15 phút!");
             navigate('/login', { replace: true });
         }
     }, [location, navigate]);
