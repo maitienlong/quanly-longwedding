@@ -55,6 +55,13 @@ export const ENDPOINTS = {
     UPDATE: "/loaiHopDong/update",
     REMOVE: "/loaiHopDong/remove"
   },
+  SEPAY: {
+    WEBHOOK: "/api/sepay/webhook",
+    CONFIG: "/api/sepay/config",
+    QR_INFO: "/api/sepay/qr-info",
+    CHECK_STATUS: "/api/sepay/check-status",
+    NOTIFICATIONS: "/api/sepay/notifications"
+  },
   THI_DUA: {
     STATS: "/api/thi-dua/stats",
     UPDATE_TARGETS: "/api/thi-dua/update-targets"

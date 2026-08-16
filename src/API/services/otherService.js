@@ -41,7 +41,13 @@ const appService = {
    updateLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.UPDATE, params),
    removeLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.REMOVE, params),
    getThiDuaStats: (params) => axiosClient.post(ENDPOINTS.THI_DUA.STATS, params),
-   updateBatchTargets: (params) => axiosClient.post(ENDPOINTS.THI_DUA.UPDATE_TARGETS, params)
+   updateBatchTargets: (params) => axiosClient.post(ENDPOINTS.THI_DUA.UPDATE_TARGETS, params),
+   // SEPAY
+   getSepayConfig: () => axiosClient.get(ENDPOINTS.SEPAY.CONFIG),
+   updateSepayConfig: (params) => axiosClient.post(ENDPOINTS.SEPAY.CONFIG, params),
+   getSepayQrInfo: (maHopDong, amount, sessionCode) => axiosClient.get(`${ENDPOINTS.SEPAY.QR_INFO}/${maHopDong}?amount=${amount || 0}${sessionCode ? `&sessionCode=${sessionCode}` : ''}`),
+   checkSepayStatus: (maHopDong) => axiosClient.get(`${ENDPOINTS.SEPAY.CHECK_STATUS}/${maHopDong}`),
+   getSepayNotifications: (since) => axiosClient.get(`${ENDPOINTS.SEPAY.NOTIFICATIONS}${since ? `?since=${since}` : ""}`)
 };
 
 export default appService;

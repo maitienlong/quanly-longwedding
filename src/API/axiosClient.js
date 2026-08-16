@@ -26,13 +26,14 @@ axiosClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ Xử lý response & lỗi 401, 403 tập trung
+// ✅ Xử lý response & lỗi 401 tập trung (403 phân quyền không làm đăng xuất)
 axiosClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
     const status = error.response?.status;
-    if (status === 401 || status === 403) {
-      console.warn(`Unauthorized/Forbidden (${status})! Redirecting to login...`);
+    const msg = String(error.response?.data?.message || "");
+    if (status === 401 || (status === 403 && (msg.toLowerCase().includes("token") || msg.toLowerCase().includes("hết hạn")))) {
+      console.warn(`Unauthorized/Expired Token (${status})! Redirecting to login...`);
       logoutAndRedirect("expired");
     }
     return Promise.reject(error.response?.data || error);

@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import logo from '../assets/logo/BETA-1 VANG@4x.png';
+import { useNavigate, Routes, Route, Link, Navigate } from "react-router-dom";
+import logo from '../assets/logo/logo-vang.png';
 import './css/mainv2.css';
-import { SolarDate } from "lunar-date-vn";
 import HopDongKhachHang from '../screens/HopDong/HopDongKhachHang';
 import LichCuaHang from "../screens/LichCuaHang/LichCuaHang";
 import QuanLyChiTieu from "../screens/QuanLyChiTieu/QuanLyChiTieu";
@@ -14,22 +13,74 @@ import QuanLyKhachHang from "../screens/QuanLyKhachHang/QuanLyKhachHang";
 import QuanLyWebsite from "../screens/QuanLyWebsite/QuanLyWebsite";
 import SystemLogs from "../screens/SystemLogs/SystemLogs";
 import ThiDua from "../screens/ThiDua/ThiDua";
-import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../screens/Login/AuthContext/AuthContext';
-import { toast } from 'sonner';
 import otherService from "../API/services/otherService";
 import { updateContractTypesCache } from "../utils/contractTypesHelper";
+import { formatLunarDateFull } from "../utils/lunarDateUtils";
+
+// Material UI components for reliable centered Dialog
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    Typography,
+    IconButton,
+    Box,
+    Stack,
+    Avatar,
+    Chip,
+    Paper,
+    Grid
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 function MainV2() {
     const navigate = useNavigate();
     const [showDialog, setShowDialog] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [userStats, setUserStats] = useState(null);
+    const [userProfileData, setUserProfileData] = useState(null);
     const { user, logout } = useAuth();
 
     const [ctime, setTime] = useState(new Date().toLocaleTimeString());
     const [cdate, setDate] = useState(new Date().toLocaleDateString());
-    const solar_date = new SolarDate(new Date());
     const dayNames = ["Chủ nhật", "Thứ hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+
+    useEffect(() => {
+        if (showDialog && user) {
+            // Lấy thông tin user đầy đủ từ DB
+            otherService.findUsers({})
+                .then(res => {
+                    const list = res.data?.users || res.data || [];
+                    if (Array.isArray(list)) {
+                        const found = list.find(u => 
+                            (u.username && u.username.toLowerCase() === user?.username?.toLowerCase()) ||
+                            (u._id && user._id && u._id.toString() === user._id.toString())
+                        );
+                        if (found) {
+                            setUserProfileData(found);
+                        }
+                    }
+                })
+                .catch(err => console.error("Lỗi lấy danh sách user:", err));
+
+            // Lấy chỉ tiêu thi đua & KPI
+            otherService.getThiDuaStats({ timeRange: 'month' })
+                .then(res => {
+                    const allStats = res.data?.data?.stats || res.data?.stats || [];
+                    if (Array.isArray(allStats)) {
+                        const myStat = allStats.find(s => 
+                            (s.username && s.username.toLowerCase() === user?.username?.toLowerCase()) ||
+                            (s.fullname && (user?.fullname || user?.hoTen) && s.fullname.toLowerCase() === (user?.fullname || user?.hoTen).toLowerCase())
+                        );
+                        if (myStat) setUserStats(myStat);
+                    }
+                })
+                .catch(err => console.error("Lỗi lấy chỉ tiêu thi đua cá nhân:", err));
+        }
+    }, [showDialog, user]);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -47,176 +98,332 @@ function MainV2() {
                 }
             })
             .catch(err => {
-                console.error("Lỗi khi tải danh sách loại hợp đồng:", err);
+                console.error("Lỗi khởi tạo loại hợp đồng:", err);
             });
     }, []);
 
     const handleLogout = () => {
         logout();
-        toast.success("Đăng xuất thành công!");
-        navigate('/login');
+        setShowDialog(false);
     };
 
-    // Hàm kiểm tra quyền truy cập route/chức năng
-    const hasAccess = (path) => {
-        const role = user?.positon || "";
-        if (role === "Quản lý") return true;
+    const userNameDisplay = userProfileData?.fullname || user?.fullname || user?.hoTen || user?.tenNhanVien || user?.username || 'Người Dùng';
+    const userRoleDisplay = userProfileData?.positon || user?.positon || user?.chucVu || user?.role || (user?.permission === 1 ? 'Quản lý' : 'Nhân viên');
+    const userPhoneDisplay = userProfileData?.soDienThoai || user?.soDienThoai || 'Chưa cập nhật';
 
-        if (role === "Nhân viên Sale") {
-            return [
-                "/hop-dong-khach-hang",
-                "/lich-cua-hang",
-                "/lich-soan-do",
-                "/quan-ly-kho",
-                "/quan-ly-khach-hang",
-                "/quan-ly-website",
-                "/thi-dua"
-            ].includes(path);
-        }
-
-        if (["Thợ chụp hình", "Thợ trang điểm", "Thợ chỉnh ảnh"].includes(role)) {
-            return ["/lich-cua-hang", "/thi-dua"].includes(path);
-        }
-
-        return false;
-    };
-
-    // Xác định trang đích mặc định của user dựa trên chức vụ
-    const getDefaultPath = () => {
-        const role = user?.positon || "";
-        if (role === "Quản lý" || role === "Nhân viên Sale") {
-            return "/hop-dong-khach-hang";
-        }
-        return "/lich-cua-hang";
-    };
+    // Kiểm tra quyền Quản trị viên / Quản lý
+    const isAdmin = user?.permission === 1 || 
+                    userProfileData?.permission === 1 || 
+                    user?.positon === "Quản lý" || 
+                    userProfileData?.positon === "Quản lý" || 
+                    user?.chucVu === "Quản lý" || 
+                    user?.role === "ADMIN" || 
+                    user?.username === "along";
 
     return (
-        <div className="AppV2">
-            <div className="container">
-                <aside className="sidebar">
-                    <div className="sidebar-header">
-                        <div className="logo-title-group">
-                            <img className="logo-login" src={logo} alt="logo" />
-                            <h1 className="mobile-only-title">HỆ THỐNG QUẢN LÝ CỬA HÀNG LONG WEDDING</h1>
-                            <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                                <i className="fa-solid fa-bars"></i>
-                            </button>
-                        </div>
-                        <div className="time-display">
-                            <h2 id="clock">{ctime}</h2>
-                            <p id="date">{dayNames[new Date().getDay()]}, {cdate}</p>
-                            <p id="date">
-                                {"Ngày " +
-                                    solar_date.toLunarDate().day +
-                                    " tháng " +
-                                    solar_date.toLunarDate().month +
-                                    " năm " +
-                                    solar_date.toLunarDate().year}
-                            </p>
+        <div className="container">
+            {/* Sidebar */}
+            <div className="sidebar">
+                <div className="sidebar-header">
+                    <div className="logo logo-title-group" style={{ cursor: 'pointer', display: 'flex', justifyContent: 'center', marginBottom: 15 }} onClick={() => navigate('/')}>
+                        <img src={logo} alt="Logo" className="logo-login" style={{ maxHeight: 85, maxWidth: '90%', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.3))' }} />
+                        <span className="mobile-only-title" style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
+                            LONG WEDDING
+                        </span>
+                    </div>
+
+                    <div className="time-display" style={{ marginTop: 10 }}>
+                        <div id="clock">{ctime}</div>
+                        <div id="date">
+                            <div>{dayNames[new Date().getDay()]} - {cdate}</div>
+                            <div style={{ color: '#fbbf24', fontSize: '0.82rem', marginTop: 4, fontWeight: 500 }}>
+                                🌙 Âm: {formatLunarDateFull(new Date())}
+                            </div>
                         </div>
                     </div>
 
-                    <nav className={`sidebar-nav ${isMenuOpen ? 'open' : ''}`}>
-                        <ul>
-                            {hasAccess("/hop-dong-khach-hang") && (
-                                <li><Link to="/hop-dong-khach-hang" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-file-contract"></i> QUẢN LÝ HỢP ĐỒNG KHÁCH</Link></li>
-                            )}
-                            {hasAccess("/lich-cua-hang") && (
-                                <li><Link to="/lich-cua-hang" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-calendar-days"></i> LỊCH CỬA HÀNG</Link></li>
-                            )}
-                            {hasAccess("/lich-soan-do") && (
-                                <li><Link to="/lich-soan-do" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-shirt"></i> LỊCH SOẠN ĐỒ</Link></li>
-                            )}
-                            {hasAccess("/quan-ly-chi-tieu") && (
-                                <li><Link to="/quan-ly-chi-tieu" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-cash-register"></i> QUẢN LÝ CHI TIÊU</Link></li>
-                            )}
-                            {hasAccess("/bao-cao-doanh-thu") && (
-                                <li><Link to="/bao-cao-doanh-thu" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-chart-line"></i> BÁO CÁO DOANH THU & KPI</Link></li>
-                            )}
-                            {hasAccess("/thi-dua") && (
-                                <li><Link to="/thi-dua" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-trophy"></i> THI ĐƯA & KPI</Link></li>
-                            )}
-                            {hasAccess("/quan-ly-kho") && (
-                                <li><Link to="/quan-ly-kho" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-warehouse"></i> QUẢN LÝ KHO</Link></li>
-                            )}
-                            {hasAccess("/quan-ly-nhan-vien") && (
-                                <li><Link to="/quan-ly-nhan-vien" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-users-gear"></i> QUẢN LÝ NHÂN VIÊN</Link></li>
-                            )}
-                            {hasAccess("/quan-ly-khach-hang") && (
-                                <li><Link to="/quan-ly-khach-hang" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-users"></i> QUẢN LÝ KHÁCH HÀNG</Link></li>
-                            )}
-                            {hasAccess("/quan-ly-website") && (
-                                <li><Link to="/quan-ly-website" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-globe"></i> QUẢN LÝ WEBSITE</Link></li>
-                            )}
-                            {hasAccess("/nhat-ky-he-thong") && (
-                                <li><Link to="/nhat-ky-he-thong" onClick={() => setIsMenuOpen(false)}><i className="fa-solid fa-clipboard-list"></i> NHẬT KÝ HỆ THỐNG</Link></li>
-                            )}
-                        </ul>
-                    </nav>
+                    <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                        <i className={`fa-solid ${isMenuOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
+                    </button>
+                </div>
 
-                    {/* ✅ Khi click vào đây sẽ mở dialog */}
-                    <div className="user-profile" onClick={() => setShowDialog(true)}>
-                        <i className="fa-solid fa-user-circle"></i>
-                        <div className="user-info">
-                            <p className="user-name">{user?.fullname || "Người dùng"}</p>
-                            <p className="user-role">{user?.positon || user?.position || "Chức vụ"}</p>
+                <div className={`sidebar-nav ${isMenuOpen ? 'open' : ''}`}>
+                    <ul>
+                        <li>
+                            <Link to="/" onClick={() => setIsMenuOpen(false)}>
+                                <i className="fa-solid fa-file-contract"></i> Hợp Đồng KH
+                            </Link>
+                        </li>
+                        <li>
+                            <Link to="/lichcuahang" onClick={() => setIsMenuOpen(false)}>
+                                <i className="fa-solid fa-calendar-days"></i> Lịch Cửa Hàng
+                            </Link>
+                        </li>
+                        <li>
+                            <Link to="/lichSoanDo" onClick={() => setIsMenuOpen(false)}>
+                                <i className="fa-solid fa-clipboard-list"></i> Lịch Soạn Đồ
+                            </Link>
+                        </li>
+                        <li>
+                            <Link to="/thi-dua" onClick={() => setIsMenuOpen(false)}>
+                                <i className="fa-solid fa-trophy"></i> Thi Đua
+                            </Link>
+                        </li>
+
+                        {/* Chức năng quản trị viên / Quản lý */}
+                        {isAdmin && (
+                            <>
+                                <li>
+                                    <Link to="/doanhthu" onClick={() => setIsMenuOpen(false)}>
+                                        <i className="fa-solid fa-chart-pie"></i> Doanh Thu
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link to="/quanlychitieu" onClick={() => setIsMenuOpen(false)}>
+                                        <i className="fa-solid fa-wallet"></i> Quản Lý Chi Tiêu
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link to="/quanlykho" onClick={() => setIsMenuOpen(false)}>
+                                        <i className="fa-solid fa-boxes-stacked"></i> Quản Lý Kho
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link to="/quanlykhachhang" onClick={() => setIsMenuOpen(false)}>
+                                        <i className="fa-solid fa-address-book"></i> Khách Hàng
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link to="/quanlywebsite" onClick={() => setIsMenuOpen(false)}>
+                                        <i className="fa-solid fa-globe"></i> Quản Lý Website
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link to="/quanlynhanvien" onClick={() => setIsMenuOpen(false)}>
+                                        <i className="fa-solid fa-users-gear"></i> Quản Lý Nhân Viên
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link to="/system-logs" onClick={() => setIsMenuOpen(false)}>
+                                        <i className="fa-solid fa-shield-halved"></i> Nhật Ký Hệ Thống
+                                    </Link>
+                                </li>
+                            </>
+                        )}
+                    </ul>
+                </div>
+
+                <div className="user-profile" onClick={() => setShowDialog(true)}>
+                    <i className="fa-solid fa-user-circle"></i>
+                    <div className="user-info">
+                        <div className="user-name">
+                            {userNameDisplay}
                         </div>
-                    </div>
-                </aside>
-
-                <main className="main-content">
-                    <header className="main-header">
-                        <h1>HỆ THỐNG QUẢN LÝ CỬA HÀNG LONG WEDDING</h1>
-                    </header>
-
-                    <div className="content-wrapper">
-                        <Routes>
-                            <Route path="/" element={<Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/hop-dong-khach-hang" element={hasAccess("/hop-dong-khach-hang") ? <HopDongKhachHang /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/lich-cua-hang" element={hasAccess("/lich-cua-hang") ? <LichCuaHang /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/quan-ly-chi-tieu" element={hasAccess("/quan-ly-chi-tieu") ? <QuanLyChiTieu /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/lich-soan-do" element={hasAccess("/lich-soan-do") ? <LichSoanDo /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/bao-cao-doanh-thu" element={hasAccess("/bao-cao-doanh-thu") ? <DoanhThu /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/thi-dua" element={hasAccess("/thi-dua") ? <ThiDua /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/quan-ly-kho" element={hasAccess("/quan-ly-kho") ? <QuanLyKho /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/quan-ly-nhan-vien" element={hasAccess("/quan-ly-nhan-vien") ? <QuanLyNhanVien /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/quan-ly-khach-hang" element={hasAccess("/quan-ly-khach-hang") ? <QuanLyKhachHang /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/quan-ly-website" element={hasAccess("/quan-ly-website") ? <QuanLyWebsite /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="/nhat-ky-he-thong" element={hasAccess("/nhat-ky-he-thong") ? <SystemLogs /> : <Navigate to={getDefaultPath()} replace />} />
-                            <Route path="*" element={<Navigate to={getDefaultPath()} replace />} />
-                        </Routes>
-                    </div>
-
-                    <footer className="main-footer">
-                        <p>LONG WEDDING COPYRIGHT 2025</p>
-                    </footer>
-                </main>
-            </div>
-
-            {/* 🎯 Dialog hiển thị thông tin người dùng */}
-            {showDialog && (
-                <div className="dialog-overlay" onClick={() => setShowDialog(false)}>
-                    <div className="dialog" onClick={(e) => e.stopPropagation()}>
-                        {/* 🔴 Nút đóng góc phải */}
-                        <button className="dialog-close-btn" onClick={() => setShowDialog(false)}>
-                            ×
-                        </button>
-
-                        <img
-                            src={user?.avatar || logo}
-                            alt="avatar"
-                            className="dialog-avatar"
-                        />
-                        <h2>{user?.fullname || "Tên người dùng"}</h2>
-                        <p><strong>Ngày sinh:</strong> {user?.birthday || "01/01/1990"}</p>
-                        <p><strong>Chức vụ:</strong> {user?.positon || user?.position || "Nhân viên"}</p>
-
-                        <button className="logout-btn" onClick={handleLogout}>
-                            Đăng xuất
-                        </button>
+                        <div className="user-role">
+                            {userRoleDisplay}
+                        </div>
                     </div>
                 </div>
-            )}
+            </div>
+
+            {/* Main Content */}
+            <div className="main-content">
+                <Routes>
+                    <Route path="/" element={<HopDongKhachHang />} />
+                    <Route path="/lichcuahang" element={<LichCuaHang />} />
+                    <Route path="/lichSoanDo" element={<LichSoanDo />} />
+                    <Route path="/thi-dua" element={<ThiDua />} />
+
+                    {/* Protected Admin Routes */}
+                    <Route path="/doanhthu" element={isAdmin ? <DoanhThu /> : <Navigate to="/" replace />} />
+                    <Route path="/quanlychitieu" element={isAdmin ? <QuanLyChiTieu /> : <Navigate to="/" replace />} />
+                    <Route path="/quanlykho" element={isAdmin ? <QuanLyKho /> : <Navigate to="/" replace />} />
+                    <Route path="/quanlykhachhang" element={isAdmin ? <QuanLyKhachHang /> : <Navigate to="/" replace />} />
+                    <Route path="/quanlywebsite" element={isAdmin ? <QuanLyWebsite /> : <Navigate to="/" replace />} />
+                    <Route path="/quanlynhanvien" element={isAdmin ? <QuanLyNhanVien /> : <Navigate to="/" replace />} />
+                    <Route path="/system-logs" element={isAdmin ? <SystemLogs /> : <Navigate to="/" replace />} />
+                </Routes>
+
+                <footer className="main-footer" style={{ textAlign: 'center', paddingTop: 16, marginTop: 16, borderTop: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
+                    Design by Mai Tiến Long
+                </footer>
+            </div>
+
+            {/* Dialog Thông Tin Tài Khoản, Chỉ Tiêu & Thành Tích Cá Nhân */}
+            <Dialog
+                open={showDialog}
+                onClose={() => setShowDialog(false)}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{
+                    style: {
+                        borderRadius: 20,
+                        overflow: 'hidden',
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+                    }
+                }}
+            >
+                {/* Header Banner */}
+                <Box sx={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', p: 3, color: '#fff', position: 'relative' }}>
+                    <IconButton
+                        size="small"
+                        onClick={() => setShowDialog(false)}
+                        sx={{ position: 'absolute', top: 12, right: 12, color: '#94a3b8', '&:hover': { color: '#fff' } }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+                    <Stack direction="row" spacing={2.5} alignItems="center">
+                        <Avatar
+                            sx={{
+                                width: 68,
+                                height: 68,
+                                bgcolor: '#0284c7',
+                                fontSize: '1.8rem',
+                                fontWeight: 800,
+                                boxShadow: '0 4px 14px rgba(2,132,199,0.4)',
+                                border: '3px solid #38bdf8'
+                            }}
+                        >
+                            {(userNameDisplay || 'U').charAt(0).toUpperCase()}
+                        </Avatar>
+                        <Box>
+                            <Typography variant="h6" sx={{ fontWeight: 800, color: '#ffffff', lineHeight: 1.2 }}>
+                                {userNameDisplay}
+                            </Typography>
+                            <Stack direction="row" spacing={1} alignItems="center" mt={0.8}>
+                                <Chip
+                                    label={userRoleDisplay}
+                                    size="small"
+                                    sx={{ bgcolor: '#0284c7', color: '#fff', fontWeight: 700, height: 22, fontSize: '0.75rem' }}
+                                />
+                                <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                                    @{user?.username || 'user'}
+                                </Typography>
+                            </Stack>
+                        </Box>
+                    </Stack>
+                </Box>
+
+                <DialogContent style={{ padding: '24px' }}>
+                    <Stack spacing={2.5}>
+                        {/* Thông tin tài khoản */}
+                        <Paper variant="outlined" sx={{ p: 2, borderRadius: '14px', bgcolor: '#f8fafc' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                👤 THÔNG TIN TÀI KHOẢN
+                            </Typography>
+                            <Grid container spacing={2}>
+                                <Grid item xs={6}>
+                                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Họ và tên</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a' }}>{userNameDisplay}</Typography>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Chức vụ</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#0284c7' }}>{userRoleDisplay}</Typography>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Tên đăng nhập</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#475569' }}>{user?.username || '-'}</Typography>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Số điện thoại</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#475569' }}>{userPhoneDisplay}</Typography>
+                                </Grid>
+                            </Grid>
+                        </Paper>
+
+                        {/* Chỉ tiêu KPI & Tiến độ tháng này */}
+                        {(() => {
+                            const chiTieuThang = userStats?.chiTieuThang || user?.chiTieuThang || 20;
+                            const workCount = userStats?.workCount || 0;
+                            const percent = Math.min(100, Math.round((workCount / chiTieuThang) * 100));
+                            const exceeded = userStats?.exceededCount || Math.max(0, workCount - chiTieuThang);
+                            const hoaHong = userStats?.hoaHong || 0;
+
+                            return (
+                                <Paper variant="outlined" sx={{ p: 2, borderRadius: '14px', bgcolor: '#ffffff', borderColor: '#e2e8f0' }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        🎯 CHỈ TIÊU & TIẾN ĐỘ KPI (THÁNG NÀY)
+                                    </Typography>
+                                    
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                        <Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>
+                                            Đã hoàn thành: <strong style={{ color: '#0284c7', fontSize: '1rem' }}>{workCount}</strong> / {chiTieuThang} hợp đồng
+                                        </Typography>
+                                        <Chip 
+                                            label={`${percent}% Target`} 
+                                            size="small" 
+                                            sx={{ 
+                                                bgcolor: percent >= 100 ? '#dcfce7' : percent >= 50 ? '#fef3c7' : '#fee2e2', 
+                                                color: percent >= 100 ? '#15803d' : percent >= 50 ? '#b45309' : '#b91c1c', 
+                                                fontWeight: 800,
+                                                fontSize: '0.75rem'
+                                            }} 
+                                        />
+                                    </Box>
+
+                                    <Box sx={{ width: '100%', height: 10, bgcolor: '#e2e8f0', borderRadius: 5, overflow: 'hidden', mb: 2 }}>
+                                        <Box
+                                            sx={{
+                                                width: `${percent}%`,
+                                                height: '100%',
+                                                borderRadius: 5,
+                                                background: percent >= 100 ? 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)' : 'linear-gradient(90deg, #0284c7 0%, #38bdf8 100%)',
+                                                transition: 'width 0.4s ease-in-out'
+                                            }}
+                                        />
+                                    </Box>
+
+                                    <Grid container spacing={1.5}>
+                                        <Grid item xs={6}>
+                                            <Box sx={{ p: 1.2, bgcolor: '#f0fdf4', borderRadius: '10px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                                                <Typography variant="caption" sx={{ color: '#166534', fontWeight: 600, display: 'block' }}>🔥 Vượt chỉ tiêu</Typography>
+                                                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#15803d' }}>+{exceeded} HĐ</Typography>
+                                            </Box>
+                                        </Grid>
+                                        <Grid item xs={6}>
+                                            <Box sx={{ p: 1.2, bgcolor: '#fffbeb', borderRadius: '10px', border: '1px solid #fde68a', textAlign: 'center' }}>
+                                                <Typography variant="caption" sx={{ color: '#92400e', fontWeight: 600, display: 'block' }}>💰 Hoa hồng tích lũy</Typography>
+                                                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#b45309' }}>{hoaHong.toLocaleString('vi-VN')} đ</Typography>
+                                            </Box>
+                                        </Grid>
+                                    </Grid>
+                                </Paper>
+                            );
+                        })()}
+
+                        {/* Thành tích thi đua */}
+                        <Paper variant="outlined" sx={{ p: 2, borderRadius: '14px', bgcolor: '#f8fafc' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                🏆 THÀNH TÍCH & DANH HIỆU
+                            </Typography>
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                                <Chip label="🎖️ Nhân Viên Chính Thức" variant="outlined" color="primary" sx={{ fontWeight: 600, bgcolor: '#fff' }} />
+                                <Chip label="⚡ Đạt Chỉ Tiêu KPI" variant="outlined" color="success" sx={{ fontWeight: 600, bgcolor: '#fff' }} />
+                                <Chip label="⭐ Thành Viên Năng Nổ" variant="outlined" color="warning" sx={{ fontWeight: 600, bgcolor: '#fff' }} />
+                            </Stack>
+                        </Paper>
+                    </Stack>
+                </DialogContent>
+
+                <DialogActions style={{ padding: '16px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', justifyContent: 'space-between' }}>
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        onClick={() => setShowDialog(false)}
+                        style={{ borderRadius: 10, color: '#64748b', borderColor: '#cbd5e1', fontWeight: 600 }}
+                    >
+                        Đóng cửa sổ
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={handleLogout}
+                        style={{ borderRadius: 10, fontWeight: 700, padding: '8px 20px', backgroundColor: '#ef4444' }}
+                    >
+                        🚪 Đăng xuất
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 }

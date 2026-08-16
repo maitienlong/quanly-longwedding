@@ -32,7 +32,7 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import Avatar from '@mui/material/Avatar';
-import logoDefault from '../../assets/logo/BETA-1 VANG@4x.png';
+import logoDefault from '../../assets/logo/logo-vang.png';
 
 function ThiDua() {
     const theme = useTheme();
@@ -203,7 +203,7 @@ function ThiDua() {
                                     fontWeight="600" 
                                     textAnchor="middle"
                                 >
-                                    {item.fullname.split(' ').pop()}
+                                    {item.fullname} {item.username ? `(${item.username})` : ''}
                                 </text>
                             </g>
                         );
@@ -345,7 +345,7 @@ function ThiDua() {
                                         sx={{ width: 68, height: 68, border: '3px solid #94a3b8', margin: '0 auto 10px auto', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }} 
                                     />
                                     <div className="podium-user-name">{top2.fullname}</div>
-                                    <div className="podium-user-role">{top2.positon}</div>
+                                    {top2.username && <div className="podium-user-role" style={{ color: '#cbd5e1', fontWeight: 600 }}>{top2.username}</div>}
                                 </div>
                                 <div className="podium-card podium-box-2">
                                     <div style={{ color: '#cbd5e1', fontSize: '0.85rem' }}>Á QUÂN</div>
@@ -371,7 +371,7 @@ function ThiDua() {
                                         sx={{ width: 84, height: 84, border: '4px solid #fbbf24', margin: '0 auto 10px auto', boxShadow: '0 6px 16px rgba(251, 191, 36, 0.4)' }} 
                                     />
                                     <div className="podium-user-name" style={{ fontSize: '1.1rem', color: '#fbbf24' }}>{top1.fullname}</div>
-                                    <div className="podium-user-role">{top1.positon}</div>
+                                    {top1.username && <div className="podium-user-role" style={{ color: '#fef08a', fontWeight: 600 }}>{top1.username}</div>}
                                 </div>
                                 <div className="podium-card podium-box-1">
                                     <div style={{ color: '#fef08a', fontWeight: 'bold', fontSize: '0.9rem' }}>QUÁN QUÂN</div>
@@ -397,7 +397,7 @@ function ThiDua() {
                                         sx={{ width: 68, height: 68, border: '3px solid #b45309', margin: '0 auto 10px auto', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }} 
                                     />
                                     <div className="podium-user-name">{top3_staff.fullname}</div>
-                                    <div className="podium-user-role">{top3_staff.positon}</div>
+                                    {top3_staff.username && <div className="podium-user-role" style={{ color: '#cbd5e1', fontWeight: 600 }}>{top3_staff.username}</div>}
                                 </div>
                                 <div className="podium-card podium-box-3">
                                     <div style={{ color: '#fde68a', fontSize: '0.85rem' }}>HẠNG 3</div>
@@ -487,9 +487,11 @@ function ThiDua() {
                                                     <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#0f172a' }}>
                                                         {item.fullname}
                                                     </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        @{item.username}
-                                                    </Typography>
+                                                    {item.username && (
+                                                        <Typography variant="caption" sx={{ color: '#0284c7', fontWeight: 600 }}>
+                                                            {item.username}
+                                                        </Typography>
+                                                    )}
                                                 </Box>
                                             </Box>
                                         </TableCell>
@@ -559,7 +561,7 @@ function ThiDua() {
                                     <TableRow key={item.username}>
                                         <TableCell>
                                             <b>{item.fullname}</b>
-                                            <div style={{ fontSize: '0.75rem', color: '#666' }}>@{item.username}</div>
+                                            {item.username && <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 600 }}>{item.username}</div>}
                                         </TableCell>
                                         <TableCell>{item.positon}</TableCell>
                                         <TableCell align="center">

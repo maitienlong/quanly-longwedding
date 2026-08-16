@@ -22,7 +22,7 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import { formatDate } from '../utils/convertDate';
-import logoVang from '../../assets/logo/BETA-1 VANG@4x.png';
+import logoVang from '../../assets/logo/logo-vang.png';
 import { formatLunarDateFull } from '../../utils/lunarDateUtils';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -32,11 +32,13 @@ import {
     faPrint,
     faCircleCheck,
     faHeart,
-    faDownload
+    faDownload,
+    faCreditCard
 } from '@fortawesome/free-solid-svg-icons';
 import MobileAccordion from '../../components/MobileAccordion';
 import LocAnhMayTinhDialog from './LocAnhMayTinhDialog';
 import { downloadPhoto } from '../../utils/downloadHelper';
+import SePayDialog from './SePayDialog';
 // getDichVuChinhLabel is now retrieved dynamically from useContractTypes hook
 
 function DetailHopDongKhachHangDialog(props) {
@@ -85,6 +87,7 @@ function DetailHopDongKhachHangDialog(props) {
 
     const [methodPayment, setMethodPayment] = useState("Tiền mặt");
     const [noiDungPayment, setNoiDungPayment] = useState("Thanh toán thêm");
+    const [openPaymentDialog, setOpenPaymentDialog] = useState(false);
     const { showLoading, hideLoading } = useLoading();
     const [listDichVu, setListDichVu] = useState([]);
 
@@ -173,6 +176,7 @@ function DetailHopDongKhachHangDialog(props) {
     const [loaiGiamGia, setLoaiGiamGia] = useState(0); // "VND" hoặc "%"
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
+    const [openSepayDialog, setOpenSepayDialog] = useState(false);
 
     const isOldService = (productId) => {
         return data?.gioHang?.some(orig => {
@@ -463,10 +467,11 @@ function DetailHopDongKhachHangDialog(props) {
                 return item;
             });
         } else {
-            const isExisting = gioHang.find(sp => (sp.dichVu || sp._id) === productId);
+            const targetProductId = (product.dichVu?._id || product.dichVu || product._id)?.toString();
+            const isExisting = gioHang.find(sp => getCartItemId(sp) === targetProductId);
             if (isExisting) {
                 updatedGioHang = gioHang.map(sp =>
-                    (sp.dichVu || sp._id) === productId
+                    getCartItemId(sp) === targetProductId
                         ? {
                             ...sp,
                             soLuong: (sp.soLuong || 0) + 1
@@ -502,10 +507,17 @@ function DetailHopDongKhachHangDialog(props) {
         setShowSuggestions(false);
     };
 
+    // Helper to get consistent cart item ID string
+    const getCartItemId = (item) => {
+        if (!item) return '';
+        const rawId = item.dichVu?._id || item.dichVu || item._id;
+        return rawId ? rawId.toString() : (item.maDichVu || '');
+    };
+
     const handleParamChange = (dichVuId, field, value) => {
+        const targetIdStr = dichVuId?.toString();
         const updatedCart = gioHang.map(sp => {
-            const spId = sp.dichVu?._id || sp.dichVu || sp._id;
-            if (spId === dichVuId) {
+            if (getCartItemId(sp) === targetIdStr) {
                 return { ...sp, [field]: value };
             }
             return sp;
@@ -515,15 +527,48 @@ function DetailHopDongKhachHangDialog(props) {
 
 
     const handleDiscountItemChange = (dichVuId, value) => {
+        const targetIdStr = dichVuId?.toString();
         const discountVal = Math.max(0, parseFloat(value) || 0);
         const updatedCart = gioHang.map(sp => {
-            const spId = sp.dichVu?._id || sp.dichVu || sp._id;
-            if (spId === dichVuId) {
+            if (getCartItemId(sp) === targetIdStr) {
                 return { ...sp, giamGiaDichVu: discountVal };
             }
             return sp;
         });
+
+        const newTotalSauGiam = calculateTotalWithCart(updatedCart);
+        const daThanhToan = getDaThanhToan();
+        if (daThanhToan > 0 && newTotalSauGiam < daThanhToan) {
+            toast.error(`Không thể tăng giảm giá vì tổng tiền hợp đồng (${newTotalSauGiam.toLocaleString('vi-VN')} đ) sẽ thấp hơn số tiền khách đã thanh toán (${daThanhToan.toLocaleString('vi-VN')} đ)!`);
+            return;
+        }
+
         updateCartAndTotal(updatedCart);
+    };
+
+    const calculateTotalWithCart = (cart) => {
+        const tongGoc = cart.reduce((sum, item) => {
+            const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
+            const discountItem = parseFloat(item.giamGiaDichVu || 0);
+            return sum + Math.max(0, (price * (item.soLuong || 0)) - discountItem);
+        }, 0);
+
+        let tongSauGiam = tongGoc;
+        if (Number(loaiGiamGia) === 1) {
+            tongSauGiam = tongGoc - (tongGoc * (giamGia / 100));
+        } else {
+            tongSauGiam = tongGoc - giamGia;
+        }
+
+        return tongSauGiam < 0 ? 0 : tongSauGiam;
+    };
+
+    const getDaThanhToan = () => {
+        const cacLuot = data?.thanhToan?.cacLuotThanhToan;
+        if (Array.isArray(cacLuot) && cacLuot.length > 0) {
+            return cacLuot.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        }
+        return Number(data?.thanhToan?.khachHangDaThanhToan) || 0;
     };
 
     const updateCartAndTotal = (newCart) => {
@@ -536,38 +581,69 @@ function DetailHopDongKhachHangDialog(props) {
         setTongTien(newTotal);
     };
 
-    // Hàm xóa hoàn toàn sản phẩm khỏi giỏ
-    const handleDeleteProduct = (dichVuId) => {
-        if (isOldService(dichVuId)) {
-            toast.error("Không được phép xóa dịch vụ cũ đã ký!");
+    // Hàm xóa hoàn toàn sản phẩm khỏi giỏ: Cho phép xóa nếu giá trị giảm đi <= số tiền còn lại chưa thanh toán
+    const handleDeleteProduct = (dichVuId, targetIndex) => {
+        if (!Array.isArray(gioHang) || gioHang.length <= 1) {
+            toast.error("Không thể xóa sản phẩm cuối cùng trong hợp đồng! Hợp đồng phải có ít nhất 1 dịch vụ/sản phẩm.");
             return;
         }
-        const updatedCart = gioHang.filter(sp => (sp.dichVu || sp._id) !== dichVuId);
+
+        let updatedCart;
+        if (targetIndex !== undefined && targetIndex >= 0) {
+            updatedCart = gioHang.filter((_, i) => i !== targetIndex);
+        } else {
+            const targetIdStr = dichVuId?.toString();
+            updatedCart = gioHang.filter(sp => getCartItemId(sp) !== targetIdStr);
+        }
+
+        const newTotalSauGiam = calculateTotalWithCart(updatedCart);
+        const daThanhToan = getDaThanhToan();
+
+        if (daThanhToan > 0 && newTotalSauGiam < daThanhToan) {
+            const currentTotalSauGiam = calculateTotalWithCart(gioHang);
+            const conLai = Math.max(0, currentTotalSauGiam - daThanhToan);
+            toast.error(`Không thể xóa sản phẩm này vì giá trị sản phẩm lớn hơn số tiền còn lại chưa thanh toán (${conLai.toLocaleString('vi-VN')} đ). Tổng tiền hợp đồng không thể nhỏ hơn số tiền khách đã thanh toán (${daThanhToan.toLocaleString('vi-VN')} đ)!`);
+            return;
+        }
+
         updateCartAndTotal(updatedCart);
         toast.info("Đã xóa sản phẩm khỏi giỏ hàng");
     };
 
-    // Hàm giảm số lượng sản phẩm
-    const handleDecreaseQuantity = (dichVuId) => {
-        const existingProduct = gioHang.find(sp => (sp.dichVu || sp._id) === dichVuId);
-        if (!existingProduct) return;
+    // Hàm giảm số lượng sản phẩm: Cho phép giảm nếu đơn giá giảm đi <= số tiền còn lại chưa thanh toán
+    const handleDecreaseQuantity = (dichVuId, targetIndex) => {
+        const itemIdx = (targetIndex !== undefined && targetIndex >= 0)
+            ? targetIndex
+            : gioHang.findIndex(sp => getCartItemId(sp) === dichVuId?.toString());
 
-        if (isOldService(dichVuId)) {
-            const origQty = getOriginalQuantity(dichVuId);
-            if (existingProduct.soLuong <= origQty) {
-                toast.warning("Không thể giảm số lượng dịch vụ cũ dưới mức ban đầu!");
-                return;
-            }
+        if (itemIdx < 0 || !gioHang[itemIdx]) return;
+        const existingProduct = gioHang[itemIdx];
+
+        if (existingProduct.soLuong <= 1 && (!Array.isArray(gioHang) || gioHang.length <= 1)) {
+            toast.error("Không thể xóa sản phẩm cuối cùng trong hợp đồng! Hợp đồng phải có ít nhất 1 dịch vụ/sản phẩm.");
+            return;
         }
 
+        let updatedCart;
         if (existingProduct.soLuong > 1) {
-            const updatedCart = gioHang.map(sp =>
-                (sp.dichVu || sp._id) === dichVuId ? { ...sp, soLuong: sp.soLuong - 1 } : sp
+            updatedCart = gioHang.map((sp, idx) =>
+                idx === itemIdx ? { ...sp, soLuong: sp.soLuong - 1 } : sp
             );
-            updateCartAndTotal(updatedCart);
         } else {
-            handleDeleteProduct(dichVuId);
+            updatedCart = gioHang.filter((_, idx) => idx !== itemIdx);
         }
+
+        const newTotalSauGiam = calculateTotalWithCart(updatedCart);
+        const daThanhToan = getDaThanhToan();
+
+        if (daThanhToan > 0 && newTotalSauGiam < daThanhToan) {
+            const currentTotalSauGiam = calculateTotalWithCart(gioHang);
+            const conLai = Math.max(0, currentTotalSauGiam - daThanhToan);
+            toast.error(`Không thể giảm số lượng vì đơn giá sản phẩm lớn hơn số tiền còn lại chưa thanh toán (${conLai.toLocaleString('vi-VN')} đ). Tổng tiền hợp đồng không thể nhỏ hơn số tiền khách đã thanh toán (${daThanhToan.toLocaleString('vi-VN')} đ)!`);
+            return;
+        }
+
+        updateCartAndTotal(updatedCart);
     };
 
     const tinhTongThanhToan = () => {
@@ -661,7 +737,14 @@ function DetailHopDongKhachHangDialog(props) {
             return;
         }
 
-
+        // Kiểm tra trước giỏ hàng so với số tiền đã thanh toán
+        const daThanhToan = getDaThanhToan();
+        const currentTotalSauGiam = calculateTotalWithCart(gioHang);
+        if (daThanhToan > 0 && currentTotalSauGiam < daThanhToan) {
+            const conLai = Math.max(0, currentTotalSauGiam - daThanhToan);
+            toast.error(`Không thể cập nhật hợp đồng vì tổng tiền giỏ hàng sau giảm (${currentTotalSauGiam.toLocaleString('vi-VN')} đ) nhỏ hơn số tiền khách đã thanh toán (${daThanhToan.toLocaleString('vi-VN')} đ)!`);
+            return;
+        }
 
         showLoading("Đang cập nhật hợp đồng...");
         otherService.UPDATE_HOPDONG({
@@ -720,12 +803,18 @@ function DetailHopDongKhachHangDialog(props) {
             linkAnhGoc: linkAnhGoc,
             linkAnhChinhSua: linkAnhChinhSua
         }).then((response) => {
+            if (response?.success === false) {
+                toast.error(response?.message || "Có lỗi xảy ra khi cập nhật hợp đồng!");
+                hideLoading();
+                return;
+            }
             toast.success("Cập nhật hợp đồng thành công!");
             hideLoading();
             onClose(true); // Close and refresh
         }).catch((error) => {
             console.error(error);
-            toast.error("Có lỗi xảy ra khi cập nhật hợp đồng! " + error);
+            const errorMsg = error?.message || error?.response?.data?.message || (typeof error === 'string' ? error : "Có lỗi xảy ra khi cập nhật hợp đồng!");
+            toast.error(errorMsg);
             hideLoading();
         });
     };
@@ -736,9 +825,29 @@ function DetailHopDongKhachHangDialog(props) {
             return;
         }
 
+        // 1. Kiểm tra hợp đồng đã có thanh toán
+        const daThanhToan = Number(data?.thanhToan?.khachHangDaThanhToan) || 0;
+        const cacLuotThanhToan = data?.thanhToan?.cacLuotThanhToan || [];
+        if (daThanhToan > 0 || (Array.isArray(cacLuotThanhToan) && cacLuotThanhToan.length > 0)) {
+            toast.error(`Không thể xóa hợp đồng vì đã có phát sinh thanh toán (${daThanhToan > 0 ? daThanhToan.toLocaleString("vi-VN") + " đ" : "có lịch sử thanh toán"})!`);
+            return;
+        }
+
+        // 2. Kiểm tra phiếu thuê đồ đang cho thuê / đang mượn
+        const trangThaiSoanDo = data?.soanDo?.trangThai;
+        if (["Đang mượn", "Đang thuê", "Đang cho thuê"].includes(trangThaiSoanDo)) {
+            toast.error("Không thể xóa hợp đồng vì đang có phiếu thuê đồ ở trạng thái đang cho thuê/mượn!");
+            return;
+        }
+
         showLoading("Đang xóa hợp đồng...");
         otherService.deleteHopDong({ maHopDong })
             .then((response) => {
+                if (response?.success === false) {
+                    toast.error(response?.message || "Có lỗi xảy ra khi xóa hợp đồng!");
+                    hideLoading();
+                    return;
+                }
                 toast.success("Xóa hợp đồng thành công!");
                 hideLoading();
                 setOpenDeleteDialog(false);
@@ -746,7 +855,8 @@ function DetailHopDongKhachHangDialog(props) {
             })
             .catch((error) => {
                 console.error(error);
-                toast.error("Có lỗi xảy ra khi xóa hợp đồng!");
+                const errorMsg = error?.message || error?.response?.data?.message || (typeof error === 'string' ? error : "Có lỗi xảy ra khi xóa hợp đồng!");
+                toast.error(errorMsg);
                 hideLoading();
             });
     };
@@ -1213,6 +1323,16 @@ function DetailHopDongKhachHangDialog(props) {
             <Dialog onClose={handleClose} open={open}
                 fullWidth={true}
                 maxWidth="xl"
+                PaperProps={{
+                    sx: {
+                        width: '100%',
+                        maxWidth: '99vw',
+                        m: { xs: 0, sm: 0.5 },
+                        height: { xs: '100%', sm: '98vh' },
+                        maxHeight: '100vh',
+                        borderRadius: { xs: 0, sm: 2 }
+                    }
+                }}
             >
                 <div className="dialog-overlay">
                     <div className="mobile-dark-theme dialog large">
@@ -1357,7 +1477,7 @@ function DetailHopDongKhachHangDialog(props) {
 
 
                                 <MobileAccordion title="Thông tin hợp đồng" className="dialog-section">
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                    <div className="two-col-grid">
                                         <div className="floating-label">
                                             <input name="maHopDong" value={maHopDong} disabled />
                                             <label>Mã hợp đồng</label>
@@ -1448,7 +1568,7 @@ function DetailHopDongKhachHangDialog(props) {
                                 </MobileAccordion>
 
                                 <MobileAccordion title="Thông tin chung & Lịch trình" className="dialog-section" style={{ marginTop: '20px' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                    <div className="two-col-grid">
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                                             <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
                                                 <DateTimePicker
@@ -2022,12 +2142,38 @@ function DetailHopDongKhachHangDialog(props) {
                                                         const total = Math.max(0, (price * (item.soLuong || 0)) - discountItem);
                                                         const loaiDichVuVal = item.loaiDichVu ?? item.dichVu?.loaiDichVu;
 
+                                                        const daThanhToan = getDaThanhToan();
+                                                        const isOnlyItem = Array.isArray(gioHang) && gioHang.length <= 1;
+
+                                                        const cartAfterDecrease = item.soLuong > 1 
+                                                            ? gioHang.map((sp, idx) => idx === index ? { ...sp, soLuong: sp.soLuong - 1 } : sp)
+                                                            : gioHang.filter((_, idx) => idx !== index);
+                                                        const canDecrease = (!isOnlyItem || item.soLuong > 1) && (daThanhToan <= 0 || calculateTotalWithCart(cartAfterDecrease) >= daThanhToan);
+
+                                                        const cartAfterDelete = gioHang.filter((_, idx) => idx !== index);
+                                                        const canDelete = !isOnlyItem && (daThanhToan <= 0 || calculateTotalWithCart(cartAfterDelete) >= daThanhToan);
+
+                                                        const decreaseTitle = isOnlyItem && item.soLuong <= 1 
+                                                            ? "Không thể xóa sản phẩm cuối cùng trong hợp đồng" 
+                                                            : (!canDecrease ? "Không thể giảm vì đơn giá lớn hơn số tiền còn lại chưa thanh toán" : "");
+
+                                                        const deleteTitle = isOnlyItem 
+                                                            ? "Không thể xóa sản phẩm cuối cùng trong hợp đồng" 
+                                                            : (!canDelete ? "Không thể xóa vì giá trị sản phẩm lớn hơn số tiền còn lại chưa thanh toán" : "");
+
                                                         return (
                                                             <Fragment key={productId || index}>
                                                                 <tr style={{ backgroundColor: Number(loaiDichVuVal) !== 1 ? '#f5f8fc' : 'transparent' }}>
                                                                     <td style={{ fontWeight: Number(loaiDichVuVal) !== 1 ? '600' : 'normal' }}>{item.tenDichVuSnapshot || item.tenDichVu}</td>
                                                                     <td style={{ textAlign: "center" }}>
-                                                                        <button className="btn-qty" onClick={() => handleDecreaseQuantity(productId)}>-</button>
+                                                                        <button
+                                                                            className="btn-qty"
+                                                                            onClick={() => handleDecreaseQuantity(productId, index)}
+                                                                            title={decreaseTitle}
+                                                                            style={{ opacity: !canDecrease ? 0.6 : 1 }}
+                                                                        >
+                                                                            -
+                                                                        </button>
                                                                         <span style={{ margin: "0 10px" }}>{item.soLuong}</span>
                                                                         <button className="btn-qty" onClick={() => handleSelectProduct(item)}>+</button>
                                                                     </td>
@@ -2060,7 +2206,9 @@ function DetailHopDongKhachHangDialog(props) {
                                                                         <Button
                                                                             size="small"
                                                                             color="error"
-                                                                            onClick={() => handleDeleteProduct(productId)}
+                                                                            onClick={() => handleDeleteProduct(productId, index)}
+                                                                            title={deleteTitle}
+                                                                            style={{ opacity: !canDelete ? 0.6 : 1 }}
                                                                         >
                                                                             Xóa
                                                                         </Button>
@@ -2226,117 +2374,64 @@ function DetailHopDongKhachHangDialog(props) {
 
                         {/* === DƯỚI CÙNG: THANH TOÁN === */}
                         <MobileAccordion title="Thông tin thanh toán" className="dialog-section payment">
-                            <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', flexWrap: 'wrap', width: '100%' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 2, minWidth: '350px' }}>
-                                    <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1.2em', color: 'green', margin: '0 0 10px 0' }}>Lịch sử thanh toán</p>
-                                    <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                            <div className="payment-summary-flex">
+                                <div className="payment-history-col">
+                                    <p style={{ textAlign: 'left', fontWeight: '700', fontSize: '0.82rem', color: '#16a34a', margin: '0 0 6px 0' }}>
+                                        Lịch sử thanh toán
+                                    </p>
+                                    <div style={{ maxHeight: '130px', overflowY: 'auto' }}>
                                         {data?.thanhToan?.cacLuotThanhToan && data.thanhToan.cacLuotThanhToan.length > 0 ? (
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                                                 <thead>
-                                                    <tr style={{ borderBottom: '1px solid #ddd', textAlign: 'left', color: '#666' }}>
-                                                        <th style={{ padding: '6px' }}>Ngày</th>
-                                                        <th style={{ padding: '6px' }}>Số tiền</th>
-                                                        <th style={{ padding: '6px' }}>Hình thức</th>
-                                                        <th style={{ padding: '6px' }}>Ghi chú</th>
+                                                    <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#475569' }}>
+                                                        <th style={{ padding: '4px 6px' }}>Ngày</th>
+                                                        <th style={{ padding: '4px 6px' }}>Số tiền</th>
+                                                        <th style={{ padding: '4px 6px' }}>Hình thức</th>
+                                                        <th style={{ padding: '4px 6px' }}>Ghi chú</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {data.thanhToan.cacLuotThanhToan.map((payment, index) => (
-                                                        <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
-                                                            <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>{formatDate(payment.date)}</td>
-                                                            <td style={{ padding: '6px', fontWeight: '600', color: '#333' }}>{payment.amount?.toLocaleString("vi-VN")}đ</td>
-                                                            <td style={{ padding: '6px' }}>{payment.method}</td>
-                                                            <td style={{ padding: '6px', color: '#666', fontStyle: 'italic' }}>{payment.noiDung || '-'}</td>
+                                                        <tr key={index} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                            <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{formatDate(payment.date)}</td>
+                                                            <td style={{ padding: '4px 6px', fontWeight: '600', color: '#0f172a' }}>{payment.amount?.toLocaleString("vi-VN")}đ</td>
+                                                            <td style={{ padding: '4px 6px' }}>{payment.method}</td>
+                                                            <td style={{ padding: '4px 6px', color: '#64748b', fontStyle: 'italic' }}>{payment.noiDung || '-'}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                             </table>
                                         ) : (
-                                            <p style={{ fontSize: '0.9rem', color: '#999', textAlign: 'left', margin: '10px 0' }}>Chưa có lượt thanh toán nào.</p>
+                                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'left', margin: '4px 0' }}>Chưa có lượt thanh toán nào.</p>
                                         )}
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '200px' }}>
-                                    <Autocomplete
-                                        disablePortal
-                                        options={[
-                                            { label: 'Chuyển khoản', id: 0 },
-                                            { label: 'Tiền mặt', id: 1 }
-                                        ]}
-                                        size="small"
-                                        value={{ label: methodPayment }}
-                                        renderInput={(params) => (
-                                            <TextField
-                                                {...params}
-                                                label="Hình thức thanh toán"
-                                                sx={{
-                                                    '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px', padding: '0 8px' },
-                                                    '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
-                                                    '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
-                                                }}
-                                            />
-                                        )}
-                                        onChange={(event, newValue) => {
-                                            setMethodPayment(newValue ? newValue.label : "Tiền mặt");
-                                        }}
-                                        sx={{
-                                            '& .MuiAutocomplete-inputRoot': { padding: '0 8px' }
-                                        }}
-                                    />
-
-                                    <TextField
-                                        label="Ghi chú thanh toán"
-                                        size="small"
-                                        value={noiDungPayment}
-                                        onChange={(e) => setNoiDungPayment(e.target.value)}
-                                        sx={{
-                                            '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px' },
-                                            '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
-                                            '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
-                                        }}
-                                    />
-
-                                    <TextField
-                                        label="Thanh toán"
-                                        value={khachThanhToanTruoc === 0 ? "" : khachThanhToanTruoc.toLocaleString("vi-VN")}
-                                        onChange={(e) => {
-                                            const rawValue = e.target.value.replace(/[^0-9]/g, "");
-                                            setKhachThanhToanTruoc(Number(rawValue) || 0);
-                                        }}
-                                        fullWidth
-                                        variant="outlined"
-                                        size="small"
-                                        sx={{
-                                            '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px' },
-                                            '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
-                                            '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
-                                        }}
-                                    />
-                                </div>
-
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '200px' }}>
-                                    <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
-                                        Tổng tiền đơn hàng: <b>{gioHang.reduce((sum, item) => {
+                                <div className="payment-totals-card">
+                                    <div className="payment-total-row">
+                                        <span>Tổng đơn:</span>
+                                        <b>{gioHang.reduce((sum, item) => {
                                             const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
                                             return sum + (price * (item.soLuong || 0));
-                                        }, 0).toLocaleString("vi-VN") + " đ"} </b>
-                                    </p>
-                                    <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
-                                        Tổng tiền sau giảm giá: <b>{tongTien.toLocaleString("vi-VN")} đ</b>
-                                    </p>
-                                    <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1em', color: 'green' }}>
-                                        Tổng đã thanh toán: <b>{((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0)).toLocaleString("vi-VN")} đ</b>
-                                    </p>
-
-                                    <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '1.2em', color: 'red' }}>
-                                        Tổng tiền còn lại: <b>{Math.max(0, tongTien - ((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0))).toLocaleString("vi-VN")} đ</b>
-                                    </p>
+                                        }, 0).toLocaleString("vi-VN")} đ</b>
+                                    </div>
+                                    <div className="payment-total-row">
+                                        <span>Sau giảm:</span>
+                                        <b>{tongTien.toLocaleString("vi-VN")} đ</b>
+                                    </div>
+                                    <div className="payment-total-row" style={{ color: '#16a34a' }}>
+                                        <span>Đã thanh toán:</span>
+                                        <b>{((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0)).toLocaleString("vi-VN")} đ</b>
+                                    </div>
+                                    <div className="payment-total-row remaining" style={{ color: '#dc2626', fontWeight: 800, borderTop: '1px dashed #cbd5e1', paddingTop: '4px', marginTop: '2px' }}>
+                                        <span>Còn lại:</span>
+                                        <b>{Math.max(0, tongTien - ((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0))).toLocaleString("vi-VN")} đ</b>
+                                    </div>
                                 </div>
                             </div>
                         </MobileAccordion>
 
-                        <div className="dialog-actions" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <div className="dialog-actions" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                             <Button
                                 onClick={() => {
                                     setDeleteConfirmInput("");
@@ -2344,59 +2439,87 @@ function DetailHopDongKhachHangDialog(props) {
                                 }}
                                 variant="outlined"
                                 color="error"
+                                size="small"
                                 sx={{
-                                    whiteSpace: 'nowrap'
+                                    whiteSpace: 'nowrap',
+                                    fontSize: '0.72rem',
+                                    padding: '3px 8px',
+                                    minHeight: '32px'
                                 }}
-                            >Xóa hợp đồng</Button>
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            >Xóa HĐ</Button>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
                                 <Button
                                     onClick={handleClose}
                                     variant="contained"
                                     color="error"
+                                    size="small"
                                     sx={{
                                         whiteSpace: 'nowrap',
-                                        fontSize: { xs: '0.7rem', sm: '0.875rem' },
-                                        padding: { xs: '4px 8px', sm: '6px 16px' }
+                                        fontSize: '0.72rem',
+                                        padding: '3px 8px',
+                                        minHeight: '32px'
                                     }}
                                 >Thoát</Button>
+
+                                <Button
+                                    onClick={() => setOpenPaymentDialog(true)}
+                                    variant="contained"
+                                    color="warning"
+                                    size="small"
+                                    startIcon={<FontAwesomeIcon icon={faCreditCard} style={{ fontSize: '0.7rem' }} />}
+                                    sx={{
+                                        whiteSpace: 'nowrap',
+                                        fontSize: '0.72rem',
+                                        padding: '3px 8px',
+                                        fontWeight: 700,
+                                        minHeight: '32px'
+                                    }}
+                                >Thanh toán</Button>
 
                                 <Button
                                     onClick={handlePrintHopDong}
                                     variant="contained"
                                     color="success"
-                                    startIcon={<FontAwesomeIcon icon={faPrint} />}
+                                    size="small"
+                                    startIcon={<FontAwesomeIcon icon={faPrint} style={{ fontSize: '0.7rem' }} />}
                                     sx={{
                                         whiteSpace: 'nowrap',
-                                        fontSize: { xs: '0.7rem', sm: '0.875rem' },
-                                        padding: { xs: '4px 8px', sm: '6px 16px' }
+                                        fontSize: '0.72rem',
+                                        padding: '3px 8px',
+                                        minHeight: '32px'
                                     }}
-                                >In hợp đồng</Button>
+                                >In HĐ</Button>
 
                                 {(linkAnhGoc || linkAnhChinhSua || albumData || isLoadingAlbum) && (
                                     <Button
                                         variant="contained"
                                         color="info"
+                                        size="small"
                                         disabled={isLoadingAlbum}
                                         onClick={() => setOpenAlbumDetailDialog(true)}
                                         sx={{
                                             whiteSpace: 'nowrap',
-                                            fontSize: { xs: '0.7rem', sm: '0.875rem' },
-                                            padding: { xs: '4px 8px', sm: '6px 16px' }
+                                            fontSize: '0.72rem',
+                                            padding: '3px 8px',
+                                            minHeight: '32px'
                                         }}
                                     >
-                                        {isLoadingAlbum ? "Đang Tải Ảnh..." : "Xem Ảnh Khách Hàng"}
+                                        {isLoadingAlbum ? "Đang tải..." : "Xem ảnh"}
                                     </Button>
                                 )}
 
                                 <Button
                                     onClick={() => onUpdateHopDong()}
                                     variant="contained"
+                                    size="small"
                                     sx={{
                                         whiteSpace: 'nowrap',
-                                        fontSize: { xs: '0.7rem', sm: '0.875rem' },
-                                        padding: { xs: '4px 8px', sm: '6px 16px' }
+                                        fontSize: '0.74rem',
+                                        padding: '4px 10px',
+                                        fontWeight: 700,
+                                        minHeight: '32px'
                                     }}
-                                >Cập nhật hợp đồng</Button>
+                                >Cập nhật HĐ</Button>
                             </div>
                         </div>
                     </div>
@@ -2566,6 +2689,34 @@ function DetailHopDongKhachHangDialog(props) {
                 <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)} maxWidth="sm" fullWidth>
                     <div style={{ padding: '24px', textAlign: 'center' }}>
                         <h2 style={{ color: '#d32f2f', marginBottom: '16px' }}>Xác nhận xóa hợp đồng</h2>
+                        
+                        {(() => {
+                            const daThanhToanVal = Number(data?.thanhToan?.khachHangDaThanhToan) || 0;
+                            const cacLuotVal = data?.thanhToan?.cacLuotThanhToan || [];
+                            const hasPayments = daThanhToanVal > 0 || (Array.isArray(cacLuotVal) && cacLuotVal.length > 0);
+                            const isRenting = ["Đang mượn", "Đang thuê", "Đang cho thuê"].includes(data?.soanDo?.trangThai);
+
+                            if (hasPayments) {
+                                return (
+                                    <div style={{ padding: '12px 16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#b91c1c', marginBottom: '16px', textAlign: 'left', fontSize: '0.9rem' }}>
+                                        <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>
+                                        <strong>Không thể xóa hợp đồng:</strong> Hợp đồng đã có phát sinh thanh toán (<strong>{daThanhToanVal > 0 ? daThanhToanVal.toLocaleString('vi-VN') + ' đ' : 'có lịch sử thanh toán'}</strong>). Vui lòng kiểm tra lại.
+                                    </div>
+                                );
+                            }
+
+                            if (isRenting) {
+                                return (
+                                    <div style={{ padding: '12px 16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#b91c1c', marginBottom: '16px', textAlign: 'left', fontSize: '0.9rem' }}>
+                                        <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '8px' }}></i>
+                                        <strong>Không thể xóa hợp đồng:</strong> Đang có phiếu thuê/mượn đồ ở trạng thái đang cho thuê/mượn (<strong>{data?.soanDo?.trangThai}</strong>).
+                                    </div>
+                                );
+                            }
+
+                            return null;
+                        })()}
+
                         <p style={{ marginBottom: '16px', color: '#555' }}>
                             Hành động này <b>không thể hoàn tác</b>. Tất cả dữ liệu liên quan đến hợp đồng <b>{data?.maHopDong}</b> sẽ bị xóa vĩnh viễn.
                         </p>
@@ -2587,17 +2738,55 @@ function DetailHopDongKhachHangDialog(props) {
                             <Button variant="outlined" color="inherit" onClick={() => setOpenDeleteDialog(false)}>
                                 Hủy bỏ
                             </Button>
-                            <Button
-                                variant="contained"
-                                color="error"
-                                disabled={deleteConfirmInput !== maHopDong}
-                                onClick={handleDeleteHopDong}
-                            >
-                                Xác nhận xóa
-                            </Button>
+                            {(() => {
+                                const daThanhToanVal = Number(data?.thanhToan?.khachHangDaThanhToan) || 0;
+                                const cacLuotVal = data?.thanhToan?.cacLuotThanhToan || [];
+                                const hasPayments = daThanhToanVal > 0 || (Array.isArray(cacLuotVal) && cacLuotVal.length > 0);
+                                const isRenting = ["Đang mượn", "Đang thuê", "Đang cho thuê"].includes(data?.soanDo?.trangThai);
+                                const isBlocked = hasPayments || isRenting;
+
+                                return (
+                                    <Button
+                                        variant="contained"
+                                        color="error"
+                                        disabled={deleteConfirmInput !== maHopDong || isBlocked}
+                                        onClick={handleDeleteHopDong}
+                                    >
+                                        Xác nhận xóa
+                                    </Button>
+                                );
+                            })()}
                         </div>
                     </div>
                 </Dialog>
+
+                {/* Dialog Thanh toán VietQR SePay Webhook */}
+                <SePayDialog
+                    open={openPaymentDialog}
+                    onClose={() => setOpenPaymentDialog(false)}
+                    data={data}
+                    maHopDong={maHopDong}
+                    defaultAmount={Math.max(0, tongTien - ((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0)))}
+                    onSuccess={(updatedData) => {
+                        setHasUpdated(true);
+                        if (updatedData?.latestPayment && data) {
+                            if (!data.thanhToan) data.thanhToan = {};
+                            if (!data.thanhToan.cacLuotThanhToan) data.thanhToan.cacLuotThanhToan = [];
+                            const exists = data.thanhToan.cacLuotThanhToan.some(p => p.id === updatedData.latestPayment.id);
+                            if (!exists) {
+                                data.thanhToan.cacLuotThanhToan.push(updatedData.latestPayment);
+                            }
+                            if (updatedData.khachHangDaThanhToan !== undefined) {
+                                data.thanhToan.khachHangDaThanhToan = updatedData.khachHangDaThanhToan;
+                                data.thanhToan.conLai = updatedData.conLai;
+                            } else {
+                                const addedAmt = Number(updatedData.latestPayment.amount) || 0;
+                                data.thanhToan.khachHangDaThanhToan = (data.thanhToan.khachHangDaThanhToan || 0) + addedAmt;
+                                data.thanhToan.conLai = Math.max(0, (tongTien || 0) - data.thanhToan.khachHangDaThanhToan);
+                            }
+                        }
+                    }}
+                />
 
             </Dialog >
 

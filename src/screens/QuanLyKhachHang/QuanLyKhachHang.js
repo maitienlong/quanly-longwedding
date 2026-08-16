@@ -31,7 +31,7 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Chip from '@mui/material/Chip';
 
-import logoDefault from '../../assets/logo/BETA-1 VANG@4x.png';
+import logoDefault from '../../assets/logo/logo-vang.png';
 import Avatar from '@mui/material/Avatar';
 import IconButton from '@mui/material/IconButton';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';

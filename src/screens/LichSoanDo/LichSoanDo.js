@@ -33,6 +33,8 @@ import Grid from '@mui/material/Grid';
 import Select from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Chip from '@mui/material/Chip';
@@ -77,6 +79,9 @@ function LichSoanDo() {
     const [selectedTrangPhuc, setSelectedTrangPhuc] = useState(null);
     const [trangPhucQty, setTrangPhucQty] = useState(1);
     const [trangPhucNote, setTrangPhucNote] = useState('');
+    const [trangPhucTienNangCap, setTrangPhucTienNangCap] = useState(0);
+    const [trangPhucIsThueThem, setTrangPhucIsThueThem] = useState(false);
+    const [trangPhucDonGiaThue, setTrangPhucDonGiaThue] = useState(0);
 
     const commonHeight = 56;
 
@@ -88,10 +93,14 @@ function LichSoanDo() {
             otherService.findAllLichSoanDo({})
         ])
             .then(([resHD, resLSD]) => {
-                // Filter only Pre-Wedding (1) and Cho thuê trang phục (12)
-                const list = (resHD.data.hopDong || []).filter(hd => 
-                    Number(hd.dichVuChinh) === 1 || Number(hd.dichVuChinh) === 12
-                );
+                // Filter Pre-Wedding (1) and Cho thuê trang phục (12), excluding completed contracts (giaiDoan === 5)
+                const list = (resHD.data.hopDong || []).filter(hd => {
+                    const dvId = Number(hd.dichVuChinh);
+                    const label = getDichVuChinhLabel(hd.dichVuChinh)?.toLowerCase() || '';
+                    const isTargetService = dvId === 1 || dvId === 12 || label.includes('pre-wedding') || label.includes('cho thuê trang phục');
+                    const isNotCompleted = Number(hd.giaiDoan) !== 5;
+                    return isTargetService && isNotCompleted;
+                });
                 
                 const schedules = resLSD.data?.lichSoanDo || [];
                 const updatedList = list.map(hd => {
@@ -212,7 +221,63 @@ function LichSoanDo() {
         setDsMuon([]);
         setDsTra([]);
         
+        setSelectedTrangPhuc(null);
+        setTrangPhucQty(1);
+        setTrangPhucNote('');
+        setTrangPhucTienNangCap(0);
+        setTrangPhucIsThueThem(false);
+        setTrangPhucDonGiaThue(0);
+
         setOpenDialog(true);
+    };
+
+    // Helper: Extract attire items from contract's gioHang and merge with existing dsMuon
+    const extractAttireFromContract = (hd, existingDsMuon = []) => {
+        const result = [...existingDsMuon];
+        const existingCodes = new Set(result.map(i => i.maDichVu).filter(Boolean));
+        const existingIds = new Set(result.map(i => (i.dichVuId || i._id)?.toString()).filter(Boolean));
+
+        if (Array.isArray(hd?.gioHang)) {
+            hd.gioHang.forEach(sp => {
+                const rawName = sp.tenDichVuSnapshot || sp.tenDichVu || sp.dichVu?.tenDichVu || '';
+                if (rawName.startsWith('[Nâng cấp]')) return; // Skip upgrade pseudo-items
+
+                const isClothing = Number(sp.loaiDichVu) === 1 || 
+                                   Number(sp.dichVu?.loaiDichVu) === 1 || 
+                                   trangPhucList.some(tp => tp._id === (sp.dichVu?._id || sp.dichVu || sp._id) || (tp.maDichVu && tp.maDichVu === sp.maDichVu));
+
+                if (isClothing) {
+                    const dvId = (sp.dichVu?._id || sp.dichVu || sp._id)?.toString();
+                    const maDV = sp.maDichVu || sp.dichVu?.maDichVu || '';
+                    const codeToCheck = maDV;
+
+                    const alreadyExists = (codeToCheck && existingCodes.has(codeToCheck)) || (dvId && existingIds.has(dvId));
+
+                    if (!alreadyExists) {
+                        const isThueThem = rawName.startsWith('[Thuê thêm]');
+                        const cleanName = rawName.replace('[Thuê thêm] ', '');
+                        const donGia = Number(sp.donGia !== undefined ? sp.donGia : (sp.giaChoThueDichVu || sp.dichVu?.giaChoThueDichVu || 0));
+
+                        result.push({
+                            _id: sp.dichVu?._id || sp.dichVu || sp._id,
+                            dichVuId: sp.dichVu?._id || sp.dichVu || sp._id,
+                            maDichVu: maDV,
+                            tenDichVu: cleanName,
+                            soLuong: Number(sp.soLuong) || 1,
+                            tienNangCap: 0,
+                            isThueThem: isThueThem,
+                            donGiaThue: donGia,
+                            giaChoThueDichVu: donGia,
+                            ghiChu: ''
+                        });
+
+                        if (codeToCheck) existingCodes.add(codeToCheck);
+                        if (dvId) existingIds.add(dvId);
+                    }
+                }
+            });
+        }
+        return result;
     };
 
     // Handle opening details dialog
@@ -230,24 +295,48 @@ function LichSoanDo() {
         setNguoiKiem(sd.nguoiKiem || loggedInUserFullname);
         setNoiDung(sd.noiDung || '');
         setTrangThai(sd.trangThai || 'Chưa mượn');
-        setDsMuon(sd.dsMuon || []);
+        
+        // Pre-populate attire items from contract cart if present
+        const mergedDsMuon = extractAttireFromContract(hd, sd.dsMuon || []);
+        setDsMuon(mergedDsMuon);
         
         // If there are borrowed items but no returned items mapped, init them
         if (sd.dsTra && sd.dsTra.length > 0) {
-            setDsTra(sd.dsTra);
+            const activeMuonCodes = new Set(mergedDsMuon.map(i => i.maDichVu));
+            const existingTra = sd.dsTra.filter(i => activeMuonCodes.has(i.maDichVu));
+            const existingTraCodes = new Set(existingTra.map(i => i.maDichVu));
+            
+            const additionalTra = mergedDsMuon.filter(i => !existingTraCodes.has(i.maDichVu)).map(item => ({
+                ...item,
+                trangThaiDo: 'Nguyên vẹn',
+                ghiChuTra: ''
+            }));
+            setDsTra([...existingTra, ...additionalTra]);
         } else {
-            setDsTra((sd.dsMuon || []).map(item => ({
+            setDsTra(mergedDsMuon.map(item => ({
                 ...item,
                 trangThaiDo: 'Nguyên vẹn',
                 ghiChuTra: ''
             })));
         }
 
+        setSelectedTrangPhuc(null);
+        setTrangPhucQty(1);
+        setTrangPhucNote('');
+        setTrangPhucTienNangCap(0);
+        setTrangPhucIsThueThem(false);
+        setTrangPhucDonGiaThue(0);
+
         setOpenDialog(true);
     };
 
     // Handle adding borrowed dress/suit
     const handleAddTrangPhuc = () => {
+        if (trangThai === "Đang mượn" || trangThai === "Đã trả") {
+            toast.error("Không thể thêm trang phục khi đã chuyển sang trạng thái Đang mượn hoặc Đã trả!");
+            return;
+        }
+
         if (!selectedTrangPhuc) {
             toast.warning("Vui lòng chọn trang phục!");
             return;
@@ -260,9 +349,15 @@ function LichSoanDo() {
         }
 
         const newItem = {
+            _id: selectedTrangPhuc._id,
+            dichVuId: selectedTrangPhuc._id,
             maDichVu: selectedTrangPhuc.maDichVu,
             tenDichVu: selectedTrangPhuc.tenDichVu,
-            soLuong: Number(trangPhucQty),
+            soLuong: Number(trangPhucQty) || 1,
+            tienNangCap: Number(trangPhucTienNangCap) || 0,
+            isThueThem: Boolean(trangPhucIsThueThem),
+            donGiaThue: Boolean(trangPhucIsThueThem) ? (Number(trangPhucDonGiaThue) || Number(selectedTrangPhuc.giaChoThueDichVu) || 0) : 0,
+            giaChoThueDichVu: Number(selectedTrangPhuc.giaChoThueDichVu) || 0,
             ghiChu: trangPhucNote.trim()
         };
 
@@ -280,18 +375,26 @@ function LichSoanDo() {
         setSelectedTrangPhuc(null);
         setTrangPhucQty(1);
         setTrangPhucNote('');
+        setTrangPhucTienNangCap(0);
+        setTrangPhucIsThueThem(false);
+        setTrangPhucDonGiaThue(0);
         toast.success("Đã thêm trang phục vào danh sách!");
     };
 
     // Remove borrowed attire item
     const handleRemoveTrangPhuc = (idx) => {
+        if (trangThai === "Đang mượn" || trangThai === "Đã trả") {
+            toast.error("Không thể xóa trang phục khi đã chuyển sang trạng thái Đang mượn hoặc Đã trả!");
+            return;
+        }
+
         const itemToRemove = dsMuon[idx];
         setDsMuon(dsMuon.filter((_, i) => i !== idx));
         setDsTra(dsTra.filter(item => item.maDichVu !== itemToRemove.maDichVu));
     };
 
-    // Save changes to database
-    const handleSave = () => {
+    // Save changes to database and update contract cart/totals
+    const handleSave = async () => {
         if (!selectedHD) return;
 
         // Auto update status to Overdue if return date has passed
@@ -303,30 +406,92 @@ function LichSoanDo() {
             }
         }
 
-        showLoading("Đang cập nhật lịch soạn đồ...");
-        otherService.saveLichSoanDo({
-            hopDongId: selectedHD._id,
-            maHopDong: selectedHD.maHopDong,
-            ngaySoan,
-            ngayMuon,
-            ngayTra,
-            datCoc: Number(datCoc),
-            nguoiKiem,
-            noiDung,
-            trangThai: currentStatus,
-            dsMuon,
-            dsTra
-        })
-        .then(() => {
-            toast.success("Cập nhật lịch soạn đồ thành công!");
+        showLoading("Đang cập nhật lịch soạn đồ và hợp đồng...");
+        try {
+            // 1. Prepare cart items for contract:
+            // Keep existing cart items except those generated by LichSoanDo ([Thuê thêm] or [Nâng cấp])
+            const currentGioHang = Array.isArray(selectedHD.gioHang) ? selectedHD.gioHang : [];
+            const baseGioHang = currentGioHang.filter(item => {
+                const name = item.tenDichVuSnapshot || item.tenDichVu || item.dichVu?.tenDichVu || '';
+                return !name.startsWith('[Thuê thêm]') && !name.startsWith('[Nâng cấp]');
+            }).map(item => ({
+                dichVu: item.dichVu?._id || item.dichVu || item._id,
+                tenDichVuSnapshot: item.tenDichVuSnapshot || item.tenDichVu || item.dichVu?.tenDichVu || '',
+                maDichVu: item.maDichVu || item.dichVu?.maDichVu || '',
+                loaiDichVu: item.loaiDichVu || item.dichVu?.loaiDichVu || 1,
+                soLuong: Number(item.soLuong) || 1,
+                donGia: Number(item.donGia !== undefined ? item.donGia : (item.giaChoThueDichVu || item.dichVu?.giaChoThueDichVu || 0)),
+                giamGiaDichVu: Number(item.giamGiaDichVu) || 0,
+                thanhTien: Number(item.thanhTien) || ((Number(item.donGia !== undefined ? item.donGia : (item.giaChoThueDichVu || item.dichVu?.giaChoThueDichVu || 0))) * (Number(item.soLuong) || 1))
+            }));
+
+            // Generate additional items from dsMuon
+            const additionalItems = [];
+            (dsMuon || []).forEach(item => {
+                // Thuê thêm
+                if (item.isThueThem) {
+                    const price = Number(item.donGiaThue) || Number(item.giaChoThueDichVu) || 0;
+                    const qty = Number(item.soLuong) || 1;
+                    additionalItems.push({
+                        dichVu: item.dichVuId || item._id || item.dichVu,
+                        tenDichVuSnapshot: `[Thuê thêm] ${item.tenDichVu}`,
+                        maDichVu: item.maDichVu,
+                        loaiDichVu: 1,
+                        soLuong: qty,
+                        donGia: price,
+                        giamGiaDichVu: 0,
+                        thanhTien: price * qty
+                    });
+                }
+                // Nâng cấp
+                if (Number(item.tienNangCap) > 0) {
+                    const upgradeAmount = Number(item.tienNangCap);
+                    additionalItems.push({
+                        dichVu: item.dichVuId || item._id || item.dichVu,
+                        tenDichVuSnapshot: `[Nâng cấp] ${item.tenDichVu}`,
+                        maDichVu: item.maDichVu,
+                        loaiDichVu: 1,
+                        soLuong: 1,
+                        donGia: upgradeAmount,
+                        giamGiaDichVu: 0,
+                        thanhTien: upgradeAmount
+                    });
+                }
+            });
+
+            const newGioHang = [...baseGioHang, ...additionalItems];
+
+            // 2. Save both LichSoanDo and HopDong
+            await Promise.all([
+                otherService.saveLichSoanDo({
+                    hopDongId: selectedHD._id,
+                    maHopDong: selectedHD.maHopDong,
+                    ngaySoan,
+                    ngayMuon,
+                    ngayTra,
+                    datCoc: Number(datCoc),
+                    nguoiKiem,
+                    noiDung,
+                    trangThai: currentStatus,
+                    dsMuon,
+                    dsTra
+                }),
+                otherService.UPDATE_HOPDONG({
+                    _id: selectedHD._id,
+                    maHopDong: selectedHD.maHopDong,
+                    gioHang: newGioHang
+                })
+            ]);
+
+            toast.success("Cập nhật lịch soạn đồ và tổng tiền hợp đồng thành công!");
             setOpenDialog(false);
             loadData();
-        })
-        .catch(err => {
+        } catch (err) {
             console.error(err);
             toast.error("Có lỗi xảy ra khi cập nhật!");
-        })
-        .finally(() => hideLoading());
+        } finally {
+            hideLoading();
+        }
     };
 
     // Print Loan Receipt
@@ -379,20 +544,24 @@ function LichSoanDo() {
                 <table class="items-table">
                     <thead>
                         <tr>
-                            <th style="width: 50px; text-align: center;">STT</th>
+                            <th style="width: 40px; text-align: center;">STT</th>
                             <th>Mã Đồ</th>
                             <th>Tên Trang Phục</th>
-                            <th style="width: 100px; text-align: center;">Số lượng</th>
-                            <th>Ghi chú lúc mượn</th>
+                            <th style="width: 110px; text-align: center;">Phân loại</th>
+                            <th style="width: 110px; text-align: right;">Nâng cấp</th>
+                            <th style="width: 70px; text-align: center;">SL</th>
+                            <th>Ghi chú</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${dsMuon.length === 0 ? `<tr><td colspan="5" style="text-align: center;">Chưa chọn đồ mượn</td></tr>` : 
+                        ${dsMuon.length === 0 ? `<tr><td colspan="7" style="text-align: center;">Chưa chọn đồ mượn</td></tr>` : 
                           dsMuon.map((item, index) => `
                             <tr>
                                 <td style="text-align: center;">${index + 1}</td>
                                 <td>${item.maDichVu}</td>
                                 <td>${item.tenDichVu}</td>
+                                <td style="text-align: center;">${item.isThueThem ? `Thuê thêm (${Number(item.donGiaThue || 0).toLocaleString('vi-VN')} đ)` : 'Trong gói'}</td>
+                                <td style="text-align: right;">${item.tienNangCap ? Number(item.tienNangCap).toLocaleString('vi-VN') + ' đ' : '-'}</td>
                                 <td style="text-align: center;">${item.soLuong}</td>
                                 <td>${item.ghiChu || ''}</td>
                             </tr>
@@ -859,12 +1028,27 @@ function LichSoanDo() {
                                         setNguoiKiem(sd.nguoiKiem || loggedInUserFullname);
                                         setNoiDung(sd.noiDung || '');
                                         setTrangThai(sd.trangThai || 'Chưa mượn');
-                                        setDsMuon(sd.dsMuon || []);
-                                        setDsTra(sd.dsTra || (sd.dsMuon || []).map(item => ({
-                                            ...item,
-                                            trangThaiDo: 'Nguyên vẹn',
-                                            ghiChuTra: ''
-                                        })));
+                                        
+                                        const mergedDsMuon = extractAttireFromContract(newValue, sd.dsMuon || []);
+                                        setDsMuon(mergedDsMuon);
+                                        
+                                        if (sd.dsTra && sd.dsTra.length > 0) {
+                                            const activeMuonCodes = new Set(mergedDsMuon.map(i => i.maDichVu));
+                                            const existingTra = sd.dsTra.filter(i => activeMuonCodes.has(i.maDichVu));
+                                            const existingTraCodes = new Set(existingTra.map(i => i.maDichVu));
+                                            const additionalTra = mergedDsMuon.filter(i => !existingTraCodes.has(i.maDichVu)).map(item => ({
+                                                ...item,
+                                                trangThaiDo: 'Nguyên vẹn',
+                                                ghiChuTra: ''
+                                            }));
+                                            setDsTra([...existingTra, ...additionalTra]);
+                                        } else {
+                                            setDsTra(mergedDsMuon.map(item => ({
+                                                ...item,
+                                                trangThaiDo: 'Nguyên vẹn',
+                                                ghiChuTra: ''
+                                            })));
+                                        }
                                     } else {
                                         setNgaySoan('');
                                         setNgayMuon('');
@@ -971,77 +1155,184 @@ function LichSoanDo() {
                                 />
 
                                 {/* SECTION: CHOOSE ITEMS TO BORROW */}
-                                <Paper variant="outlined" style={{ padding: '16px', backgroundColor: '#fafafa' }}>
-                                    <h4 style={{ margin: '0 0 12px 0', color: '#333' }}>Thêm trang phục mượn:</h4>
-                                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
-                                        <Autocomplete
-                                            style={{ flex: 3 }}
-                                            options={trangPhucList}
-                                            getOptionLabel={(option) => "[" + option.maDichVu + "] - " + option.tenDichVu}
-                                            value={selectedTrangPhuc}
-                                            onChange={(e, val) => setSelectedTrangPhuc(val)}
-                                            renderInput={(params) => <TextField {...params} label="Chọn trang phục" size="small" />}
-                                        />
-                                        <TextField
-                                            label="Số lượng"
-                                            type="number"
-                                            size="small"
-                                            style={{ flex: 1 }}
-                                            value={trangPhucQty}
-                                            onChange={(e) => setTrangPhucQty(Math.max(1, parseInt(e.target.value) || 1))}
-                                            inputProps={{ min: 1 }}
-                                        />
-                                        <TextField
-                                            label="Ghi chú (màu sắc, size...)"
-                                            size="small"
-                                            style={{ flex: 2 }}
-                                            value={trangPhucNote}
-                                            onChange={(e) => setTrangPhucNote(e.target.value)}
-                                        />
-                                        <Button
-                                            variant="contained"
-                                            color="primary"
-                                            onClick={handleAddTrangPhuc}
-                                            style={{ height: '40px' }}
-                                        >
-                                            Thêm đồ
-                                        </Button>
-                                    </Stack>
-                                </Paper>
+                                {(trangThai === "Đang mượn" || trangThai === "Đã trả") ? (
+                                    <Paper variant="outlined" style={{ padding: '14px 18px', backgroundColor: '#fffbeb', borderColor: '#fef3c7', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <i className="fa-solid fa-lock" style={{ color: '#d97706', fontSize: '1.25rem' }}></i>
+                                        <div>
+                                            <div style={{ fontWeight: 'bold', color: '#92400e', fontSize: '0.95rem' }}>
+                                                Danh sách trang phục mượn đã bị khóa
+                                            </div>
+                                            <div style={{ color: '#b45309', fontSize: '0.85rem' }}>
+                                                Phiếu đang ở trạng thái <strong>"{trangThai}"</strong> nên không thể thêm mới, sửa hoặc xóa các trang phục đã mượn.
+                                            </div>
+                                        </div>
+                                    </Paper>
+                                ) : (
+                                    <Paper variant="outlined" style={{ padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                                        <h4 style={{ margin: '0 0 12px 0', color: '#1e293b', fontWeight: 'bold' }}>Thêm trang phục mượn:</h4>
+                                        <Stack spacing={2}>
+                                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+                                                <Autocomplete
+                                                    style={{ flex: 3 }}
+                                                    options={trangPhucList}
+                                                    getOptionLabel={(option) => `[${option.maDichVu}] - ${option.tenDichVu} (${option.giaChoThueDichVu ? Number(option.giaChoThueDichVu).toLocaleString('vi-VN') + ' đ' : '0 đ'})`}
+                                                    value={selectedTrangPhuc}
+                                                    onChange={(e, val) => {
+                                                        setSelectedTrangPhuc(val);
+                                                        if (val) {
+                                                            setTrangPhucDonGiaThue(val.giaChoThueDichVu || 0);
+                                                        } else {
+                                                            setTrangPhucDonGiaThue(0);
+                                                        }
+                                                    }}
+                                                    renderInput={(params) => <TextField {...params} label="Chọn trang phục" size="small" />}
+                                                />
+                                                <TextField
+                                                    label="Số lượng"
+                                                    type="number"
+                                                    size="small"
+                                                    style={{ flex: 1 }}
+                                                    value={trangPhucQty}
+                                                    onChange={(e) => setTrangPhucQty(Math.max(1, parseInt(e.target.value) || 1))}
+                                                    inputProps={{ min: 1 }}
+                                                />
+                                                <TextField
+                                                    label="Tiền nâng cấp (VNĐ)"
+                                                    type="number"
+                                                    size="small"
+                                                    style={{ flex: 1.5 }}
+                                                    value={trangPhucTienNangCap}
+                                                    onChange={(e) => setTrangPhucTienNangCap(Math.max(0, parseInt(e.target.value) || 0))}
+                                                    helperText={trangPhucTienNangCap > 0 ? `${Number(trangPhucTienNangCap).toLocaleString('vi-VN')} đ` : ""}
+                                                />
+                                            </Stack>
+
+                                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+                                                <Box style={{ flex: 1.5, display: 'flex', alignItems: 'center' }}>
+                                                    <FormControlLabel
+                                                        control={
+                                                            <Switch
+                                                                checked={trangPhucIsThueThem}
+                                                                onChange={(e) => setTrangPhucIsThueThem(e.target.checked)}
+                                                                color="primary"
+                                                            />
+                                                        }
+                                                        label={<span style={{ fontWeight: trangPhucIsThueThem ? 'bold' : 'normal', color: trangPhucIsThueThem ? '#0284c7' : '#64748b' }}>Thuê thêm</span>}
+                                                    />
+                                                </Box>
+
+                                                {trangPhucIsThueThem && (
+                                                    <TextField
+                                                        label="Giá thuê thêm (VNĐ)"
+                                                        type="number"
+                                                        size="small"
+                                                        style={{ flex: 1.5 }}
+                                                        value={trangPhucDonGiaThue}
+                                                        onChange={(e) => setTrangPhucDonGiaThue(Math.max(0, parseInt(e.target.value) || 0))}
+                                                        helperText={trangPhucDonGiaThue > 0 ? `${Number(trangPhucDonGiaThue).toLocaleString('vi-VN')} đ` : ""}
+                                                    />
+                                                )}
+
+                                                <TextField
+                                                    label="Ghi chú (màu sắc, size...)"
+                                                    size="small"
+                                                    style={{ flex: 3 }}
+                                                    value={trangPhucNote}
+                                                    onChange={(e) => setTrangPhucNote(e.target.value)}
+                                                />
+                                                <Button
+                                                    variant="contained"
+                                                    color="primary"
+                                                    onClick={handleAddTrangPhuc}
+                                                    style={{ height: '40px', minWidth: '110px', whiteSpace: 'nowrap' }}
+                                                >
+                                                    Thêm đồ
+                                                </Button>
+                                            </Stack>
+                                        </Stack>
+                                    </Paper>
+                                )}
 
                                 {/* LIST OF BORROWED ITEMS */}
                                 <h4 style={{ margin: '10px 0 0px 0', color: '#1976d2' }}>DANH SÁCH ĐỒ ĐANG CHỌN MƯỢN:</h4>
-                                <TableContainer component={Paper} variant="outlined" style={{ maxHeight: 220 }}>
+                                <TableContainer component={Paper} variant="outlined" style={{ maxHeight: 240 }}>
                                     <Table size="small" stickyHeader>
                                         <TableHead>
-                                            <TableRow>
-                                                <TableCell align="center" style={{ fontWeight: 'bold', width: '50px' }}>STT</TableCell>
-                                                <TableCell style={{ fontWeight: 'bold', width: '120px' }}>Mã Đồ</TableCell>
-                                                <TableCell style={{ fontWeight: 'bold' }}>Tên Trang Phục</TableCell>
-                                                <TableCell align="center" style={{ fontWeight: 'bold', width: '90px' }}>SL</TableCell>
-                                                <TableCell style={{ fontWeight: 'bold' }}>Ghi chú lúc mượn</TableCell>
-                                                <TableCell align="center" style={{ fontWeight: 'bold', width: '80px' }}>Xóa</TableCell>
+                                            <TableRow sx={{ '& th': { backgroundColor: '#f1f5f9', fontWeight: 'bold' } }}>
+                                                <TableCell align="center" style={{ width: '45px' }}>STT</TableCell>
+                                                <TableCell style={{ width: '100px' }}>Mã Đồ</TableCell>
+                                                <TableCell>Tên Trang Phục</TableCell>
+                                                <TableCell align="center" style={{ width: '140px' }}>Phân loại</TableCell>
+                                                <TableCell align="right" style={{ width: '130px' }}>Tiền nâng cấp</TableCell>
+                                                <TableCell align="center" style={{ width: '50px' }}>SL</TableCell>
+                                                <TableCell>Ghi chú lúc mượn</TableCell>
+                                                <TableCell align="center" style={{ width: '60px' }}>Xóa</TableCell>
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
                                             {dsMuon.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={6} align="center" style={{ padding: '16px', color: '#999' }}>
+                                                    <TableCell colSpan={8} align="center" style={{ padding: '16px', color: '#999' }}>
                                                         Chưa thêm trang phục mượn nào.
                                                     </TableCell>
                                                 </TableRow>
                                             ) : (
                                                 dsMuon.map((item, index) => (
-                                                    <TableRow key={item.maDichVu}>
+                                                    <TableRow key={item.maDichVu || index}>
                                                         <TableCell align="center">{index + 1}</TableCell>
-                                                        <TableCell>{item.maDichVu}</TableCell>
-                                                        <TableCell>{item.tenDichVu}</TableCell>
+                                                        <TableCell style={{ fontWeight: '500' }}>{item.maDichVu}</TableCell>
+                                                        <TableCell style={{ fontWeight: '500' }}>{item.tenDichVu}</TableCell>
+                                                        <TableCell align="center">
+                                                            {item.isThueThem ? (
+                                                                <Chip 
+                                                                    size="small" 
+                                                                    label={`Thuê thêm (+${Number(item.donGiaThue || 0).toLocaleString('vi-VN')} đ)`} 
+                                                                    color="info" 
+                                                                    variant="outlined" 
+                                                                    sx={{ fontWeight: 'bold', fontSize: '0.75rem' }} 
+                                                                />
+                                                            ) : (
+                                                                <Chip 
+                                                                    size="small" 
+                                                                    label="Trong gói" 
+                                                                    variant="outlined" 
+                                                                    sx={{ color: '#64748b', borderColor: '#cbd5e1', fontSize: '0.75rem' }} 
+                                                                />
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell align="right">
+                                                            {item.tienNangCap > 0 ? (
+                                                                <span style={{ color: '#d97706', fontWeight: 'bold' }}>
+                                                                    +{Number(item.tienNangCap).toLocaleString('vi-VN')} đ
+                                                                </span>
+                                                            ) : '-'}
+                                                        </TableCell>
                                                         <TableCell align="center">{item.soLuong}</TableCell>
-                                                        <TableCell>{item.ghiChu || '-'}</TableCell>
+                                                        <TableCell style={{ minWidth: '180px' }}>
+                                                            <TextField
+                                                                size="small"
+                                                                fullWidth
+                                                                placeholder="Nhập ghi chú (màu sắc, size, tình trạng...)"
+                                                                value={item.ghiChu || ''}
+                                                                disabled={trangThai === "Đang mượn" || trangThai === "Đã trả"}
+                                                                onChange={(e) => {
+                                                                    const newNote = e.target.value;
+                                                                    setDsMuon(prev => prev.map((m, i) => i === index ? { ...m, ghiChu: newNote } : m));
+                                                                    setDsTra(prev => prev.map((t, i) => (t.maDichVu === item.maDichVu || i === index) ? { ...t, ghiChu: newNote } : t));
+                                                                }}
+                                                                sx={{
+                                                                    '& .MuiInputBase-input': {
+                                                                        fontSize: '0.85rem',
+                                                                        padding: '4px 8px'
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </TableCell>
                                                         <TableCell align="center">
                                                             <Button
                                                                 size="small"
                                                                 color="error"
+                                                                disabled={trangThai === "Đang mượn" || trangThai === "Đã trả"}
                                                                 onClick={() => handleRemoveTrangPhuc(index)}
                                                             >
                                                                 Xóa
@@ -1053,6 +1344,28 @@ function LichSoanDo() {
                                         </TableBody>
                                     </Table>
                                 </TableContainer>
+
+                                {/* SUMMARY BOX */}
+                                {dsMuon.length > 0 && (() => {
+                                    const tongTienThueThem = dsMuon.reduce((sum, item) => sum + (item.isThueThem ? ((Number(item.donGiaThue) || Number(item.giaChoThueDichVu) || 0) * (Number(item.soLuong) || 1)) : 0), 0);
+                                    const tongTienNangCap = dsMuon.reduce((sum, item) => sum + (Number(item.tienNangCap) || 0), 0);
+                                    const tongPhatSinh = tongTienThueThem + tongTienNangCap;
+                                    return (
+                                        <Box sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                                                <Typography variant="body2">
+                                                    Thuê thêm: <strong style={{ color: '#0284c7' }}>{tongTienThueThem.toLocaleString('vi-VN')} đ</strong>
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    Nâng cấp: <strong style={{ color: '#d97706' }}>{tongTienNangCap.toLocaleString('vi-VN')} đ</strong>
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="subtitle2" sx={{ color: '#16a34a', fontWeight: 'bold' }}>
+                                                Tổng phát sinh bổ sung vào HĐ: {tongPhatSinh.toLocaleString('vi-VN')} đ
+                                            </Typography>
+                                        </Box>
+                                    );
+                                })()}
 
                                 {/* Print action */}
                                 <Box display="flex" justifyContent="flex-end">

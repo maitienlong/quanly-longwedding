@@ -31,7 +31,7 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Chip from '@mui/material/Chip';
 
-import logoDefault from '../../assets/logo/BETA-1 VANG@4x.png';
+import logoDefault from '../../assets/logo/logo-vang.png';
 import Avatar from '@mui/material/Avatar';
 import IconButton from '@mui/material/IconButton';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
@@ -62,7 +62,33 @@ function QuanLyNhanVien() {
     const [chiTieuThang, setChiTieuThang] = useState(20);
     const [chiTieuNam, setChiTieuNam] = useState(200);
 
+    // Salary & Contract detail state
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [openSalaryDialog, setOpenSalaryDialog] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [allContractsList, setAllContractsList] = useState([]);
+
     const commonHeight = 56;
+
+    const fetchAllContracts = () => {
+        otherService.LIST_HOPDONG({})
+            .then(res => {
+                const list = res.data?.hopDong || res.data?.data?.hopDong || (Array.isArray(res.data) ? res.data : []);
+                if (Array.isArray(list)) {
+                    setAllContractsList(list);
+                }
+            })
+            .catch(err => console.error("Lỗi lấy danh sách hợp đồng:", err));
+    };
+
+    const handleOpenSalaryDetail = (emp) => {
+        setSelectedEmployee(emp);
+        setSelectedMonth(new Date().getMonth() + 1);
+        setSelectedYear(new Date().getFullYear());
+        fetchAllContracts();
+        setOpenSalaryDialog(true);
+    };
 
     const handleAvatarChange = (e) => {
         const file = e.target.files[0];
@@ -100,6 +126,7 @@ function QuanLyNhanVien() {
 
     useEffect(() => {
         loadData();
+        fetchAllContracts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -376,6 +403,16 @@ function QuanLyNhanVien() {
                                             <Stack direction="row" spacing={1} justifyContent="flex-end">
                                                 <Button
                                                     size="small"
+                                                    variant="contained"
+                                                    color="info"
+                                                    onClick={() => handleOpenSalaryDetail(user)}
+                                                    startIcon={<i className="fa-solid fa-file-invoice-dollar"></i>}
+                                                    sx={{ fontWeight: 700 }}
+                                                >
+                                                    Lương & HĐ
+                                                </Button>
+                                                <Button
+                                                    size="small"
                                                     variant="outlined"
                                                     color="primary"
                                                     onClick={() => handleOpenEdit(user)}
@@ -415,7 +452,7 @@ function QuanLyNhanVien() {
                             <TableCell align="right" style={{ fontWeight: 'bold', width: '150px' }}>LƯƠNG HOA HỒNG</TableCell>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '180px' }}>CHỈ TIÊU (T/TH/N)</TableCell>
                             <TableCell align="center" style={{ fontWeight: 'bold', width: '120px' }}>QUYỀN HẠN</TableCell>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '150px' }}>HÀNH ĐỘNG</TableCell>
+                            <TableCell align="center" style={{ fontWeight: 'bold', width: '220px' }}>HÀNH ĐỘNG</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -427,7 +464,7 @@ function QuanLyNhanVien() {
                             </TableRow>
                         ) : (
                             users.map((user, idx) => (
-                                <TableRow key={user.username} className="quanlynhanvien-row">
+                                <TableRow key={user.username} className="quanlynhanvien-row" style={{ cursor: 'pointer' }} onClick={() => handleOpenSalaryDetail(user)}>
                                     <TableCell align="center">{idx + 1}</TableCell>
                                     <TableCell align="center">
                                         <Avatar src={user.avatar || logoDefault} sx={{ width: 38, height: 38, border: '1px solid #e0e0e0', margin: 'auto' }} />
@@ -451,8 +488,18 @@ function QuanLyNhanVien() {
                                             <span className="badge badge-staff">Nhân viên</span>
                                         )}
                                     </TableCell>
-                                    <TableCell align="center">
+                                    <TableCell align="center" onClick={(e) => e.stopPropagation()}>
                                         <Stack direction="row" spacing={1} justifyContent="center">
+                                            <Button
+                                                size="small"
+                                                variant="contained"
+                                                color="info"
+                                                onClick={() => handleOpenSalaryDetail(user)}
+                                                startIcon={<i className="fa-solid fa-file-invoice-dollar"></i>}
+                                                sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+                                            >
+                                                Lương & HĐ
+                                            </Button>
                                             <Button
                                                 size="small"
                                                 variant="outlined"
@@ -866,6 +913,280 @@ function QuanLyNhanVien() {
                         Cập nhật
                     </Button>
                 </DialogActions>
+            </Dialog>
+
+            {/* DIALOG CHI TIẾT LƯƠNG & HỢP ĐỒNG THEO THÁNG */}
+            <Dialog
+                open={openSalaryDialog}
+                onClose={() => setOpenSalaryDialog(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    style: {
+                        borderRadius: 16,
+                        overflow: 'hidden'
+                    }
+                }}
+            >
+                {selectedEmployee && (
+                    <>
+                        {/* Modal Header */}
+                        <Box sx={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: '#fff', p: 2.5, position: 'relative' }}>
+                            <IconButton
+                                size="small"
+                                onClick={() => setOpenSalaryDialog(false)}
+                                sx={{ position: 'absolute', top: 12, right: 12, color: '#94a3b8', '&:hover': { color: '#fff' } }}
+                            >
+                                <i className="fa-solid fa-xmark"></i>
+                            </IconButton>
+
+                            <Stack direction="row" spacing={2} alignItems="center">
+                                <Avatar src={selectedEmployee.avatar || logoDefault} sx={{ width: 60, height: 60, border: '2px solid #38bdf8' }} />
+                                <Box>
+                                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#fff' }}>
+                                        {selectedEmployee.fullname || selectedEmployee.username}
+                                    </Typography>
+                                    <Stack direction="row" spacing={1} alignItems="center" mt={0.5}>
+                                        <Chip label={selectedEmployee.positon || 'Nhân viên'} size="small" sx={{ bgcolor: '#0284c7', color: '#fff', fontWeight: 700, height: 22, fontSize: '0.72rem' }} />
+                                        <Typography variant="caption" sx={{ color: '#94a3b8' }}>@{selectedEmployee.username}</Typography>
+                                    </Stack>
+                                </Box>
+                            </Stack>
+                        </Box>
+
+                        <DialogContent style={{ padding: '20px' }}>
+                            {/* Thanh Lọc Tháng / Năm */}
+                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} p={1.5} bgcolor="#f8fafc" borderRadius="12px" border="1px solid #e2e8f0">
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b' }}>
+                                    📅 BẢNG KÊ LƯƠNG & CÔNG VIỆC {selectedMonth === 0 ? `TẤT CẢ CÁC THÁNG NĂM ${selectedYear}` : `THÁNG ${selectedMonth}/${selectedYear}`}
+                                </Typography>
+                                
+                                <Stack direction="row" spacing={1.5}>
+                                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                                        <InputLabel>Tháng</InputLabel>
+                                        <Select
+                                            value={selectedMonth}
+                                            label="Tháng"
+                                            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                                            sx={{ bgcolor: '#fff' }}
+                                        >
+                                            <MenuItem value={0}>Tất cả các tháng</MenuItem>
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                                                <MenuItem key={m} value={m}>Tháng {m}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+
+                                    <FormControl size="small" sx={{ minWidth: 100 }}>
+                                        <InputLabel>Năm</InputLabel>
+                                        <Select
+                                            value={selectedYear}
+                                            label="Năm"
+                                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                                            sx={{ bgcolor: '#fff' }}
+                                        >
+                                            {[2024, 2025, 2026, 2027].map(y => (
+                                                <MenuItem key={y} value={y}>Năm {y}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Stack>
+                            </Box>
+
+                            {/* Tính toán số liệu & hợp đồng */}
+                            {(() => {
+                                const fn = (selectedEmployee.fullname || '').trim().toLowerCase();
+                                const un = (selectedEmployee.username || '').trim().toLowerCase();
+
+                                // Lọc các hợp đồng mà nhân viên làm trong tháng/năm đã chọn
+                                const myMonthContracts = allContractsList.filter(contract => {
+                                    // 1. Kiểm tra ngày tháng
+                                    if (selectedMonth !== 0) {
+                                        const rawDate = contract.ngayHopDong || contract.createdAt || contract.ngayTao || contract.cacNgay?.ngayChup;
+                                        if (!rawDate) return false;
+                                        const d = new Date(rawDate);
+                                        if (isNaN(d.getTime())) return false;
+                                        if (d.getMonth() + 1 !== selectedMonth || d.getFullYear() !== selectedYear) return false;
+                                    } else {
+                                        const rawDate = contract.ngayHopDong || contract.createdAt || contract.ngayTao || contract.cacNgay?.ngayChup;
+                                        if (rawDate) {
+                                            const d = new Date(rawDate);
+                                            if (!isNaN(d.getTime()) && d.getFullYear() !== selectedYear) return false;
+                                        }
+                                    }
+
+                                    // 2. Kiểm tra nhân viên có phụ trách hợp đồng này không
+                                    const npv = contract.nguoiPhucVu || {};
+                                    const staffList = [
+                                        npv.thoChupHinh,
+                                        npv.thoChinhAnh,
+                                        npv.thoMakeUp,
+                                        npv.banHang,
+                                        npv.phucVu,
+                                        contract.createBy,
+                                        contract.nguoiTao,
+                                        contract.nhanVien,
+                                        contract.nhanVienTuVan
+                                    ].filter(Boolean).map(s => String(s).trim().toLowerCase());
+
+                                    return staffList.some(s => 
+                                        s === fn || 
+                                        s === un || 
+                                        (fn && (s.includes(fn) || fn.includes(s))) ||
+                                        (un && (s.includes(un) || un.includes(s)))
+                                    );
+                                });
+
+                                const workCount = myMonthContracts.length;
+                                const chiTieuThang = Number(selectedEmployee.chiTieuThang || 20);
+                                const luongCoBan = Number(selectedEmployee.luongCoBan || 0);
+                                const luongHoaHong = Number(selectedEmployee.luongHoaHong || 0);
+                                const loaiHoaHong = Number(selectedEmployee.loaiHoaHong || 0);
+
+                                // Tổng doanh số các hợp đồng phụ trách
+                                const tongDoanhSo = myMonthContracts.reduce((sum, c) => {
+                                    const val = c.thanhToan?.tongGiaTriSauGiam || c.thanhToan?.tongGiaTri || 0;
+                                    return sum + Number(val);
+                                }, 0);
+
+                                // Tính hoa hồng
+                                let hoaHongTotal = 0;
+                                if (loaiHoaHong === 1) {
+                                    hoaHongTotal = (tongDoanhSo * luongHoaHong) / 100;
+                                } else {
+                                    hoaHongTotal = workCount * luongHoaHong;
+                                }
+
+                                // Vượt chỉ tiêu
+                                const exceededCount = Math.max(0, workCount - chiTieuThang);
+                                const thuongVuot = exceededCount * 200000; // 200k / HĐ vượt
+                                const tongLuongThang = luongCoBan + hoaHongTotal + thuongVuot;
+
+                                // Hàm nhận diện vai trò trong HĐ
+                                const getAssignedRoles = (c) => {
+                                    const npv = c.nguoiPhucVu || {};
+                                    const roles = [];
+                                    const check = (val) => {
+                                        if (!val) return false;
+                                        const clean = String(val).trim().toLowerCase();
+                                        return clean === fn || clean === un || (fn && clean.includes(fn)) || (un && clean.includes(un));
+                                    };
+
+                                    if (check(npv.thoChupHinh)) roles.push('📸 Chụp hình');
+                                    if (check(npv.thoMakeUp)) roles.push('💄 Make-up');
+                                    if (check(npv.thoChinhAnh)) roles.push('🎨 Chỉnh ảnh');
+                                    if (check(npv.banHang)) roles.push('💼 Tư vấn');
+                                    if (check(npv.phucVu)) roles.push('👥 Phục vụ');
+                                    if (check(c.createBy) || check(c.nguoiTao)) roles.push('📝 Tạo HĐ');
+                                    
+                                    return roles.length > 0 ? roles.join(', ') : 'Thành viên ekip';
+                                };
+
+                                return (
+                                    <Stack spacing={2.5}>
+                                        {/* Cards Tổng Quan Lương */}
+                                        <Grid container spacing={2}>
+                                            <Grid item xs={12} sm={3}>
+                                                <Paper variant="outlined" sx={{ p: 1.8, bgcolor: '#f0f9ff', borderColor: '#bae6fd', borderRadius: '12px' }}>
+                                                    <Typography variant="caption" sx={{ color: '#0369a1', fontWeight: 600, display: 'block' }}>💼 Hợp đồng đã làm</Typography>
+                                                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#0284c7', mt: 0.5 }}>
+                                                        {workCount} <span style={{ fontSize: '0.8rem', color: '#64748b' }}>/ {chiTieuThang} HĐ</span>
+                                                    </Typography>
+                                                </Paper>
+                                            </Grid>
+                                            <Grid item xs={12} sm={3}>
+                                                <Paper variant="outlined" sx={{ p: 1.8, bgcolor: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: '12px' }}>
+                                                    <Typography variant="caption" sx={{ color: '#15803d', fontWeight: 600, display: 'block' }}>💵 Lương cơ bản</Typography>
+                                                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#16a34a', mt: 0.5 }}>
+                                                        {luongCoBan.toLocaleString('vi-VN')} đ
+                                                    </Typography>
+                                                </Paper>
+                                            </Grid>
+                                            <Grid item xs={12} sm={3}>
+                                                <Paper variant="outlined" sx={{ p: 1.8, bgcolor: '#fffbeb', borderColor: '#fde68a', borderRadius: '12px' }}>
+                                                    <Typography variant="caption" sx={{ color: '#b45309', fontWeight: 600, display: 'block' }}>🎁 Hoa hồng & Thưởng</Typography>
+                                                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#d97706', mt: 0.5 }}>
+                                                        {(hoaHongTotal + thuongVuot).toLocaleString('vi-VN')} đ
+                                                    </Typography>
+                                                </Paper>
+                                            </Grid>
+                                            <Grid item xs={12} sm={3}>
+                                                <Paper variant="outlined" sx={{ p: 1.8, bgcolor: '#eff6ff', borderColor: '#93c5fd', borderRadius: '12px' }}>
+                                                    <Typography variant="caption" sx={{ color: '#1e40af', fontWeight: 700, display: 'block' }}>👑 TỔNG LƯƠNG NHẬN</Typography>
+                                                    <Typography variant="h6" sx={{ fontWeight: 900, color: '#1d4ed8', mt: 0.5 }}>
+                                                        {tongLuongThang.toLocaleString('vi-VN')} đ
+                                                    </Typography>
+                                                </Paper>
+                                            </Grid>
+                                        </Grid>
+
+                                        {/* Bảng Chi Tiết Hợp Đồng */}
+                                        <Box>
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1 }}>
+                                                📋 DANH SÁCH HỢP ĐỒNG THỰC HIỆN ({myMonthContracts.length} hợp đồng):
+                                            </Typography>
+
+                                            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '10px', maxHeight: 320, overflowY: 'auto' }}>
+                                                <Table size="small" stickyHeader>
+                                                    <TableHead sx={{ '& th': { bgcolor: '#f1f5f9', fontWeight: 700, color: '#334155' } }}>
+                                                        <TableRow>
+                                                            <TableCell align="center">STT</TableCell>
+                                                            <TableCell>MÃ HỢP ĐỒNG</TableCell>
+                                                            <TableCell>KHÁCH HÀNG</TableCell>
+                                                            <TableCell>VAI TRÒ PHỤ TRÁCH</TableCell>
+                                                            <TableCell>NGÀY HỢP ĐỒNG</TableCell>
+                                                            <TableCell align="right">GIÁ TRỊ HĐ</TableCell>
+                                                            <TableCell align="right">HOA HỒNG THỰC TẾ</TableCell>
+                                                        </TableRow>
+                                                    </TableHead>
+                                                    <TableBody>
+                                                        {myMonthContracts.length === 0 ? (
+                                                            <TableRow>
+                                                                <TableCell colSpan={7} align="center" sx={{ py: 3, color: '#94a3b8' }}>
+                                                                    Không có hợp đồng nào được thực hiện trong thời gian đã chọn.
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ) : (
+                                                            myMonthContracts.map((c, idx) => {
+                                                                const giaTri = c.thanhToan?.tongGiaTriSauGiam || c.thanhToan?.tongGiaTri || 0;
+                                                                const hoaHongHD = loaiHoaHong === 1 ? (giaTri * luongHoaHong) / 100 : luongHoaHong;
+                                                                const rolesAssigned = getAssignedRoles(c);
+
+                                                                return (
+                                                                    <TableRow key={c._id || idx} hover>
+                                                                        <TableCell align="center">{idx + 1}</TableCell>
+                                                                        <TableCell sx={{ fontWeight: 700, color: '#0284c7' }}>{c.maHopDong}</TableCell>
+                                                                        <TableCell sx={{ fontWeight: 600 }}>{c.khachHang1?.tenKhachHang || 'Chưa cập nhật'}</TableCell>
+                                                                        <TableCell>
+                                                                            <Chip label={rolesAssigned} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0369a1', fontWeight: 600, fontSize: '0.72rem' }} />
+                                                                        </TableCell>
+                                                                        <TableCell>{c.ngayHopDong ? new Date(c.ngayHopDong).toLocaleDateString('vi-VN') : '-'}</TableCell>
+                                                                        <TableCell align="right" sx={{ fontWeight: 600, color: '#334155' }}>
+                                                                            {Number(giaTri).toLocaleString('vi-VN')} đ
+                                                                        </TableCell>
+                                                                        <TableCell align="right" sx={{ fontWeight: 700, color: '#16a34a' }}>
+                                                                            +{Number(hoaHongHD).toLocaleString('vi-VN')} đ
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </TableBody>
+                                                </Table>
+                                            </TableContainer>
+                                        </Box>
+                                    </Stack>
+                                );
+                            })()}
+                        </DialogContent>
+
+                        <DialogActions style={{ padding: '16px 20px', bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                            <Button variant="contained" color="inherit" onClick={() => setOpenSalaryDialog(false)} style={{ borderRadius: 8 }}>
+                                Đóng cửa sổ
+                            </Button>
+                        </DialogActions>
+                    </>
+                )}
             </Dialog>
         </div>
     );

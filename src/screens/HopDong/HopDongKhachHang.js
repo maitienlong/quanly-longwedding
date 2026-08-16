@@ -62,7 +62,7 @@ function HopDongKhachHang() {
         { label: 'Hoàn thành', id: 5 }
     ];
 
-    const [selectedTime, setSelectedTime] = useState(locThoiGian[1]);
+    const [selectedTime, setSelectedTime] = useState(locThoiGian[0]);
     const [selectedStatus, setSelectedStatus] = useState(locTrangThai[0]);
     const [searchInput, setSearchInput] = useState("");
     const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
@@ -209,8 +209,8 @@ function HopDongKhachHang() {
     };
 
     return (
-        <div className="hopdongkhachhang">
-            <div className="content-header">
+        <div className="hopdongkhachhang" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <div className="content-header" style={{ flexShrink: 0 }}>
                 <h2>QUẢN LÝ HỢP ĐỒNG KHÁCH HÀNG</h2>
                 <Stack 
                     spacing={2} 
@@ -382,7 +382,7 @@ function HopDongKhachHang() {
                 </Box>
             ) : viewMode === 'grid' ? (
                 /* ===== DẠNG LƯỚI (GRID VIEW) ===== */
-                <Box sx={{ pb: 10, pt: 1 }}>
+                <Box sx={{ pb: 12, pt: 1, overflowY: 'auto', maxHeight: 'calc(100vh - 240px)', flexGrow: 1 }}>
                     {filteredHopDong && filteredHopDong.length > 0 ? (
                         <Grid container spacing={2.5}>
                             {filteredHopDong.map((hd, index) => {
@@ -425,8 +425,8 @@ function HopDongKhachHang() {
                                                         borderTopRightRadius: '14px'
                                                     }}
                                                 >
-                                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#38bdf8', fontSize: '0.92rem' }}>
-                                                        {hd.maHopDong}
+                                                    <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#ffffff', fontSize: '0.98rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '65%' }} title={hd.khachHang1?.tenKhachHang}>
+                                                        👤 {hd.khachHang1?.tenKhachHang || 'Chưa cập nhật'}
                                                     </Typography>
                                                     <Chip 
                                                         label={convertTrangThai(hd)} 
@@ -443,33 +443,28 @@ function HopDongKhachHang() {
 
                                                 {/* Card Content */}
                                                 <Box p={2} display="flex" flexDirection="column" gap={1.5}>
-                                                    {/* Khách hàng 1 */}
-                                                    <Box>
-                                                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block', mb: 0.3 }}>
-                                                            👤 KHÁCH HÀNG 1:
+                                                    {/* Mã hợp đồng & Số điện thoại KH1 */}
+                                                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                                                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 500, fontSize: '0.82rem' }}>
+                                                            📋 Mã HĐ: <span style={{ fontWeight: 600, color: '#475569' }}>{hd.maHopDong}</span>
                                                         </Typography>
-                                                        <Box display="flex" alignItems="center" justifyContent="space-between">
-                                                            <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                                                                {hd.khachHang1?.tenKhachHang || 'Chưa cập nhật'}
-                                                            </Typography>
-                                                            {hd.khachHang1?.soDienThoai && (
-                                                                <Box display="flex" alignItems="center" gap={0.6}>
-                                                                    <span style={{ fontSize: '0.82rem', color: '#475569', fontWeight: 500 }}>{hd.khachHang1.soDienThoai}</span>
-                                                                    {hd.khachHang1?.facebookId && (
-                                                                        <a 
-                                                                            href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
-                                                                            target="_blank" 
-                                                                            rel="noopener noreferrer" 
-                                                                            style={{ color: '#1877f2', textDecoration: 'none' }}
-                                                                            title="Mở Facebook Khách 1"
-                                                                            onClick={(e) => e.stopPropagation()}
-                                                                        >
-                                                                            <i className="fa-brands fa-facebook"></i>
-                                                                        </a>
-                                                                    )}
-                                                                </Box>
-                                                            )}
-                                                        </Box>
+                                                        {hd.khachHang1?.soDienThoai && (
+                                                            <Box display="flex" alignItems="center" gap={0.6}>
+                                                                <span style={{ fontSize: '0.82rem', color: '#475569', fontWeight: 600 }}>{hd.khachHang1.soDienThoai}</span>
+                                                                {hd.khachHang1?.facebookId && (
+                                                                    <a 
+                                                                        href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
+                                                                        target="_blank" 
+                                                                        rel="noopener noreferrer" 
+                                                                        style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                                        title="Mở Facebook Khách 1"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        <i className="fa-brands fa-facebook"></i>
+                                                                    </a>
+                                                                )}
+                                                            </Box>
+                                                        )}
                                                     </Box>
 
                                                     {/* Khách hàng 2 */}
@@ -479,7 +474,7 @@ function HopDongKhachHang() {
                                                                 👤 KHÁCH HÀNG 2:
                                                             </Typography>
                                                             <Box display="flex" alignItems="center" justifyContent="space-between">
-                                                                <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                                                                <Typography variant="body1" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.98rem' }}>
                                                                     {hd.khachHang2.tenKhachHang}
                                                                 </Typography>
                                                                 {hd.khachHang2?.soDienThoai && (
@@ -527,6 +522,50 @@ function HopDongKhachHang() {
                                                                 </strong>
                                                             )}
                                                         </Box>
+
+                                                        {/* Thanh Progress Trạng Thái Thanh Toán */}
+                                                        {(() => {
+                                                            const daThanhToan = Number(hd.thanhToan?.khachHangDaThanhToan) || 0;
+                                                            const conLai = hd.thanhToan?.conLai !== undefined ? Number(hd.thanhToan.conLai) : 0;
+                                                            const tongTienHD = daThanhToan + conLai;
+
+                                                            let percent = 0;
+                                                            if (tongTienHD > 0) {
+                                                                percent = Math.min(100, Math.round((daThanhToan / tongTienHD) * 100));
+                                                            } else if (hd.thanhToan?.trangThaiThanhToan === 'Đã thanh toán') {
+                                                                percent = 100;
+                                                            }
+
+                                                            const statusText = hd.thanhToan?.trangThaiThanhToan || (percent >= 100 ? 'Đã thanh toán' : percent > 0 ? `Đã cọc ${percent}%` : 'Chưa thanh toán');
+
+                                                            return (
+                                                                <Box sx={{ mt: 0.5, pt: 0.8, borderTop: '1px dashed #e2e8f0' }}>
+                                                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.4}>
+                                                                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Thanh toán:</span>
+                                                                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: percent >= 100 ? '#15803d' : percent > 0 ? '#b45309' : '#dc2626' }}>
+                                                                            {statusText} ({percent}%)
+                                                                        </span>
+                                                                    </Box>
+                                                                    <Box sx={{ width: '100%', height: '8px', bgcolor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                                                                        <Box
+                                                                            sx={{
+                                                                                width: `${percent}%`,
+                                                                                height: '100%',
+                                                                                borderRadius: '4px',
+                                                                                background: percent >= 100 ? 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)' : percent > 0 ? 'linear-gradient(90deg, #fbbf24 0%, #d97706 100%)' : 'transparent',
+                                                                                transition: 'width 0.4s ease-in-out'
+                                                                            }}
+                                                                        />
+                                                                    </Box>
+                                                                    <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
+                                                                        <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Đã thu: <strong>{daThanhToan.toLocaleString('vi-VN')} đ</strong></span>
+                                                                        <span style={{ fontSize: '0.72rem', color: conLai <= 0 ? '#16a34a' : '#dc2626', fontWeight: 700 }}>
+                                                                            {conLai <= 0 ? 'Hết nợ' : `Còn: ${conLai.toLocaleString('vi-VN')} đ`}
+                                                                        </span>
+                                                                    </Box>
+                                                                </Box>
+                                                            );
+                                                        })()}
                                                     </Box>
                                                 </Box>
                                             </Box>
@@ -564,14 +603,14 @@ function HopDongKhachHang() {
                 </Box>
             ) : (
                 /* ===== DẠNG BẢNG (TABLE VIEW) ===== */
-                <TableContainer component={Paper} style={{ maxHeight: 'calc(100vh - 280px)', overflow: 'auto' }}>
+                <TableContainer component={Paper} style={{ maxHeight: 'calc(100vh - 240px)', overflowY: 'auto' }}>
                 <Table stickyHeader aria-label="simple table">
 
                     <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
                         <TableRow>
                             <TableCell align='center' style={{ minWidth: 60, width: '5%' }}>STT</TableCell>
-                            <TableCell align='center' style={{ minWidth: 100, width: '10%' }}>MÃ SỐ HĐ</TableCell>
                             <TableCell style={{ minWidth: 200, width: '20%' }}>TÊN KHÁCH HÀNG</TableCell>
+                            <TableCell align='center' style={{ minWidth: 100, width: '10%' }}>MÃ SỐ HĐ</TableCell>
                             <TableCell style={{ minWidth: 150, width: '15%' }}>LIÊN HỆ</TableCell>
                             <TableCell align='center' style={{ minWidth: 150, width: '15%' }}>DỊCH VỤ</TableCell>
                             <TableCell align='center' style={{ minWidth: 120, width: '15%' }}>TRẠNG THÁI</TableCell>
@@ -600,8 +639,7 @@ function HopDongKhachHang() {
                                     }}
                                 >
                                     <TableCell align='center'>{index + 1}</TableCell>
-                                    <TableCell align='center' style={{ fontWeight: 'bold' }}>{hd.maHopDong}</TableCell>
-                                    <TableCell align='left'>
+                                    <TableCell align='left' style={{ fontWeight: 800, fontSize: '0.98rem', color: '#0f172a' }}>
                                         {hd.khachHang1?.tenKhachHang}
                                         {hd.khachHang2?.tenKhachHang && (
                                             <>
@@ -611,6 +649,7 @@ function HopDongKhachHang() {
                                             </>
                                         )}
                                     </TableCell>
+                                    <TableCell align='center' style={{ fontWeight: 400, color: '#64748b', fontSize: '0.85rem' }}>{hd.maHopDong}</TableCell>
                                     <TableCell align='left'>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             <span>{hd.khachHang1?.soDienThoai}</span>

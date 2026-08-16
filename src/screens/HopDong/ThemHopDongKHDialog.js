@@ -18,13 +18,15 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
-import logoVang from '../../assets/logo/BETA-1 VANG@4x.png';
+import logoVang from '../../assets/logo/logo-vang.png';
 import { formatLunarDateFull } from '../../utils/lunarDateUtils';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPrint, faCircleCheck } from '@fortawesome/free-solid-svg-icons';
+import { faPrint, faCircleCheck, faCreditCard } from '@fortawesome/free-solid-svg-icons';
+import SePayDialog from './SePayDialog';
 
 function ThemHopDongKHDialog(props) {
     const { onClose, data, selectedValue, open } = props;
+    const [openPaymentDialog, setOpenPaymentDialog] = useState(false);
     const handleClose = () => {
         if (isSuccess) {
             handleCloseAndReset();
@@ -126,6 +128,8 @@ function ThemHopDongKHDialog(props) {
     const handleListItemClick = (value) => {
         onClose(value);
     };
+
+    const [openSepayDialog, setOpenSepayDialog] = useState(false);
 
     useEffect(() => {
         showLoading("Đang tải các dịch vụ.");
@@ -1096,6 +1100,14 @@ function ThemHopDongKHDialog(props) {
                         </Button>
                         <Button 
                             variant="contained" 
+                            onClick={() => setOpenSepayDialog(true)}
+                            startIcon={<FontAwesomeIcon icon={faCreditCard} />}
+                            style={{ minWidth: '150px', height: '44px', backgroundColor: '#0284c7', color: '#ffffff', fontWeight: 700 }}
+                        >
+                            Thanh toán
+                        </Button>
+                        <Button 
+                            variant="contained" 
                             color="success" 
                             onClick={handlePrintHopDong}
                             startIcon={<FontAwesomeIcon icon={faPrint} />}
@@ -1639,7 +1651,7 @@ function ThemHopDongKHDialog(props) {
                         <h4 style={{ fontSize: '0.85rem', margin: '0 0 8px 0', textTransform: 'uppercase' }}>Thông tin thanh toán</h4>
                         <Stack
                             direction={{ xs: 'column', md: 'row' }}
-                            divider={<Divider orientation={{ xs: 'horizontal', md: 'vertical' }} flexItem />}
+                            divider={<Divider orientation="vertical" flexItem />}
                             spacing={2}
                         >
 
@@ -1680,48 +1692,9 @@ function ThemHopDongKHDialog(props) {
                                     </select>
                                 </div>
 
-                                <NumericFormat
-                                    customInput={TextField} // Sử dụng TextField của MUI làm giao diện
-                                    label="Khách thanh toán"
-                                    value={khachThanhToan}
-                                    onValueChange={(e) => setKhachThanhToan(e.floatValue)}
-                                    thousandSeparator="." // Phân cách hàng nghìn bằng dấu chấm
-                                    decimalSeparator=","   // Phân cách thập phân bằng dấu phẩy
-                                    decimalScale={2}       // Tối đa 2 chữ số sau dấu phẩy
-                                    allowNegative={false}  // Không cho phép số âm
-                                    suffix=" đ"            // Thêm đơn vị phía sau
-                                    fullWidth
-                                    variant="outlined"
-                                    size="small"
-                                    sx={{
-                                        '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px' },
-                                        '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
-                                        '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
-                                    }}
-                                />
 
-                                <Autocomplete
-                                    disablePortal
-                                    options={itemMethodPayment}
-                                    size="small"
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label="Hình thức thanh toán"
-                                            sx={{
-                                                '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px', padding: '0 8px' },
-                                                '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
-                                                '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
-                                            }}
-                                        />
-                                    )}
-                                    onChange={(event, newValue) => {
-                                        setMethodPayment(newValue.label);
-                                    }}
-                                    sx={{
-                                        '& .MuiAutocomplete-inputRoot': { padding: '0 8px' }
-                                    }}
-                                />
+
+
 
                             </Stack>
 
@@ -1759,7 +1732,7 @@ function ThemHopDongKHDialog(props) {
                             variant="contained"
                             color="error"
                             sx={{
-                                whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                                whiteSpace: 'nowrap'
                             }}
                         >Thoát</Button>
 
@@ -1767,13 +1740,25 @@ function ThemHopDongKHDialog(props) {
                             onClick={() => onSaveHopDong()}
                             variant="contained"
                             sx={{
-                                whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
+                                whiteSpace: 'nowrap'
                             }}
                         >Tạo hợp đồng</Button>
                     </div>
                 </div>
             </div>
             )}
+
+            <SePayDialog
+                open={openPaymentDialog}
+                onClose={() => setOpenPaymentDialog(false)}
+                maHopDong={maHopDong}
+                defaultAmount={khachThanhToan || (tongTien - (khachThanhToan || 0))}
+                onSuccess={(updatedData) => {
+                    if (updatedData?.latestPayment?.amount) {
+                        setKhachThanhToan((prev) => (prev || 0) + updatedData.latestPayment.amount);
+                    }
+                }}
+            />
         </Dialog >
     );
 }

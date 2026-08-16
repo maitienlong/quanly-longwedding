@@ -45,8 +45,9 @@ export const logoutAndRedirect = (reason = "expired") => {
 
   if (isRedirecting) return;
 
-  if (window.location.pathname !== "/login") {
+  if (!window.location.hash.includes("#/login")) {
     isRedirecting = true;
-    window.location.href = `/login?reason=${reason}`;
+    window.location.hash = `#/login?reason=${reason}`;
+    window.location.reload();
   }
 };
