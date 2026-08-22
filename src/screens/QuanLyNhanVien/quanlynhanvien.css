@@ -1,45 +1,605 @@
-.quanlynhanvien-header {
+/* src/screens/QuanLyNhanVien/quanlynhanvien.css */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+.emp-page-container {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 24px;
+    background: #f8fafc;
+    min-height: calc(100vh - 70px);
+    overflow-y: auto;
+}
+
+/* Glass Panel Utility */
+.glass-panel {
+    background: #ffffff;
+    border-radius: 18px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel:hover {
+    box-shadow: 0 10px 25px -3px rgba(15, 23, 42, 0.07);
+}
+
+/* 1. Header & Title */
+.emp-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
     margin-bottom: 20px;
 }
 
-.quanlynhanvien-header h2 {
-    font-size: 1.8rem;
-    font-weight: bold;
-    color: #1976d2;
-    margin: 0;
-}
-
-.quanlynhanvien-filters {
-    display: flex;
-    gap: 15px;
+.emp-badge-top {
+    display: inline-flex;
     align-items: center;
-}
-
-.quanlynhanvien-row:hover {
-    background-color: #f9f9f9;
-}
-
-/* Badge styling for user roles/permissions */
-.badge {
-    display: inline-block;
-    padding: 6px 12px;
+    gap: 6px;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    color: #1d4ed8;
+    padding: 4px 12px;
     border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    border: 1px solid #bfdbfe;
+}
+
+.emp-title-wrap h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.emp-subtitle {
+    margin: 6px 0 0 0;
+    color: #64748b;
+    font-size: 0.92rem;
+    font-weight: 500;
+}
+
+.btn-add-employee {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    height: 44px !important;
+    padding: 0 20px !important;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35) !important;
+    text-transform: none !important;
+    font-size: 0.95rem !important;
+    transition: all 0.2s ease !important;
+}
+
+.btn-add-employee:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45) !important;
+    transform: translateY(-1px);
+}
+
+/* 2. Stats Overview Grid */
+.emp-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.emp-stat-card {
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.stat-label {
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.stat-info h3 {
+    margin: 0;
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.stat-unit {
     font-size: 0.85rem;
+    color: #64748b;
     font-weight: 600;
+}
+
+.stat-sub {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-top: 4px;
+    display: block;
+}
+
+.stat-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+}
+
+.icon-blue { background: #eff6ff; color: #2563eb; }
+.icon-green { background: #f0fdf4; color: #16a34a; }
+.icon-gold { background: #fef3c7; color: #d97706; }
+.icon-purple { background: #f3e8ff; color: #9333ea; }
+
+/* 3. Toolbar */
+.emp-toolbar {
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.search-input {
+    min-width: 280px;
+    background: #f8fafc;
+    border-radius: 10px;
+}
+
+.search-input .MuiOutlinedInput-root {
+    border-radius: 10px;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.view-toggle {
+    background: #f1f5f9;
+    border-radius: 10px;
+    padding: 2px;
+}
+
+.btn-refresh {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #475569 !important;
+    border-radius: 10px !important;
+    padding: 8px !important;
+}
+
+.btn-refresh:hover {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+}
+
+/* 4. Table View Styling */
+.emp-table-container {
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.emp-table-row {
+    transition: background-color 0.15s ease;
+    cursor: pointer;
+}
+
+.emp-table-row:hover {
+    background-color: #f1f5f9 !important;
+}
+
+.username-pill {
+    font-size: 0.75rem;
+    color: #0284c7;
+    font-weight: 700;
+    background: #f0f9ff;
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: 1px solid #e0f2fe;
+}
+
+.birthday-pill {
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.role-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.commission-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.commission-percent {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.commission-fixed {
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.target-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f8fafc;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.8rem;
+    color: #475569;
+}
+
+.target-pill span b {
+    color: #0f172a;
+}
+
+.perm-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.perm-admin {
+    background: #ffe4e6;
+    color: #e11d48;
+    border: 1px solid #fecdd3;
+}
+
+.perm-staff {
+    background: #e0f2fe;
+    color: #0284c7;
+    border: 1px solid #bae6fd;
+}
+
+/* Action buttons */
+.btn-action-salary {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    font-size: 0.78rem !important;
+    border-radius: 8px !important;
+    text-transform: none !important;
+    white-space: nowrap !important;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25) !important;
+}
+
+.btn-action-edit {
+    background: #fef3c7 !important;
+    color: #d97706 !important;
+    border-radius: 8px !important;
+    border: 1px solid #fde68a !important;
+}
+
+.btn-action-edit:hover {
+    background: #fde68a !important;
+}
+
+.btn-action-delete {
+    background: #fee2e2 !important;
+    color: #dc2626 !important;
+    border-radius: 8px !important;
+    border: 1px solid #fecaca !important;
+}
+
+.btn-action-delete:hover {
+    background: #fecaca !important;
+}
+
+/* 5. Card Grid View */
+.emp-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.emp-profile-card {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.card-top-bar {
+    height: 6px;
+    width: 100%;
+}
+
+.card-body {
+    padding: 24px 20px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
 }
 
-.badge-admin {
-    background-color: #ffebee;
-    color: #c62828;
-    border: 1px solid #ffcdd2;
+.card-avatar-wrap {
+    position: relative;
+    margin-bottom: 12px;
 }
 
-.badge-staff {
-    background-color: #e3f2fd;
-    color: #1565c0;
-    border: 1px solid #bbdefb;
+.card-admin-star {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    font-size: 1.2rem;
+    background: #ffffff;
+    border-radius: 50%;
+    padding: 1px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.card-name {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.card-username {
+    font-size: 0.8rem;
+    color: #0284c7;
+    font-weight: 600;
+    margin-top: 2px;
+    margin-bottom: 10px;
+}
+
+.card-role-wrap {
+    margin-bottom: 16px;
+}
+
+.card-metrics-box {
+    width: 100%;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 18px;
+}
+
+.card-metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+    margin-bottom: 6px;
+}
+
+.card-metric-row:last-child {
+    margin-bottom: 0;
+}
+
+.metric-lbl {
+    color: #64748b;
+    font-weight: 600;
+}
+
+.metric-val {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.card-footer-actions {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 6. Salary Modal Styling */
+.salary-card {
+    border-radius: 14px;
+    padding: 16px;
+    border: 1px solid transparent;
+}
+
+.salary-card-lbl {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.salary-card h4 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+.card-cyan { background: #ecfeff; border-color: #a5f3fc; color: #0e7490; }
+.card-cyan h4 { color: #0891b2; }
+
+.card-blue { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+.card-blue h4 { color: #0284c7; }
+
+.card-green { background: #f0fdf4; border-color: #bbf7d0; color: #14532d; }
+.card-green h4 { color: #16a34a; }
+
+.card-gold { background: #fffbeb; border-color: #fde68a; color: #78350f; }
+.card-gold h4 { color: #d97706; }
+
+.card-royal { background: #faf5ff; border-color: #e9d5ff; color: #581c87; }
+.card-royal h4 { color: #9333ea; }
+
+.salary-card-sub {
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 4px;
+    display: block;
+    opacity: 0.85;
+}
+
+/* Contract Type & Custom Commission Badges */
+.contract-type-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.custom-rate-badge {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 12px;
+}
+
+.custom-type-count-badge {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #0284c7;
+    margin-top: 3px;
+}
+
+.preview-pill {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.preview-percent {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.preview-fixed {
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.rule-applied-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+/* 7. Responsive Adjustments */
+@media (max-width: 768px) {
+    .emp-page-container {
+        padding: 12px;
+    }
+
+    .emp-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .btn-add-employee {
+        width: 100%;
+    }
+
+    .emp-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .emp-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .toolbar-left {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input {
+        min-width: 100%;
+    }
+
+    .toolbar-right {
+        justify-content: flex-end;
+    }
+}
+
+/* 8. Action Award Button & Badge List */
+.btn-action-award {
+    background-color: #fffbeb !important;
+    color: #d97706 !important;
+    border: 1px solid #fde68a !important;
+    transition: all 0.2s ease !important;
+}
+
+.btn-action-award:hover {
+    background-color: #fef3c7 !important;
+    color: #b45309 !important;
+    transform: scale(1.08);
+}
+
+.emp-award-chip-mini {
+    background: #fffbeb !important;
+    color: #b45309 !important;
+    border: 1px solid #fde68a !important;
+    font-weight: 700 !important;
+    font-size: 0.72rem !important;
+    height: 20px !important;
 }

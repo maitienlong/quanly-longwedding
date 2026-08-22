@@ -1,0 +1,295 @@
+/* =========================================================
+   ==== CẤU HÌNH HỆ THỐNG - STYLESHEET ====
+   ========================================================= */
+
+.cauhinh-page-container {
+    padding: 16px 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background-color: #f8fafc;
+    box-sizing: border-box;
+}
+
+.cauhinh-page-header {
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cauhinh-main-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    letter-spacing: 0.5px;
+}
+
+.cauhinh-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 4px 0 0 0;
+}
+
+/* Layout 2 cột: Menu dọc + Nội dung */
+.cauhinh-layout-body {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+    align-items: flex-start;
+}
+
+/* 1. Thanh menu dọc (Vertical Submenu) */
+.cauhinh-vertical-menu {
+    width: 280px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.cauhinh-menu-header {
+    padding: 14px 16px;
+    background: #0f172a;
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cauhinh-menu-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cauhinh-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.cauhinh-menu-item:hover {
+    background-color: #f1f5f9;
+    transform: translateX(2px);
+}
+
+.cauhinh-menu-item.active {
+    background-color: #e0f2fe;
+    border-color: #bae6fd;
+}
+
+.cauhinh-menu-item.active .cauhinh-menu-title {
+    color: #0284c7;
+    font-weight: 700;
+}
+
+.cauhinh-menu-icon {
+    font-size: 1.25rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.cauhinh-menu-item.active .cauhinh-menu-icon {
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.15);
+}
+
+.cauhinh-menu-text {
+    flex: 1;
+    overflow: hidden;
+}
+
+.cauhinh-menu-title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.3;
+}
+
+.cauhinh-menu-desc {
+    font-size: 0.74rem;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+/* 2. Khung nội dung chi tiết */
+.cauhinh-content-area {
+    flex: 1;
+    min-width: 0;
+}
+
+.cauhinh-panel {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+}
+
+.cauhinh-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f1f5f9;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.cauhinh-panel-title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.cauhinh-panel-desc {
+    font-size: 0.84rem;
+    color: #64748b;
+    margin: 4px 0 0 0;
+}
+
+.cauhinh-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Account & Profile Styling */
+.account-avatar-wrapper {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 16px;
+}
+
+.account-avatar-btn-edit {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    border: 2px solid #ffffff !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+    padding: 6px !important;
+    border-radius: 50% !important;
+    cursor: pointer;
+    transition: all 0.2s ease !important;
+}
+
+.account-avatar-btn-edit:hover {
+    background: #0369a1 !important;
+    transform: scale(1.1);
+}
+
+.preset-avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.preset-avatar-item {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    overflow: hidden;
+}
+
+.preset-avatar-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.preset-avatar-item:hover {
+    transform: scale(1.08);
+    border-color: #38bdf8;
+}
+
+.preset-avatar-item.active {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.3);
+}
+
+.account-info-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+}
+
+.account-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.account-card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .cauhinh-layout-body {
+        flex-direction: column;
+    }
+
+    .cauhinh-vertical-menu {
+        width: 100%;
+    }
+
+    .cauhinh-panel {
+        padding: 16px;
+    }
+}

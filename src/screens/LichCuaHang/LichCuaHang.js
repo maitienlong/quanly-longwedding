@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
 import { useContractTypes } from '../../hooks/useContractTypes';
+import { useAuth } from '../Login/AuthContext/AuthContext';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -21,6 +22,9 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
+import InputAdornment from '@mui/material/InputAdornment';
+import IconButton from '@mui/material/IconButton';
+import './lichcuahang.css';
 
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
@@ -116,8 +120,54 @@ function LichCuaHang() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { getDichVuChinhLabel } = useContractTypes();
+    const { user } = useAuth();
     const [hopDong, setHopDong] = useState([]);
     const { showLoading, hideLoading } = useLoading();
+
+    // Kiểm tra quyền Quản trị viên / Quản lý
+    const isAdmin = user?.permission === 1 || 
+                    user?.positon === "Quản lý" || 
+                    user?.positon === "Admin" || 
+                    user?.positon === "Quản trị viên" || 
+                    user?.chucVu === "Quản lý" || 
+                    user?.role === "ADMIN" || 
+                    user?.username === "along";
+
+    // Hàm kiểm tra hợp đồng có được giao cho nhân viên hiện tại hay không
+    const isAssignedToUser = useCallback((hd, currentUser) => {
+        if (!currentUser) return false;
+        const targets = [
+            currentUser.fullname,
+            currentUser.hoTen,
+            currentUser.tenNhanVien,
+            currentUser.username
+        ].filter(Boolean).map(s => s.toLowerCase().trim());
+
+        if (targets.length === 0) return true;
+
+        const checkMatch = (val) => {
+            if (!val) return false;
+            const v = String(val).toLowerCase().trim();
+            return targets.some(t => t === v || v.includes(t) || t.includes(v));
+        };
+
+        const npv = hd?.nguoiPhucVu || {};
+        return checkMatch(npv.thoChupHinh) ||
+               checkMatch(npv.thoMakeUp) ||
+               checkMatch(npv.thoChinhAnh) ||
+               checkMatch(npv.banHang) ||
+               checkMatch(npv.phucVu) ||
+               checkMatch(hd?.createBy) ||
+               checkMatch(hd?.nguoiTao) ||
+               checkMatch(hd?.soanDo?.nguoiKiem);
+    }, []);
+
+    // Danh sách hợp đồng sau khi phân quyền (Nhân viên chỉ thấy HĐ mình được giao)
+    const filteredHopDong = useMemo(() => {
+        const rawList = hopDong || [];
+        if (isAdmin) return rawList;
+        return rawList.filter(hd => isAssignedToUser(hd, user));
+    }, [hopDong, isAdmin, user, isAssignedToUser]);
 
     const [viewMode, setViewMode] = useState('list'); // 'list' hoặc 'calendar'
     const todayDate = new Date();
@@ -684,7 +734,6 @@ function LichCuaHang() {
 
     const getEventsForDay = (dayDate) => {
         const events = [];
-        const filteredHopDong = hopDong || [];
         
         const getTimeFromDate = (dateString) => {
             if (!dateString) return "";
@@ -1051,8 +1100,6 @@ function LichCuaHang() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hopDong, sendData?._id]);
 
-    const filteredHopDong = hopDong || [];
-
     const renderTrangThaiBadge = (giaiDoan) => {
         const states = {
             1: { label: "Tạo hợp đồng", color: "#7f8c8d" }, // Ghi
@@ -1078,203 +1125,190 @@ function LichCuaHang() {
     };
 
     return (
-        <div className="hopdongkhachhang" style={{ padding: isMobile ? '10px' : '20px', height: isMobile ? 'calc(100vh - 145px)' : 'auto', display: isMobile ? 'flex' : 'block', flexDirection: 'column' }}>
-            {/* Tab Container */}
-            <div style={{ 
-                display: 'flex', 
-                gap: '10px', 
-                marginBottom: '20px', 
-                borderBottom: '2px solid #e0e0e0', 
-                paddingBottom: '10px',
-                overflowX: 'auto',
-                whiteSpace: 'nowrap',
-                WebkitOverflowScrolling: 'touch'
-            }}>
+        <div className="schedule-page-container">
+            {/* 1. HEADER TITLE */}
+            <div className="schedule-header">
+                <div className="schedule-title-wrap">
+                    <div className="schedule-badge-top">
+                        <i className="fa-solid fa-calendar-check"></i> LONG WEDDING STORE CALENDAR & WORKFLOW
+                    </div>
+                    <h2>
+                        <i className="fa-solid fa-calendar-days" style={{ color: '#0284c7' }}></i> QUẢN LÝ LỊCH CỬA HÀNG
+                    </h2>
+                    <p className="schedule-subtitle">
+                        {!isAdmin 
+                            ? `👤 Đang hiển thị các hợp đồng & lịch trình được giao cho bạn (${user?.fullname || user?.username || 'Nhân viên'})` 
+                            : 'Theo dõi và điều phối lịch chụp ảnh cưới, lịch hậu kỳ, in ấn và lịch trình ăn hỏi & cưới hỏi của khách hàng'}
+                    </p>
+                </div>
+            </div>
+
+            {/* 2. 4-TAB NAVIGATION */}
+            <div className="schedule-tabs-container glass-panel">
                 <button
+                    className={`schedule-tab-btn ${activeTab === 'chupHinh' ? 'active' : ''}`}
                     onClick={() => {
                         setActiveTab('chupHinh');
                         setSendData({});
                     }}
-                    style={{
-                        padding: '10px 24px',
-                        fontSize: '1rem',
-                        fontWeight: 'bold',
-                        border: 'none',
-                        background: activeTab === 'chupHinh' ? '#1976d2' : 'transparent',
-                        color: activeTab === 'chupHinh' ? '#fff' : '#666',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s',
-                        boxShadow: activeTab === 'chupHinh' ? '0 2px 5px rgba(0,0,0,0.2)' : 'none'
-                    }}
                 >
-                    <i className="fa-solid fa-camera" style={{ marginRight: '8px' }}></i>
+                    <i className="fa-solid fa-camera"></i>
                     QUẢN LÝ LỊCH CHỤP HÌNH
                 </button>
                 <button
+                    className={`schedule-tab-btn ${activeTab === 'hauKy' ? 'active' : ''}`}
                     onClick={() => {
                         setActiveTab('hauKy');
                         setSendData({});
                     }}
-                    style={{
-                        padding: '10px 24px',
-                        fontSize: '1rem',
-                        fontWeight: 'bold',
-                        border: 'none',
-                        background: activeTab === 'hauKy' ? '#1976d2' : 'transparent',
-                        color: activeTab === 'hauKy' ? '#fff' : '#666',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s',
-                        boxShadow: activeTab === 'hauKy' ? '0 2px 5px rgba(0,0,0,0.2)' : 'none'
-                    }}
                 >
-                    <i className="fa-solid fa-wand-magic-sparkles" style={{ marginRight: '8px' }}></i>
+                    <i className="fa-solid fa-wand-magic-sparkles"></i>
                     QUẢN LÝ LỊCH HẬU KỲ
                 </button>
                 <button
+                    className={`schedule-tab-btn ${activeTab === 'inAnh' ? 'active' : ''}`}
                     onClick={() => {
                         setActiveTab('inAnh');
                         setSendData({});
                     }}
-                    style={{
-                        padding: '10px 24px',
-                        fontSize: '1rem',
-                        fontWeight: 'bold',
-                        border: 'none',
-                        background: activeTab === 'inAnh' ? '#1976d2' : 'transparent',
-                        color: activeTab === 'inAnh' ? '#fff' : '#666',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s',
-                        boxShadow: activeTab === 'inAnh' ? '0 2px 5px rgba(0,0,0,0.2)' : 'none'
-                    }}
                 >
-                    <i className="fa-solid fa-print" style={{ marginRight: '8px' }}></i>
+                    <i className="fa-solid fa-print"></i>
                     QUẢN LÝ LỊCH IN ẢNH
                 </button>
                 <button
+                    className={`schedule-tab-btn ${activeTab === 'anHoiVaCuoi' ? 'active' : ''}`}
                     onClick={() => {
                         setActiveTab('anHoiVaCuoi');
                         setSendData({});
                     }}
-                    style={{
-                        padding: '10px 24px',
-                        fontSize: '1rem',
-                        fontWeight: 'bold',
-                        border: 'none',
-                        background: activeTab === 'anHoiVaCuoi' ? '#1976d2' : 'transparent',
-                        color: activeTab === 'anHoiVaCuoi' ? '#fff' : '#666',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s',
-                        boxShadow: activeTab === 'anHoiVaCuoi' ? '0 2px 5px rgba(0,0,0,0.2)' : 'none'
-                    }}
                 >
-                    <i className="fa-solid fa-heart" style={{ marginRight: '8px' }}></i>
+                    <i className="fa-solid fa-heart"></i>
                     QUẢN LÝ LỊCH ĂN HỎI & CƯỚI
                 </button>
             </div>
- 
-            <div className="content-header">
-                <h2 style={{ marginBottom: isMobile ? '12px' : 0 }}>{activeTab === 'chupHinh' ? 'LỊCH LÀM VIỆC CHỤP HÌNH' : activeTab === 'hauKy' ? 'LỊCH LÀM VIỆC HẬU KỲ' : activeTab === 'inAnh' ? 'LỊCH LÀM VIỆC IN ẢNH' : 'LỊCH ĂN HỎI & CƯỚI'}</h2>
-                <Stack 
-                    spacing={2} 
-                    direction={{ xs: 'column', md: 'row' }} 
-                    alignItems={{ xs: 'stretch', md: 'center' }}
-                    sx={{ width: '100%' }}
-                >
+
+            {/* 3. TOOLBAR & FILTERS */}
+            <div className="schedule-toolbar glass-panel">
+                <div className="toolbar-left">
                     <TextField
-                        id="outlined-basic"
-                        label="Tìm kiếm (Mã HĐ, SĐT, Tên)"
-                        variant="outlined"
-                        size={isMobile ? "small" : "medium"}
+                        size="small"
+                        placeholder="Tìm kiếm (Mã HĐ, SĐT, Tên KH)..."
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
+                        className="search-input"
                         InputProps={{
-                            sx: { height: isMobile ? 42 : commonHeight }
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <i className="fa-solid fa-magnifying-glass" style={{ color: '#94a3b8' }}></i>
+                                </InputAdornment>
+                            ),
+                            endAdornment: searchInput && (
+                                <InputAdornment position="end">
+                                    <IconButton size="small" onClick={() => setSearchInput('')}>
+                                        <i className="fa-solid fa-xmark" style={{ fontSize: '0.85rem' }}></i>
+                                    </IconButton>
+                                </InputAdornment>
+                            )
                         }}
-                        sx={{ width: isMobile ? '100%' : 280, order: isMobile ? 1 : 2 }}
                     />
-                    
-                    <Stack direction="row" spacing={2} sx={{ width: isMobile ? '100%' : 'auto', order: isMobile ? 2 : 1 }}>
-                        {viewMode === 'list' && (
-                            <Autocomplete
-                                disablePortal
-                                options={locThoiGian}
-                                value={selectedTime}
-                                onChange={(event, newValue) => {
-                                    setSelectedTime(newValue || locThoiGian[0]);
+
+                    {viewMode === 'list' && (
+                        <FormControl size="small" sx={{ minWidth: 170 }}>
+                            <InputLabel>Thời gian</InputLabel>
+                            <Select
+                                value={selectedTime?.id || 'tuần này'}
+                                label="Thời gian"
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setSelectedTime(locThoiGian.find(t => t.id === val) || locThoiGian[0]);
                                 }}
-                                getOptionLabel={(option) => option.label}
-                                isOptionEqualToValue={(option, value) => option.id === value.id}
-                                size={isMobile ? "small" : "medium"}
-                                sx={{ flex: 1, minWidth: isMobile ? 0 : 220 }}
-                                renderInput={(params) => <TextField {...params} label="Lọc theo thời gian" sx={{ '& .MuiInputBase-root': { height: isMobile ? 42 : commonHeight } }} />}
-                            />
-                        )}
-                        <ToggleButtonGroup
-                            value={viewMode}
-                            exclusive
-                            size={isMobile ? "small" : "medium"}
-                            onChange={(event, nextView) => {
-                                if (nextView !== null) {
-                                    setViewMode(nextView);
-                                }
-                            }}
-                            aria-label="view mode selector"
-                            sx={{ height: isMobile ? 42 : commonHeight, backgroundColor: '#fff', flex: isMobile && viewMode !== 'list' ? 1 : 'unset' }}
-                        >
-                            <ToggleButton value="list" aria-label="list view" title="Dạng danh sách">
-                                <i className="fa-solid fa-list" style={{ marginRight: '6px' }}></i>
-                                {!isMobile && "Danh sách"}
-                            </ToggleButton>
-                            <ToggleButton value="calendar" aria-label="calendar view" title="Dạng lịch tháng">
-                                <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px' }}></i>
-                                {!isMobile && "Lịch tháng"}
-                            </ToggleButton>
-                        </ToggleButtonGroup>
-                    </Stack>
+                            >
+                                <MenuItem value="all">Tất cả thời gian</MenuItem>
+                                <MenuItem value="hôm nay">Hôm nay</MenuItem>
+                                <MenuItem value="tuần này">Tuần này</MenuItem>
+                                <MenuItem value="tháng này">Tháng này</MenuItem>
+                            </Select>
+                        </FormControl>
+                    )}
+                </div>
+
+                <div className="toolbar-right">
+                    <ToggleButtonGroup
+                        value={viewMode}
+                        exclusive
+                        size="small"
+                        onChange={(event, nextView) => {
+                            if (nextView !== null) {
+                                setViewMode(nextView);
+                            }
+                        }}
+                        sx={{ bgcolor: '#f8fafc' }}
+                    >
+                        <ToggleButton value="list" title="Dạng danh sách">
+                            <i className="fa-solid fa-list" style={{ marginRight: '6px' }}></i>
+                            {!isMobile && "Danh sách"}
+                        </ToggleButton>
+                        <ToggleButton value="calendar" title="Dạng lịch tháng">
+                            <i className="fa-solid fa-calendar-days" style={{ marginRight: '6px' }}></i>
+                            {!isMobile && "Lịch tháng"}
+                        </ToggleButton>
+                    </ToggleButtonGroup>
+
                     <Button
                         variant="outlined"
-                        color="primary"
                         onClick={() => setOpenLunarLookup(true)}
-                        size={isMobile ? "small" : "medium"}
-                        sx={{ height: isMobile ? 42 : commonHeight, textTransform: 'none', fontWeight: 'bold', order: 3 }}
+                        size="small"
+                        sx={{ 
+                            height: 40, 
+                            textTransform: 'none', 
+                            fontWeight: 700, 
+                            fontSize: '0.85rem', 
+                            borderRadius: '10px', 
+                            px: 1.8, 
+                            whiteSpace: 'nowrap',
+                            borderColor: '#cbd5e1',
+                            color: '#0284c7',
+                            '&:hover': { borderColor: '#0284c7', bgcolor: '#f0f9ff' }
+                        }}
                     >
                         <i className="fa-solid fa-circle-info" style={{ marginRight: '6px' }}></i>
                         Tra cứu Lịch Âm
                     </Button>
+
                     <Button
                         variant="contained"
                         onClick={() => setOpenWeddingDateLookup(true)}
-                        size={isMobile ? "small" : "medium"}
+                        size="small"
                         sx={{ 
-                            height: isMobile ? 42 : commonHeight, 
+                            height: 40, 
                             textTransform: 'none', 
-                            fontWeight: 'bold', 
-                            order: 4,
-                            background: 'linear-gradient(45deg, #e91e63 30%, #ff4081 90%)',
+                            fontWeight: 700, 
+                            fontSize: '0.85rem', 
+                            borderRadius: '10px', 
+                            px: 2, 
+                            whiteSpace: 'nowrap',
+                            background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
                             color: '#fff',
-                            boxShadow: '0 3px 10px rgba(233,30,99,0.3)',
+                            boxShadow: '0 4px 12px rgba(236,72,153,0.3)',
                             '&:hover': {
-                                background: 'linear-gradient(45deg, #c2185b 30%, #e91e63 90%)',
+                                background: 'linear-gradient(135deg, #db2777 0%, #be185d 100%)',
                             }
                         }}
                     >
                         <i className="fa-solid fa-heart" style={{ marginRight: '6px' }}></i>
                         Ngày đẹp Cưới Hỏi
                     </Button>
-                </Stack>
+                </div>
             </div>
 
-            {/* ===== NỘI DUNG LỊCH LÀM VIỆC ===== */}
+            {/* 4. MAIN CONTENT (LIST VIEW OR MONTHLY CALENDAR) */}
             {viewMode === 'list' ? (
                 isMobile ? (
                     (() => {
                         if (!filteredHopDong || filteredHopDong.length === 0) {
                             return (
-                                <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
+                                <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>
+                                    <i className="fa-solid fa-calendar-xmark" style={{ fontSize: '2.5rem', marginBottom: '10px', display: 'block', color: '#cbd5e1' }}></i>
                                     Không có dữ liệu lịch làm việc.
                                 </div>
                             );
@@ -1293,14 +1327,16 @@ function LichCuaHang() {
                                             onClick={() => handleRowClick(hd)}
                                             sx={{ 
                                                 cursor: "pointer",
-                                                borderLeft: isOverdue ? '4px solid #e53e3e' : '4px solid transparent',
+                                                borderRadius: '14px',
+                                                border: isOverdue ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                                                borderLeft: isOverdue ? '5px solid #dc2626' : '1px solid #e2e8f0',
                                                 backgroundColor: isOverdue ? '#fff5f5' : '#fff',
-                                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                                boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
                                             }}
                                         >
-                                            <CardContent>
+                                            <CardContent sx={{ p: 2 }}>
                                                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                                    <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                                                    <Typography variant="subtitle1" fontWeight="800" color="#0284c7">
                                                         Mã HĐ: {hd.maHopDong}
                                                     </Typography>
                                                     {renderTrangThaiBadge(hd.giaiDoan)}
@@ -1351,14 +1387,14 @@ function LichCuaHang() {
                 
                                                     <Grid item xs={4}><Typography variant="body2" color="textSecondary">Dịch vụ:</Typography></Grid>
                                                     <Grid item xs={8}>
-                                                        <Typography variant="body2" fontWeight="500">{getDichVuChinhLabel(hd.dichVuChinh)}</Typography>
+                                                        <Typography variant="body2" fontWeight="600" color="#0369a1">{getDichVuChinhLabel(hd.dichVuChinh)}</Typography>
                                                     </Grid>
                 
                                                     {activeTab === 'chupHinh' && (
                                                         <>
                                                             <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày chụp:</Typography></Grid>
                                                             <Grid item xs={8}>
-                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? 'error' : 'textPrimary'}>
+                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? '#dc2626' : 'textPrimary'}>
                                                                     {hd.cacNgay?.ngayChup ? `${formatDateTime(hd.cacNgay.ngayChup)}` : "Chưa cập nhật"}
                                                                     {isOverdue && " (Trễ lịch)"}
                                                                 </Typography>
@@ -1395,7 +1431,7 @@ function LichCuaHang() {
                                                             </Grid>
                                                             <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày trả ảnh:</Typography></Grid>
                                                             <Grid item xs={8}>
-                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? 'error' : 'textPrimary'}>
+                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? '#dc2626' : 'textPrimary'}>
                                                                     {formatDateOnly(hd.cacNgay?.ngayTraAnh) || (hd.cacNgay?.ngayChinhAnh ? formatDateOnly(new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString()) + " (Dự kiến)" : "Chưa cập nhật")}
                                                                     {isOverdue && " (Trễ lịch)"}
                                                                 </Typography>
@@ -1409,7 +1445,7 @@ function LichCuaHang() {
                                                         <>
                                                             <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày trả ảnh:</Typography></Grid>
                                                             <Grid item xs={8}>
-                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? 'error' : 'textPrimary'}>
+                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? '#dc2626' : 'textPrimary'}>
                                                                     {formatDateOnly(hd.cacNgay?.ngayTraAnh) || "Chưa cập nhật"}
                                                                     {isOverdue && " (Trễ lịch)"}
                                                                 </Typography>
@@ -1443,306 +1479,325 @@ function LichCuaHang() {
                         );
                     })()
                 ) : (
-                <TableContainer component={Paper} style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
-                    <style>{`
-                        .fixed-layout-table {
-                            table-layout: fixed !important;
-                            width: 100% !important;
-                            min-width: 1090px !important;
-                        }
-                        .fixed-layout-table td {
-                            word-wrap: break-word !important;
-                            word-break: break-word !important;
-                            white-space: normal !important;
-                        }
-                        .fixed-layout-table th {
-                            white-space: nowrap !important;
-                        }
-                    `}</style>
-                    <Table stickyHeader aria-label="simple table" className="fixed-layout-table">
-                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
-                            {activeTab === 'chupHinh' ? (
-                                <TableRow>
-                                    <TableCell align='center' style={{ width: 65 }}>STT</TableCell>
-                                    <TableCell align='center' style={{ width: 140 }}>NGÀY CHỤP</TableCell>
-                                    <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
-                                    <TableCell align='center' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
-                                    <TableCell style={{ width: 110 }}>SĐT</TableCell>
-                                    <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
-                                    <TableCell align='center' style={{ width: 160 }}>ĐỊA ĐIỂM CHỤP</TableCell>
-                                    <TableCell align='center' style={{ width: 150 }}>EKIP</TableCell>
-                                    <TableCell align='center' style={{ width: 130 }}>CHỐT LỊCH</TableCell>
-                                </TableRow>
-                            ) : activeTab === 'hauKy' ? (
-                                <TableRow>
-                                    <TableCell align='center' style={{ width: 65 }}>STT</TableCell>
-                                    <TableCell align='center' style={{ width: 140 }}>NGÀY HẬU KỲ</TableCell>
-                                    <TableCell align='center' style={{ width: 140 }}>NGÀY TRẢ ẢNH</TableCell>
-                                    <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
-                                    <TableCell align='center' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
-                                    <TableCell style={{ width: 110 }}>SĐT</TableCell>
-                                    <TableCell align='center' style={{ width: 140 }}>THỢ CHỈNH ẢNH</TableCell>
-                                    <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
-                                    <TableCell align='center' style={{ width: 120 }}>TIẾN TRÌNH</TableCell>
-                                </TableRow>
-                            ) : activeTab === 'inAnh' ? (
-                                <TableRow>
-                                    <TableCell align='center' style={{ width: 65 }}>STT</TableCell>
-                                    <TableCell align='center' style={{ width: 140 }}>NGÀY CHUYỂN IN</TableCell>
-                                    <TableCell align='center' style={{ width: 140 }}>NGÀY TRẢ ẢNH</TableCell>
-                                    <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
-                                    <TableCell align='center' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
-                                    <TableCell style={{ width: 110 }}>SĐT</TableCell>
-                                    <TableCell align='center' style={{ width: 140 }}>THỢ CHỈNH ẢNH</TableCell>
-                                    <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
-                                    <TableCell align='center' style={{ width: 120 }}>TIẾN TRÌNH</TableCell>
-                                </TableRow>
-                            ) : (
-                                <TableRow>
-                                    <TableCell align='center' style={{ width: 65 }}>STT</TableCell>
-                                    <TableCell align='center' style={{ width: 170 }}>NGÀY ĂN HỎI</TableCell>
-                                    <TableCell align='center' style={{ width: 170 }}>NGÀY CƯỚI</TableCell>
-                                    <TableCell align='center' style={{ width: 90 }}>MÃ SỐ HĐ</TableCell>
-                                    <TableCell align='center' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
-                                    <TableCell style={{ width: 110 }}>SĐT</TableCell>
-                                    <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
-                                    <TableCell align='center' style={{ width: 120 }}>TIẾN TRÌNH</TableCell>
-                                </TableRow>
-                            )}
-                        </TableHead>
-     
-                        <TableBody>
-                            {filteredHopDong && filteredHopDong.length > 0 ? (
-                                filteredHopDong.map((hd, index) => {
-                                    const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null)) : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
-                                    const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab);
-     
-                                    return (
-                                        <TableRow key={index}
-                                            style={{ 
-                                                cursor: "pointer",
-                                                backgroundColor: isOverdue ? '#fff5f5' : 'inherit',
-                                                transition: 'background-color 0.3s'
-                                            }}
-                                            onClick={() => handleRowClick(hd)}
-                                        >
-                                            {/* 1. STT */}
-                                            <TableCell align='center'>{index + 1}</TableCell>
+                <Paper elevation={0} className="schedule-table-container glass-panel">
+                    <TableContainer style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
+                        <style>{`
+                            .fixed-layout-table {
+                                table-layout: fixed !important;
+                                width: 100% !important;
+                                min-width: 1090px !important;
+                            }
+                            .fixed-layout-table td {
+                                word-wrap: break-word !important;
+                                word-break: break-word !important;
+                                white-space: normal !important;
+                            }
+                            .fixed-layout-table th {
+                                white-space: nowrap !important;
+                            }
+                        `}</style>
+                        <Table stickyHeader aria-label="simple table" className="fixed-layout-table" size="small">
+                            <TableHead sx={{ '& th': { backgroundColor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.8 } }}>
+                                {activeTab === 'chupHinh' ? (
+                                    <TableRow>
+                                        <TableCell align='center' style={{ width: 60 }}>STT</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>NGÀY CHỤP</TableCell>
+                                        <TableCell align='center' style={{ width: 105 }}>MÃ SỐ HĐ</TableCell>
+                                        <TableCell align='left' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
+                                        <TableCell align='left' style={{ width: 120 }}>LIÊN HỆ</TableCell>
+                                        <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
+                                        <TableCell align='center' style={{ width: 150 }}>ĐỊA ĐIỂM CHỤP</TableCell>
+                                        <TableCell align='center' style={{ width: 150 }}>EKIP</TableCell>
+                                        <TableCell align='center' style={{ width: 130 }}>CHỐT LỊCH</TableCell>
+                                    </TableRow>
+                                ) : activeTab === 'hauKy' ? (
+                                    <TableRow>
+                                        <TableCell align='center' style={{ width: 60 }}>STT</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>NGÀY HẬU KỲ</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>NGÀY TRẢ ẢNH</TableCell>
+                                        <TableCell align='center' style={{ width: 105 }}>MÃ SỐ HĐ</TableCell>
+                                        <TableCell align='left' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
+                                        <TableCell align='left' style={{ width: 120 }}>LIÊN HỆ</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>THỢ CHỈNH ẢNH</TableCell>
+                                        <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
+                                        <TableCell align='center' style={{ width: 120 }}>TIẾN TRÌNH</TableCell>
+                                    </TableRow>
+                                ) : activeTab === 'inAnh' ? (
+                                    <TableRow>
+                                        <TableCell align='center' style={{ width: 60 }}>STT</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>NGÀY CHUYỂN IN</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>NGÀY TRẢ ẢNH</TableCell>
+                                        <TableCell align='center' style={{ width: 105 }}>MÃ SỐ HĐ</TableCell>
+                                        <TableCell align='left' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
+                                        <TableCell align='left' style={{ width: 120 }}>LIÊN HỆ</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>THỢ CHỈNH ẢNH</TableCell>
+                                        <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
+                                        <TableCell align='center' style={{ width: 120 }}>TIẾN TRÌNH</TableCell>
+                                    </TableRow>
+                                ) : (
+                                    <TableRow>
+                                        <TableCell align='center' style={{ width: 60 }}>STT</TableCell>
+                                        <TableCell align='center' style={{ width: 170 }}>NGÀY ĂN HỎI</TableCell>
+                                        <TableCell align='center' style={{ width: 170 }}>NGÀY CƯỚI</TableCell>
+                                        <TableCell align='center' style={{ width: 105 }}>MÃ SỐ HĐ</TableCell>
+                                        <TableCell align='left' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
+                                        <TableCell align='left' style={{ width: 120 }}>LIÊN HỆ</TableCell>
+                                        <TableCell align='center' style={{ width: 110 }}>DỊCH VỤ</TableCell>
+                                        <TableCell align='center' style={{ width: 120 }}>TIẾN TRÌNH</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableHead>
+         
+                            <TableBody>
+                                {filteredHopDong && filteredHopDong.length > 0 ? (
+                                    filteredHopDong.map((hd, index) => {
+                                        const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null)) : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
+                                        const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab);
+         
+                                        return (
+                                            <TableRow 
+                                                key={hd._id || index}
+                                                className={`schedule-table-row ${isOverdue ? 'row-late' : ''}`}
+                                                onClick={() => handleRowClick(hd)}
+                                            >
+                                                {/* 1. STT */}
+                                                <TableCell align='center' style={{ fontWeight: 600, color: '#64748b' }}>{index + 1}</TableCell>
 
-                                            {/* 2. Ngày tháng (chuyển lên trước mã số hợp đồng) */}
-                                            {activeTab === 'chupHinh' && (
-                                                <TableCell align='center' style={{ 
-                                                    color: isOverdue ? '#e53e3e' : 'inherit', 
-                                                    fontWeight: isOverdue ? 'bold' : 'normal' 
-                                                }}>
-                                                    {hd.cacNgay?.ngayChup ? (
-                                                        <>
-                                                            <div>{formatDateTime(hd.cacNgay.ngayChup)}</div>
-                                                            <div style={{ fontSize: '0.75rem', color: '#7f8c8d', marginTop: '3px' }}>
-                                                                (Âm: {formatLunarDateShort(hd.cacNgay.ngayChup)})
-                                                            </div>
-                                                        </>
-                                                    ) : "Chưa cập nhật"}
-                                                    {isOverdue && (
-                                                        <span style={{ display: 'block', fontSize: '0.75rem', color: '#e53e3e', fontWeight: 'bold', marginTop: '2px' }}>
-                                                            (Trễ lịch)
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                            )}
-                                            {activeTab === 'hauKy' && (
-                                                <>
+                                                {/* 2. Ngày tháng */}
+                                                {activeTab === 'chupHinh' && (
                                                     <TableCell align='center'>
-                                                        {formatDateOnly(hd.cacNgay?.ngayChinhAnh) || "Chưa cập nhật"}
-                                                    </TableCell>
-                                                    <TableCell align='center' style={{ 
-                                                        color: isOverdue ? '#e53e3e' : 'inherit', 
-                                                        fontWeight: isOverdue ? 'bold' : 'normal' 
-                                                    }}>
-                                                        {formatDateOnly(hd.cacNgay?.ngayTraAnh) || (hd.cacNgay?.ngayChinhAnh ? formatDateOnly(new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString()) + " (Dự kiến)" : "Chưa cập nhật")}
+                                                        {hd.cacNgay?.ngayChup ? (
+                                                            <>
+                                                                <div style={{ fontWeight: 700, color: isOverdue ? '#dc2626' : '#0f172a' }}>
+                                                                    {formatDateTime(hd.cacNgay.ngayChup)}
+                                                                </div>
+                                                                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                                                                    (Âm: {formatLunarDateShort(hd.cacNgay.ngayChup)})
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '0.8rem' }}>⚠️ Chưa cập nhật</span>
+                                                        )}
                                                         {isOverdue && (
-                                                            <span style={{ display: 'block', fontSize: '0.75rem', color: '#e53e3e', fontWeight: 'bold', marginTop: '2px' }}>
+                                                            <span style={{ display: 'inline-block', fontSize: '0.72rem', color: '#dc2626', fontWeight: 800, marginTop: '2px' }}>
                                                                 (Trễ lịch)
                                                             </span>
                                                         )}
                                                     </TableCell>
-                                                </>
-                                            )}
-                                            {activeTab === 'inAnh' && (
-                                                <>
-                                                    <TableCell align='center'>
-                                                        {formatDateTime(hd.cacNgay?.ngayChuyenInAnh) || "Chưa cập nhật"}
-                                                    </TableCell>
-                                                    <TableCell align='center' style={{ 
-                                                        color: isOverdue ? '#e53e3e' : 'inherit', 
-                                                        fontWeight: isOverdue ? 'bold' : 'normal' 
-                                                    }}>
-                                                        {formatDateOnly(hd.cacNgay?.ngayTraAnh) || "Chưa cập nhật"}
-                                                        {isOverdue && (
-                                                            <span style={{ display: 'block', fontSize: '0.75rem', color: '#e53e3e', fontWeight: 'bold', marginTop: '2px' }}>
-                                                                (Trễ lịch)
-                                                            </span>
-                                                        )}
-                                                    </TableCell>
-                                                </>
-                                            )}
-                                            {activeTab === 'anHoiVaCuoi' && (
-                                                <>
-                                                    <TableCell align='center' style={{ 
-                                                        color: isPastToday(hd.cacNgay?.ngayAnHoi, hd.giaiDoan, activeTab) ? '#e53e3e' : 'inherit', 
-                                                        fontWeight: isPastToday(hd.cacNgay?.ngayAnHoi, hd.giaiDoan, activeTab) ? 'bold' : 'normal' 
-                                                    }}>
-                                                        {hd.cacNgay?.ngayAnHoi ? (
-                                                            <>
-                                                                <div>{formatDateTime(hd.cacNgay.ngayAnHoi)}</div>
-                                                                <div style={{ fontSize: '0.75rem', color: '#7f8c8d', marginTop: '3px' }}>
-                                                                    (Âm: {formatLunarDateShort(hd.cacNgay.ngayAnHoi)})
-                                                                </div>
-                                                            </>
-                                                        ) : "-"}
-                                                    </TableCell>
-                                                    <TableCell align='center' style={{ 
-                                                        color: isPastToday(hd.cacNgay?.ngayCuoi, hd.giaiDoan, activeTab) ? '#e53e3e' : 'inherit', 
-                                                        fontWeight: isPastToday(hd.cacNgay?.ngayCuoi, hd.giaiDoan, activeTab) ? 'bold' : 'normal' 
-                                                    }}>
-                                                        {hd.cacNgay?.ngayCuoi ? (
-                                                            <>
-                                                                <div>{formatDateTime(hd.cacNgay.ngayCuoi)}</div>
-                                                                <div style={{ fontSize: '0.75rem', color: '#7f8c8d', marginTop: '3px' }}>
-                                                                    (Âm: {formatLunarDateShort(hd.cacNgay.ngayCuoi)})
-                                                                </div>
-                                                            </>
-                                                        ) : "-"}
-                                                    </TableCell>
-                                                </>
-                                            )}
-
-                                            {/* 3. Mã số HĐ */}
-                                            <TableCell align='center'>{hd.maHopDong}</TableCell>
-
-                                            {/* 4. Tên khách hàng */}
-                                            <TableCell align='left'>
-                                                {hd.khachHang1?.tenKhachHang}
-                                                {hd.khachHang2?.tenKhachHang && (
+                                                )}
+                                                {activeTab === 'hauKy' && (
                                                     <>
-                                                        <br />
-                                                        <hr style={{ opacity: "40%", margin: "4px 0" }} />
-                                                        {hd.khachHang2.tenKhachHang}
+                                                        <TableCell align='center'>
+                                                            {formatDateOnly(hd.cacNgay?.ngayChinhAnh) || "Chưa cập nhật"}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            <div style={{ fontWeight: 700, color: isOverdue ? '#dc2626' : '#0f172a' }}>
+                                                                {formatDateOnly(hd.cacNgay?.ngayTraAnh) || (hd.cacNgay?.ngayChinhAnh ? formatDateOnly(new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString()) + " (Dự kiến)" : "Chưa cập nhật")}
+                                                            </div>
+                                                            {isOverdue && (
+                                                                <span style={{ display: 'inline-block', fontSize: '0.72rem', color: '#dc2626', fontWeight: 800, marginTop: '2px' }}>
+                                                                    (Trễ lịch)
+                                                                </span>
+                                                            )}
+                                                        </TableCell>
                                                     </>
                                                 )}
-                                            </TableCell>
-
-                                            {/* 5. Số điện thoại */}
-                                            <TableCell align='left'>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    <span>{hd.khachHang1?.soDienThoai}</span>
-                                                    {hd.khachHang1?.facebookId && (
-                                                        <a 
-                                                            href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
-                                                            target="_blank" 
-                                                            rel="noopener noreferrer" 
-                                                            style={{ color: '#1877f2', textDecoration: 'none' }}
-                                                            title="Mở Facebook Khách hàng 1"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            <i className="fa-brands fa-facebook"></i>
-                                                        </a>
-                                                    )}
-                                                </div>
-                                                {hd.khachHang2?.soDienThoai && (
+                                                {activeTab === 'inAnh' && (
                                                     <>
-                                                        <hr style={{ opacity: "40%", margin: "4px 0" }} />
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <span>{hd.khachHang2.soDienThoai}</span>
-                                                            {hd.khachHang2?.facebookId && (
+                                                        <TableCell align='center'>
+                                                            {formatDateTime(hd.cacNgay?.ngayChuyenInAnh) || "Chưa cập nhật"}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            <div style={{ fontWeight: 700, color: isOverdue ? '#dc2626' : '#0f172a' }}>
+                                                                {formatDateOnly(hd.cacNgay?.ngayTraAnh) || "Chưa cập nhật"}
+                                                            </div>
+                                                            {isOverdue && (
+                                                                <span style={{ display: 'inline-block', fontSize: '0.72rem', color: '#dc2626', fontWeight: 800, marginTop: '2px' }}>
+                                                                    (Trễ lịch)
+                                                                </span>
+                                                            )}
+                                                        </TableCell>
+                                                    </>
+                                                )}
+                                                {activeTab === 'anHoiVaCuoi' && (
+                                                    <>
+                                                        <TableCell align='center'>
+                                                            {hd.cacNgay?.ngayAnHoi ? (
+                                                                <>
+                                                                    <div style={{ fontWeight: 700, color: '#e11d48' }}>{formatDateTime(hd.cacNgay.ngayAnHoi)}</div>
+                                                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                                                                        (Âm: {formatLunarDateShort(hd.cacNgay.ngayAnHoi)})
+                                                                    </div>
+                                                                </>
+                                                            ) : "-"}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            {hd.cacNgay?.ngayCuoi ? (
+                                                                <>
+                                                                    <div style={{ fontWeight: 700, color: '#16a34a' }}>{formatDateTime(hd.cacNgay.ngayCuoi)}</div>
+                                                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                                                                        (Âm: {formatLunarDateShort(hd.cacNgay.ngayCuoi)})
+                                                                    </div>
+                                                                </>
+                                                            ) : "-"}
+                                                        </TableCell>
+                                                    </>
+                                                )}
+
+                                                {/* 3. Mã số HĐ */}
+                                                <TableCell align='center'>
+                                                    <span className="badge-code">
+                                                        {hd.maHopDong}
+                                                    </span>
+                                                </TableCell>
+
+                                                {/* 4. Tên khách hàng */}
+                                                <TableCell align='left'>
+                                                    <div style={{ fontWeight: 800, fontSize: '0.94rem', color: '#0f172a' }}>
+                                                        {hd.khachHang1?.tenKhachHang}
+                                                    </div>
+                                                    {hd.khachHang2?.tenKhachHang && (
+                                                        <div style={{ fontSize: '0.84rem', color: '#475569', fontWeight: 600, marginTop: '2px' }}>
+                                                            & {hd.khachHang2.tenKhachHang}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+
+                                                {/* 5. Số điện thoại */}
+                                                <TableCell align='left'>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span style={{ fontWeight: 600, color: '#2563eb' }}>{hd.khachHang1?.soDienThoai}</span>
+                                                        {hd.khachHang1?.facebookId && (
+                                                            <Tooltip title="Mở Facebook Khách hàng 1">
                                                                 <a 
-                                                                    href={hd.khachHang2.facebookId.startsWith('http') ? hd.khachHang2.facebookId : `https://facebook.com/${hd.khachHang2.facebookId}`} 
+                                                                    href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
                                                                     target="_blank" 
                                                                     rel="noopener noreferrer" 
                                                                     style={{ color: '#1877f2', textDecoration: 'none' }}
-                                                                    title="Mở Facebook Khách hàng 2"
                                                                     onClick={(e) => e.stopPropagation()}
                                                                 >
                                                                     <i className="fa-brands fa-facebook"></i>
                                                                 </a>
+                                                            </Tooltip>
+                                                        )}
+                                                    </div>
+                                                    {hd.khachHang2?.soDienThoai && (
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                                                            <span style={{ fontSize: '0.82rem', color: '#64748b' }}>{hd.khachHang2.soDienThoai}</span>
+                                                            {hd.khachHang2?.facebookId && (
+                                                                <Tooltip title="Mở Facebook Khách hàng 2">
+                                                                    <a 
+                                                                        href={hd.khachHang2.facebookId.startsWith('http') ? hd.khachHang2.facebookId : `https://facebook.com/${hd.khachHang2.facebookId}`} 
+                                                                        target="_blank" 
+                                                                        rel="noopener noreferrer" 
+                                                                        style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        <i className="fa-brands fa-facebook"></i>
+                                                                    </a>
+                                                                </Tooltip>
                                                             )}
                                                         </div>
+                                                    )}
+                                                </TableCell>
+
+                                                {/* 6. Các cột thông tin còn lại sau SĐT */}
+                                                {activeTab === 'chupHinh' && (
+                                                    <>
+                                                        <TableCell align='center'>
+                                                            <span className="badge-service-tag">
+                                                                {getDichVuChinhLabel(hd.dichVuChinh)}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell align='center' style={{ fontSize: '0.85rem' }}>
+                                                            {hd.cacNgay?.diaDiemChup || "Chưa cập nhật"}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            {(() => {
+                                                                const parts = [];
+                                                                if (hd.nguoiPhucVu?.thoChupHinh) parts.push(`Chụp: ${hd.nguoiPhucVu.thoChupHinh}`);
+                                                                if (hd.nguoiPhucVu?.thoMakeUp) parts.push(`Make: ${hd.nguoiPhucVu.thoMakeUp}`);
+                                                                return parts.length > 0 ? (
+                                                                    <span className="badge-ekip">
+                                                                        {parts.join(" + ")}
+                                                                    </span>
+                                                                ) : <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Chưa giao</span>;
+                                                            })()}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            {(() => {
+                                                                const status = hd.cacNgay?.chotLich || "Chưa gọi điện";
+                                                                let statusClass = "call-not-yet";
+                                                                let iconName = "fa-phone";
+                                                                if (status === "Đã gọi điện xác nhận" || status === "Đã chốt lịch") {
+                                                                    statusClass = "call-done";
+                                                                    iconName = "fa-check";
+                                                                } else if (status === "Khách dời lịch" || status === "Hẹn gọi lại") {
+                                                                    statusClass = "call-postponed";
+                                                                    iconName = "fa-clock-rotate-left";
+                                                                }
+                                                                return (
+                                                                    <span className={`badge-call-status ${statusClass}`}>
+                                                                        <i className={`fa-solid ${iconName}`}></i> {status}
+                                                                    </span>
+                                                                );
+                                                            })()}
+                                                        </TableCell>
                                                     </>
                                                 )}
-                                            </TableCell>
 
-                                            {/* 6. Các cột thông tin còn lại sau SĐT */}
-                                            {activeTab === 'chupHinh' && (
-                                                <>
-                                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
-                                                    <TableCell align='center'>{hd.cacNgay?.diaDiemChup || "Chưa cập nhật"}</TableCell>
-                                                    <TableCell align='center'>
-                                                        {(() => {
-                                                            const parts = [];
-                                                            if (hd.nguoiPhucVu?.thoChupHinh) parts.push(`Chụp: ${hd.nguoiPhucVu.thoChupHinh}`);
-                                                            if (hd.nguoiPhucVu?.thoMakeUp) parts.push(`Make: ${hd.nguoiPhucVu.thoMakeUp}`);
-                                                            return parts.join(" + ") || "Chưa giao ekip";
-                                                        })()}
-                                                    </TableCell>
-                                                    <TableCell align='center'>
-                                                        {(() => {
-                                                            const status = hd.cacNgay?.chotLich || "Chưa gọi điện";
-                                                            let color = "#e67e22"; // default orange
-                                                            if (status === "Đã gọi điện xác nhận" || status === "Đã chốt lịch") {
-                                                                color = "#2ecc71"; // green
-                                                            }
-                                                            return (
-                                                                <span style={{
-                                                                    backgroundColor: color,
-                                                                    color: '#fff',
-                                                                    padding: '4px 8px',
-                                                                    borderRadius: '12px',
-                                                                    fontSize: '0.8rem',
-                                                                    fontWeight: '500',
-                                                                    whiteSpace: 'nowrap'
-                                                                }}>
-                                                                    {status}
-                                                                </span>
-                                                            );
-                                                        })()}
-                                                    </TableCell>
-                                                </>
-                                            )}
+                                                {activeTab === 'hauKy' && (
+                                                    <>
+                                                        <TableCell align='center' style={{ fontWeight: 600, color: '#334155' }}>
+                                                            {hd.nguoiPhucVu?.thoChinhAnh ? <span className="badge-ekip">{hd.nguoiPhucVu.thoChinhAnh}</span> : <span style={{ color: '#94a3b8' }}>Chưa giao</span>}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            <span className="badge-service-tag">
+                                                                {getDichVuChinhLabel(hd.dichVuChinh)}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
+                                                    </>
+                                                )}
+                                                {activeTab === 'inAnh' && (
+                                                    <>
+                                                        <TableCell align='center' style={{ fontWeight: 600, color: '#334155' }}>
+                                                            {hd.nguoiPhucVu?.thoChinhAnh ? <span className="badge-ekip">{hd.nguoiPhucVu.thoChinhAnh}</span> : <span style={{ color: '#94a3b8' }}>Chưa giao</span>}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            <span className="badge-service-tag">
+                                                                {getDichVuChinhLabel(hd.dichVuChinh)}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
+                                                    </>
+                                                )}
 
-                                            {activeTab === 'hauKy' && (
-                                                <>
-                                                    <TableCell align='center'>{hd.nguoiPhucVu?.thoChinhAnh || "Chưa giao"}</TableCell>
-                                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
-                                                    <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
-                                                </>
-                                            )}
-                                            {activeTab === 'inAnh' && (
-                                                <>
-                                                    <TableCell align='center'>{hd.nguoiPhucVu?.thoChinhAnh || "Chưa giao"}</TableCell>
-                                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
-                                                    <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
-                                                </>
-                                            )}
-
-                                            {activeTab === 'anHoiVaCuoi' && (
-                                                <>
-                                                    <TableCell align='center'>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
-                                                    <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
-                                                </>
-                                            )}
-                                        </TableRow>
-                                    );
-                                })
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={activeTab === 'chupHinh' ? 9 : activeTab === 'hauKy' ? 9 : activeTab === 'inAnh' ? 8 : 8} align="center" style={{ color: "#999", padding: "20px 0" }}>
-                                        Không có dữ liệu lịch làm việc.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                                                {activeTab === 'anHoiVaCuoi' && (
+                                                    <>
+                                                        <TableCell align='center'>
+                                                            <span className="badge-service-tag">
+                                                                {getDichVuChinhLabel(hd.dichVuChinh)}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
+                                                    </>
+                                                )}
+                                            </TableRow>
+                                        );
+                                    })
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={activeTab === 'chupHinh' ? 9 : activeTab === 'hauKy' ? 9 : activeTab === 'inAnh' ? 9 : 8} align="center" sx={{ py: 6, color: "#94a3b8" }}>
+                                            <i className="fa-solid fa-calendar-xmark" style={{ fontSize: '2.5rem', marginBottom: '10px', display: 'block', color: '#cbd5e1' }}></i>
+                                            Không có dữ liệu lịch làm việc trong khoảng thời gian này.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Paper>
                 )
             ) : (
                 renderMonthlyCalendar()

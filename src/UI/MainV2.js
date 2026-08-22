@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Routes, Route, Link, Navigate } from "react-router-dom";
+import { useNavigate, Routes, Route, Link, Navigate, useLocation } from "react-router-dom";
 import logo from '../assets/logo/logo-vang.png';
 import './css/mainv2.css';
 import HopDongKhachHang from '../screens/HopDong/HopDongKhachHang';
@@ -13,10 +13,12 @@ import QuanLyKhachHang from "../screens/QuanLyKhachHang/QuanLyKhachHang";
 import QuanLyWebsite from "../screens/QuanLyWebsite/QuanLyWebsite";
 import SystemLogs from "../screens/SystemLogs/SystemLogs";
 import ThiDua from "../screens/ThiDua/ThiDua";
+import CauHinh from "../screens/CauHinh/CauHinh";
 import { useAuth } from '../screens/Login/AuthContext/AuthContext';
 import otherService from "../API/services/otherService";
 import { updateContractTypesCache } from "../utils/contractTypesHelper";
 import { formatLunarDateFull } from "../utils/lunarDateUtils";
+import { getEmployeeAwards } from "../utils/awardHelper";
 
 // Material UI components for reliable centered Dialog
 import {
@@ -32,14 +34,20 @@ import {
     Avatar,
     Chip,
     Paper,
-    Grid
+    Grid,
+    Tooltip
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
 function MainV2() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [showDialog, setShowDialog] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        return localStorage.getItem('sapo_sidebar_collapsed') === 'true';
+    });
+    const [openSubmenu, setOpenSubmenu] = useState(true);
     const [userStats, setUserStats] = useState(null);
     const [userProfileData, setUserProfileData] = useState(null);
     const { user, logout } = useAuth();
@@ -47,6 +55,10 @@ function MainV2() {
     const [ctime, setTime] = useState(new Date().toLocaleTimeString());
     const [cdate, setDate] = useState(new Date().toLocaleDateString());
     const dayNames = ["Chủ nhật", "Thứ hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+
+    useEffect(() => {
+        localStorage.setItem('sapo_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    }, [isCollapsed]);
 
     useEffect(() => {
         if (showDialog && user) {
@@ -120,92 +132,232 @@ function MainV2() {
                     user?.role === "ADMIN" || 
                     user?.username === "along";
 
+    const currentPath = location.pathname;
+    const isHopDongActive = currentPath === '/';
+
+    const [openLichSubmenu, setOpenLichSubmenu] = useState(() => {
+        return location.pathname === '/lichcuahang' || location.pathname === '/lichSoanDo';
+    });
+
+    const isLichActive = currentPath === '/lichcuahang' || currentPath === '/lichSoanDo';
+
     return (
-        <div className="container">
-            {/* Sidebar */}
-            <div className="sidebar">
-                <div className="sidebar-header">
-                    <div className="logo logo-title-group" style={{ cursor: 'pointer', display: 'flex', justifyContent: 'center', marginBottom: 15 }} onClick={() => navigate('/')}>
-                        <img src={logo} alt="Logo" className="logo-login" style={{ maxHeight: 85, maxWidth: '90%', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.3))' }} />
-                        <span className="mobile-only-title" style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
-                            LONG WEDDING
-                        </span>
-                    </div>
-
-                    <div className="time-display" style={{ marginTop: 10 }}>
-                        <div id="clock">{ctime}</div>
-                        <div id="date">
-                            <div>{dayNames[new Date().getDay()]} - {cdate}</div>
-                            <div style={{ color: '#fbbf24', fontSize: '0.82rem', marginTop: 4, fontWeight: 500 }}>
-                                🌙 Âm: {formatLunarDateFull(new Date())}
+        <div className={`container ${isCollapsed ? 'sidebar-is-collapsed' : ''}`}>
+            {/* Sidebar Sapo Style */}
+            <aside className={`sapo-sidebar ${isCollapsed ? 'collapsed' : ''} ${isMenuOpen ? 'mobile-open' : ''}`}>
+                {/* 1. Header: Logo & Collapse Button */}
+                <div className="sapo-sidebar-header">
+                    <div className="sapo-brand" onClick={() => navigate('/')} title="Trang chủ Long Wedding">
+                        <img src={logo} alt="Logo" className="sapo-brand-logo" />
+                        {!isCollapsed && (
+                            <div className="sapo-brand-text">
+                                <span className="sapo-brand-name">LONG WEDDING STUDIO</span>
                             </div>
-                        </div>
+                        )}
                     </div>
 
-                    <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                        <i className={`fa-solid ${isMenuOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
+                    <button 
+                        className="sapo-collapse-btn" 
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        title={isCollapsed ? "Mở rộng thanh menu" : "Thu gọn thanh menu"}
+                        aria-label="Toggle Sidebar"
+                    >
+                        <i className={`fa-solid ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'}`}></i>
                     </button>
                 </div>
 
-                <div className={`sidebar-nav ${isMenuOpen ? 'open' : ''}`}>
-                    <ul>
-                        <li>
-                            <Link to="/" onClick={() => setIsMenuOpen(false)}>
-                                <i className="fa-solid fa-file-contract"></i> Hợp Đồng KH
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/lichcuahang" onClick={() => setIsMenuOpen(false)}>
-                                <i className="fa-solid fa-calendar-days"></i> Lịch Cửa Hàng
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/lichSoanDo" onClick={() => setIsMenuOpen(false)}>
-                                <i className="fa-solid fa-clipboard-list"></i> Lịch Soạn Đồ
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/thi-dua" onClick={() => setIsMenuOpen(false)}>
-                                <i className="fa-solid fa-trophy"></i> Thi Đua
+                {/* Mobile Close Bar */}
+                <div className="sapo-mobile-header">
+                    <span>Menu Quản Trị</span>
+                    <button className="sapo-mobile-close-btn" onClick={() => setIsMenuOpen(false)}>
+                        <i className="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                {/* 3. Navigation List */}
+                <div className="sapo-sidebar-nav">
+                    <ul className="sapo-nav-list">
+                        {/* 1. Bán hàng */}
+                        <li className="sapo-nav-item">
+                            <Link 
+                                to="/" 
+                                className={`sapo-nav-link ${currentPath === '/' ? 'active' : ''}`}
+                                onClick={() => setIsMenuOpen(false)}
+                                title="Bán hàng"
+                            >
+                                <span className="sapo-item-icon"><i className="fa-solid fa-file-invoice-dollar"></i></span>
+                                {!isCollapsed && <span className="sapo-item-title">Bán hàng</span>}
                             </Link>
                         </li>
 
-                        {/* Chức năng quản trị viên / Quản lý */}
+                        {/* 2. Lịch (Dropdown: Lịch cửa hàng, Lịch soạn đồ) */}
+                        <li className={`sapo-nav-item has-submenu ${isLichActive || openLichSubmenu ? 'submenu-open' : ''}`}>
+                            <div 
+                                className={`sapo-nav-link parent-link ${isLichActive ? 'active-parent' : ''}`}
+                                onClick={() => setOpenLichSubmenu(!openLichSubmenu)}
+                                title="Lịch"
+                            >
+                                <span className="sapo-item-icon"><i className="fa-solid fa-calendar-days"></i></span>
+                                {!isCollapsed && (
+                                    <>
+                                        <span className="sapo-item-title">Lịch</span>
+                                        <span className={`sapo-submenu-arrow ${openLichSubmenu ? 'open' : ''}`}>
+                                            <i className="fa-solid fa-chevron-down"></i>
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Submenu Lịch */}
+                            {!isCollapsed && openLichSubmenu && (
+                                <ul className="sapo-submenu-list">
+                                    <li>
+                                        <Link 
+                                            to="/lichcuahang" 
+                                            className={`sapo-sub-link ${currentPath === '/lichcuahang' ? 'active-sub' : ''}`}
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            Lịch cửa hàng
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link 
+                                            to="/lichSoanDo" 
+                                            className={`sapo-sub-link ${currentPath === '/lichSoanDo' ? 'active-sub' : ''}`}
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            Lịch soạn đồ
+                                        </Link>
+                                    </li>
+                                </ul>
+                            )}
+                        </li>
+
+                        {/* Quản trị & Quản lý */}
                         {isAdmin && (
                             <>
-                                <li>
-                                    <Link to="/doanhthu" onClick={() => setIsMenuOpen(false)}>
-                                        <i className="fa-solid fa-chart-pie"></i> Doanh Thu
+                                <li className="sapo-section-divider"></li>
+                                <li className="sapo-section-header">
+                                    {!isCollapsed ? (
+                                        <>
+                                            <span className="sapo-section-title">QUẢN LÝ & VẬN HÀNH</span>
+                                            <i className="fa-regular fa-plus-circle sapo-section-add" title="Chức năng"></i>
+                                        </>
+                                    ) : (
+                                        <div className="sapo-collapsed-divider"></div>
+                                    )}
+                                </li>
+
+                                {/* 3. Thi đua */}
+                                <li className="sapo-nav-item">
+                                    <Link 
+                                        to="/thi-dua" 
+                                        className={`sapo-nav-link ${currentPath === '/thi-dua' ? 'active' : ''}`}
+                                        onClick={() => setIsMenuOpen(false)}
+                                        title="Thi đua"
+                                    >
+                                        <span className="sapo-item-icon"><i className="fa-solid fa-trophy" style={{ color: '#fbbf24' }}></i></span>
+                                        {!isCollapsed && <span className="sapo-item-title">Thi đua</span>}
                                     </Link>
                                 </li>
-                                <li>
-                                    <Link to="/quanlychitieu" onClick={() => setIsMenuOpen(false)}>
-                                        <i className="fa-solid fa-wallet"></i> Quản Lý Chi Tiêu
+
+                                {/* 4. Quản lý chi tiêu */}
+                                <li className="sapo-nav-item">
+                                    <Link 
+                                        to="/quanlychitieu" 
+                                        className={`sapo-nav-link ${currentPath === '/quanlychitieu' ? 'active' : ''}`}
+                                        onClick={() => setIsMenuOpen(false)}
+                                        title="Quản lý chi tiêu"
+                                    >
+                                        <span className="sapo-item-icon"><i className="fa-solid fa-wallet" style={{ color: '#f87171' }}></i></span>
+                                        {!isCollapsed && <span className="sapo-item-title">Quản lý chi tiêu</span>}
                                     </Link>
                                 </li>
-                                <li>
-                                    <Link to="/quanlykho" onClick={() => setIsMenuOpen(false)}>
-                                        <i className="fa-solid fa-boxes-stacked"></i> Quản Lý Kho
+
+                                {/* 5. Doanh thu */}
+                                <li className="sapo-nav-item">
+                                    <Link 
+                                        to="/doanhthu" 
+                                        className={`sapo-nav-link ${currentPath === '/doanhthu' ? 'active' : ''}`}
+                                        onClick={() => setIsMenuOpen(false)}
+                                        title="Doanh thu"
+                                    >
+                                        <span className="sapo-item-icon"><i className="fa-solid fa-chart-pie" style={{ color: '#38bdf8' }}></i></span>
+                                        {!isCollapsed && <span className="sapo-item-title">Doanh thu</span>}
                                     </Link>
                                 </li>
-                                <li>
-                                    <Link to="/quanlykhachhang" onClick={() => setIsMenuOpen(false)}>
-                                        <i className="fa-solid fa-address-book"></i> Khách Hàng
+
+                                {/* 6. Quản lý kho */}
+                                <li className="sapo-nav-item">
+                                    <Link 
+                                        to="/quanlykho" 
+                                        className={`sapo-nav-link ${currentPath === '/quanlykho' ? 'active' : ''}`}
+                                        onClick={() => setIsMenuOpen(false)}
+                                        title="Quản lý kho"
+                                    >
+                                        <span className="sapo-item-icon"><i className="fa-solid fa-boxes-stacked" style={{ color: '#fb923c' }}></i></span>
+                                        {!isCollapsed && <span className="sapo-item-title">Quản lý kho</span>}
                                     </Link>
                                 </li>
-                                <li>
-                                    <Link to="/quanlywebsite" onClick={() => setIsMenuOpen(false)}>
-                                        <i className="fa-solid fa-globe"></i> Quản Lý Website
+
+                                {/* 7. Quản lý khách hàng */}
+                                <li className="sapo-nav-item">
+                                    <Link 
+                                        to="/quanlykhachhang" 
+                                        className={`sapo-nav-link ${currentPath === '/quanlykhachhang' ? 'active' : ''}`}
+                                        onClick={() => setIsMenuOpen(false)}
+                                        title="Quản lý khách hàng"
+                                    >
+                                        <span className="sapo-item-icon"><i className="fa-solid fa-address-book" style={{ color: '#a855f7' }}></i></span>
+                                        {!isCollapsed && <span className="sapo-item-title">Quản lý khách hàng</span>}
                                     </Link>
                                 </li>
-                                <li>
-                                    <Link to="/quanlynhanvien" onClick={() => setIsMenuOpen(false)}>
-                                        <i className="fa-solid fa-users-gear"></i> Quản Lý Nhân Viên
+
+                                {/* 8. Quản lý nhân viên */}
+                                <li className="sapo-nav-item">
+                                    <Link 
+                                        to="/quanlynhanvien" 
+                                        className={`sapo-nav-link ${currentPath === '/quanlynhanvien' ? 'active' : ''}`}
+                                        onClick={() => setIsMenuOpen(false)}
+                                        title="Quản lý nhân viên"
+                                    >
+                                        <span className="sapo-item-icon sapo-app-badge-blue">
+                                            <i className="fa-solid fa-users-gear"></i>
+                                        </span>
+                                        {!isCollapsed && <span className="sapo-item-title">Quản lý nhân viên</span>}
                                     </Link>
                                 </li>
-                                <li>
-                                    <Link to="/system-logs" onClick={() => setIsMenuOpen(false)}>
-                                        <i className="fa-solid fa-shield-halved"></i> Nhật Ký Hệ Thống
+
+                                {/* 9. Quản lý website */}
+                                <li className="sapo-nav-item">
+                                    <Link 
+                                        to="/quanlywebsite" 
+                                        className={`sapo-nav-link ${currentPath === '/quanlywebsite' ? 'active' : ''}`}
+                                        onClick={() => setIsMenuOpen(false)}
+                                        title="Quản lý website"
+                                    >
+                                        <span className="sapo-item-icon sapo-app-badge-green">
+                                            <i className="fa-solid fa-globe"></i>
+                                        </span>
+                                        {!isCollapsed && (
+                                            <>
+                                                <span className="sapo-item-title">Quản lý website</span>
+                                                <i className="fa-regular fa-eye sapo-sub-action-icon" title="Xem website"></i>
+                                            </>
+                                        )}
+                                    </Link>
+                                </li>
+
+                                {/* 10. Nhật ký hệ thống */}
+                                <li className="sapo-nav-item">
+                                    <Link 
+                                        to="/system-logs" 
+                                        className={`sapo-nav-link ${currentPath === '/system-logs' ? 'active' : ''}`}
+                                        onClick={() => setIsMenuOpen(false)}
+                                        title="Nhật ký hệ thống"
+                                    >
+                                        <span className="sapo-item-icon"><i className="fa-solid fa-shield-halved" style={{ color: '#ec4899' }}></i></span>
+                                        {!isCollapsed && <span className="sapo-item-title">Nhật ký hệ thống</span>}
                                     </Link>
                                 </li>
                             </>
@@ -213,28 +365,84 @@ function MainV2() {
                     </ul>
                 </div>
 
-                <div className="user-profile" onClick={() => setShowDialog(true)}>
-                    <i className="fa-solid fa-user-circle"></i>
-                    <div className="user-info">
-                        <div className="user-name">
-                            {userNameDisplay}
+                {/* 4. Bottom Footer: Cấu hình & User Profile */}
+                <div className="sapo-sidebar-footer">
+                    {/* Time & Lunar Date (compact) */}
+                    {!isCollapsed && (
+                        <div className="sapo-time-card">
+                            <div className="sapo-time-clock">{ctime}</div>
+                            <div className="sapo-time-date">{dayNames[new Date().getDay()]} - {cdate}</div>
+                            <div className="sapo-time-lunar">🌙 Âm: {formatLunarDateFull(new Date())}</div>
                         </div>
-                        <div className="user-role">
-                            {userRoleDisplay}
+                    )}
+
+                    {/* Cấu hình link */}
+                    <Link 
+                        to="/cauhinh" 
+                        className={`sapo-nav-link sapo-settings-btn ${currentPath === '/cauhinh' ? 'active' : ''}`}
+                        onClick={() => setIsMenuOpen(false)}
+                        title="Cấu hình & Mẫu in"
+                    >
+                        <span className="sapo-item-icon"><i className="fa-solid fa-gear"></i></span>
+                        {!isCollapsed && <span className="sapo-item-title">Cấu hình</span>}
+                    </Link>
+
+                    {/* User profile card */}
+                    <div 
+                        className="sapo-user-card" 
+                        onClick={() => setShowDialog(true)}
+                        title="Xem tài khoản & chỉ tiêu cá nhân"
+                    >
+                        <div className="sapo-user-avatar">
+                            {user?.avatar ? (
+                                <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                                (userNameDisplay || 'U').charAt(0).toUpperCase()
+                            )}
                         </div>
+                        {!isCollapsed && (
+                            <div className="sapo-user-meta">
+                                <div className="sapo-user-name">{userNameDisplay}</div>
+                                <div className="sapo-user-role">{userRoleDisplay}</div>
+                            </div>
+                        )}
                     </div>
                 </div>
-            </div>
+            </aside>
+
+            {/* Mobile Backdrop */}
+            {isMenuOpen && (
+                <div className="sapo-mobile-backdrop" onClick={() => setIsMenuOpen(false)}></div>
+            )}
 
             {/* Main Content */}
             <div className="main-content">
+                {/* Mobile Top Navbar with Hamburger */}
+                <div className="sapo-mobile-topbar">
+                    <button className="sapo-mobile-menu-btn" onClick={() => setIsMenuOpen(true)}>
+                        <i className="fa-solid fa-bars"></i>
+                    </button>
+                    <div className="sapo-mobile-brand-title">
+                        <img src={logo} alt="Logo" style={{ height: 28, marginRight: 8 }} />
+                        <span>LONG WEDDING</span>
+                    </div>
+                    <div className="sapo-mobile-user-avatar" onClick={() => setShowDialog(true)}>
+                        {user?.avatar ? (
+                            <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                            (userNameDisplay || 'U').charAt(0).toUpperCase()
+                        )}
+                    </div>
+                </div>
+
                 <Routes>
                     <Route path="/" element={<HopDongKhachHang />} />
                     <Route path="/lichcuahang" element={<LichCuaHang />} />
                     <Route path="/lichSoanDo" element={<LichSoanDo />} />
-                    <Route path="/thi-dua" element={<ThiDua />} />
+                    <Route path="/cauhinh" element={<CauHinh />} />
 
                     {/* Protected Admin Routes */}
+                    <Route path="/thi-dua" element={isAdmin ? <ThiDua /> : <Navigate to="/" replace />} />
                     <Route path="/doanhthu" element={isAdmin ? <DoanhThu /> : <Navigate to="/" replace />} />
                     <Route path="/quanlychitieu" element={isAdmin ? <QuanLyChiTieu /> : <Navigate to="/" replace />} />
                     <Route path="/quanlykho" element={isAdmin ? <QuanLyKho /> : <Navigate to="/" replace />} />
@@ -274,6 +482,7 @@ function MainV2() {
                     </IconButton>
                     <Stack direction="row" spacing={2.5} alignItems="center">
                         <Avatar
+                            src={user?.avatar || ''}
                             sx={{
                                 width: 68,
                                 height: 68,
@@ -333,17 +542,29 @@ function MainV2() {
 
                         {/* Chỉ tiêu KPI & Tiến độ tháng này */}
                         {(() => {
-                            const chiTieuThang = userStats?.chiTieuThang || user?.chiTieuThang || 20;
-                            const workCount = userStats?.workCount || 0;
-                            const percent = Math.min(100, Math.round((workCount / chiTieuThang) * 100));
-                            const exceeded = userStats?.exceededCount || Math.max(0, workCount - chiTieuThang);
-                            const hoaHong = userStats?.hoaHong || 0;
+                            const chiTieuThang = userStats?.chiTieuThang || user?.chiTieuThang || userStats?.target || 20;
+                            const workCount = userStats?.countWork ?? userStats?.workCount ?? 0;
+                            const percent = userStats?.completionPercent ?? (chiTieuThang > 0 ? Math.round((workCount / chiTieuThang) * 100) : 0);
+                            const exceeded = userStats?.percentExceeded ?? (userStats?.isExceeded ? Math.max(0, percent - 100) : 0);
+                            const hoaHong = userStats?.totalRewardEst ?? userStats?.hoaHongEst ?? userStats?.hoaHong ?? 0;
+                            const rank = userStats?.rank || null;
+                            const medal = userStats?.medal || (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null);
+                            const honorTitle = userStats?.honorTitle || (percent >= 100 ? 'Ngôi Sao Đạt Chuẩn' : 'Đang Nỗ Lực');
 
                             return (
                                 <Paper variant="outlined" sx={{ p: 2, borderRadius: '14px', bgcolor: '#ffffff', borderColor: '#e2e8f0' }}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        🎯 CHỈ TIÊU & TIẾN ĐỘ KPI (THÁNG NÀY)
-                                    </Typography>
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            🎯 CHỈ TIÊU & TIẾN ĐỘ KPI (THÁNG NÀY)
+                                        </Typography>
+                                        {rank && (
+                                            <Chip 
+                                                label={`${medal || '#'} Hạng ${rank}`} 
+                                                size="small" 
+                                                sx={{ bgcolor: rank === 1 ? '#fef3c7' : rank === 2 ? '#f1f5f9' : '#fef9c3', color: rank === 1 ? '#d97706' : '#334155', fontWeight: 800 }} 
+                                            />
+                                        )}
+                                    </Box>
                                     
                                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
                                         <Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>
@@ -364,7 +585,7 @@ function MainV2() {
                                     <Box sx={{ width: '100%', height: 10, bgcolor: '#e2e8f0', borderRadius: 5, overflow: 'hidden', mb: 2 }}>
                                         <Box
                                             sx={{
-                                                width: `${percent}%`,
+                                                width: `${Math.min(100, percent)}%`,
                                                 height: '100%',
                                                 borderRadius: 5,
                                                 background: percent >= 100 ? 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)' : 'linear-gradient(90deg, #0284c7 0%, #38bdf8 100%)',
@@ -377,12 +598,14 @@ function MainV2() {
                                         <Grid item xs={6}>
                                             <Box sx={{ p: 1.2, bgcolor: '#f0fdf4', borderRadius: '10px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
                                                 <Typography variant="caption" sx={{ color: '#166534', fontWeight: 600, display: 'block' }}>🔥 Vượt chỉ tiêu</Typography>
-                                                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#15803d' }}>+{exceeded} HĐ</Typography>
+                                                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#15803d' }}>
+                                                    {userStats?.isExceeded ? `+${exceeded}%` : `${Math.max(0, workCount - chiTieuThang)} HĐ`}
+                                                </Typography>
                                             </Box>
                                         </Grid>
                                         <Grid item xs={6}>
                                             <Box sx={{ p: 1.2, bgcolor: '#fffbeb', borderRadius: '10px', border: '1px solid #fde68a', textAlign: 'center' }}>
-                                                <Typography variant="caption" sx={{ color: '#92400e', fontWeight: 600, display: 'block' }}>💰 Hoa hồng tích lũy</Typography>
+                                                <Typography variant="caption" sx={{ color: '#92400e', fontWeight: 600, display: 'block' }}>💰 Hoa hồng & Thưởng</Typography>
                                                 <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#b45309' }}>{hoaHong.toLocaleString('vi-VN')} đ</Typography>
                                             </Box>
                                         </Grid>
@@ -391,15 +614,33 @@ function MainV2() {
                             );
                         })()}
 
-                        {/* Thành tích thi đua */}
+                        {/* Thành tích & Danh hiệu được Admin trao tặng */}
                         <Paper variant="outlined" sx={{ p: 2, borderRadius: '14px', bgcolor: '#f8fafc' }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                                 🏆 THÀNH TÍCH & DANH HIỆU
                             </Typography>
                             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                                <Chip label="🎖️ Nhân Viên Chính Thức" variant="outlined" color="primary" sx={{ fontWeight: 600, bgcolor: '#fff' }} />
-                                <Chip label="⚡ Đạt Chỉ Tiêu KPI" variant="outlined" color="success" sx={{ fontWeight: 600, bgcolor: '#fff' }} />
-                                <Chip label="⭐ Thành Viên Năng Nổ" variant="outlined" color="warning" sx={{ fontWeight: 600, bgcolor: '#fff' }} />
+                                {getEmployeeAwards(user?.username, user).map((badge, idx) => (
+                                    <Chip 
+                                        key={idx} 
+                                        label={badge} 
+                                        sx={{ 
+                                            fontWeight: 700, 
+                                            bgcolor: '#fffbeb', 
+                                            color: '#b45309', 
+                                            border: '1px solid #fde68a' 
+                                        }} 
+                                    />
+                                ))}
+                                {userStats?.completionPercent >= 100 && (
+                                    <Chip label="⭐ Đạt Chỉ Tiêu KPI" variant="outlined" color="success" sx={{ fontWeight: 700, bgcolor: '#fff' }} />
+                                )}
+                                {userStats?.isExceeded && (
+                                    <Chip label="🔥 Chiến Binh Bứt Phá" variant="outlined" color="error" sx={{ fontWeight: 700, bgcolor: '#fff' }} />
+                                )}
+                                {userStats?.rank === 1 && (
+                                    <Chip label="👑 Quán Quân Tháng" variant="outlined" sx={{ fontWeight: 800, bgcolor: '#fef3c7', color: '#d97706', borderColor: '#fbbf24' }} />
+                                )}
                             </Stack>
                         </Paper>
                     </Stack>

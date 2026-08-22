@@ -14,6 +14,8 @@ const LoginPage = ({ onLoginSuccess }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const { login, isLoggedIn } = useAuth();
@@ -36,27 +38,49 @@ const LoginPage = ({ onLoginSuccess }) => {
 
     const handleSubmit = (event) => {
         event.preventDefault();
+        setErrorMessage('');
+
         // Kiểm tra input
-        if (!email || !password) {
+        if (!email.trim() || !password) {
+            const msg = "Vui lòng nhập đầy đủ tài khoản và mật khẩu!";
+            setErrorMessage(msg);
+            toast.warning(msg);
             return;
         }
-        // Gọi API đăng nhập
-        authService.login({ username: email, password: password })
-            .then((response) => {
 
+        setLoading(true);
+        // Gọi API đăng nhập
+        authService.login({ username: email.trim(), password: password })
+            .then((response) => {
                 if (response.status === 'success') {
                     login(response.data);
                     toast.success("Đăng nhập thành công!");
                     navigate('/'); // Chuyển hướng về trang chính
                 } else {
-                    toast.error(response.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại.");
+                    const msg = response.message || "Tài khoản hoặc mật khẩu không chính xác!";
+                    setErrorMessage(msg);
+                    toast.error(msg);
                 }
-
             })
             .catch((error) => {
                 console.error('Login failed:', error);
-                toast.error("Đăng nhập thất bại. Vui lòng kiểm tra lại.");
+                const msg = error?.message || error?.response?.data?.message || (typeof error === 'string' ? error : "Tài khoản hoặc mật khẩu không chính xác!");
+                setErrorMessage(msg);
+                toast.error(msg);
+            })
+            .finally(() => {
+                setLoading(false);
             });
+    };
+
+    const handleEmailChange = (e) => {
+        setEmail(e.target.value);
+        if (errorMessage) setErrorMessage('');
+    };
+
+    const handlePasswordChange = (e) => {
+        setPassword(e.target.value);
+        if (errorMessage) setErrorMessage('');
     };
 
     return (
@@ -68,16 +92,17 @@ const LoginPage = ({ onLoginSuccess }) => {
                 </div>
 
                 <form onSubmit={handleSubmit}>
+                    {errorMessage && <div className="error-message">{errorMessage}</div>}
                     <div className="input-group">
                         <FontAwesomeIcon icon={faUser} className="input-icon" />
                         <input
                             type="text"
                             placeholder="Nhập tài khoản"
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            onChange={handleEmailChange}
                             required
+                            autoComplete="username"
                         />
-                        
                     </div>
                     <div className="input-group">
                         <FontAwesomeIcon icon={faLock} className="input-icon" />
@@ -85,8 +110,9 @@ const LoginPage = ({ onLoginSuccess }) => {
                             type={showPassword ? 'text' : 'password'}
                             placeholder="Mật khẩu"
                             value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            onChange={handlePasswordChange}
                             required
+                            autoComplete="current-password"
                         />
                         <FontAwesomeIcon
                             icon={showPassword ? faEyeSlash : faEye}
@@ -95,7 +121,9 @@ const LoginPage = ({ onLoginSuccess }) => {
                         />
                     </div>
 
-                    <button type="submit" className="login-btn">Đăng nhập</button>
+                    <button type="submit" className="login-btn" disabled={loading}>
+                        {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+                    </button>
                 </form>
 
                 <div className="login-footer">

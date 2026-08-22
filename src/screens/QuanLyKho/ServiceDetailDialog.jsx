@@ -6,12 +6,51 @@ import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
 import { fileToBase64 } from "../utils/fileToBase64.js";
 
-import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import Select from '@mui/material/Select';
-import InputLabel from '@mui/material/InputLabel';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import EditRoundedIcon from '@mui/icons-material/EditRounded';
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import AutorenewRoundedIcon from '@mui/icons-material/AutorenewRounded';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
+
+const SERVICE_TYPES = [
+    {
+        id: 1,
+        name: "Trang Phục",
+        prefix: "CLOTHING_",
+        icon: "👗",
+        color: "#9333ea",
+        badgeBg: "#f3e8ff"
+    },
+    {
+        id: 2,
+        name: "Gói Dịch Vụ",
+        prefix: "SERVICE_",
+        icon: "📦",
+        color: "#2563eb",
+        badgeBg: "#dbeafe"
+    },
+    {
+        id: 3,
+        name: "Ảnh (Lab)",
+        prefix: "LAB_",
+        icon: "🖼️",
+        color: "#059669",
+        badgeBg: "#d1fae5"
+    },
+    {
+        id: 4,
+        name: "Trang Điểm",
+        prefix: "MAKEUP_",
+        icon: "💄",
+        color: "#db2777",
+        badgeBg: "#fce7f3"
+    }
+];
 
 const getImageUrl = (url) => {
     if (!url) return "";
@@ -25,6 +64,7 @@ const getImageUrl = (url) => {
 function ServiceDetailDialog(props) {
     const { onClose, data, open } = props;
     const { showLoading, hideLoading } = useLoading();
+    const fileInputRef = useRef(null);
 
     const [isEditing, setIsEditing] = useState(false);
 
@@ -38,7 +78,8 @@ function ServiceDetailDialog(props) {
     const [description, setDescription] = useState('');
     const [imageFile, setImageFile] = useState(null);
     const [imageBase64, setImageBase64] = useState(null);
-    const [loaiDichVu, setLoaiDichVu] = useState('');
+    const [loaiDichVu, setLoaiDichVu] = useState(1);
+    const [isDragging, setIsDragging] = useState(false);
 
     // Package parameters states
     const [soLuongAnhChinhSua, setSoLuongAnhChinhSua] = useState(0);
@@ -63,11 +104,11 @@ function ServiceDetailDialog(props) {
             setPriceDisplay(data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : '');
             setPriceThueRaw(data.giaChoThueDichVu || '');
             setPriceThue(data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : '');
-            setTonKho(data.tonKhoDichVu || 0);
+            setTonKho(data.tonKhoDichVu !== undefined ? data.tonKhoDichVu : 0);
             setDescription(data.moTaDichVu || '');
             setImageFile(null);
             setImageBase64(data.imageDichVu || null);
-            setLoaiDichVu(data.loaiDichVu || 1);
+            setLoaiDichVu(Number(data.loaiDichVu) || 1);
 
             // Package parameters
             setSoLuongAnhChinhSua(data.soLuongAnhChinhSua || 0);
@@ -97,13 +138,46 @@ function ServiceDetailDialog(props) {
         setPriceThue(raw ? formatCurrency(raw) : '');
     };
 
+    const handleProcessImage = async (file) => {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            toast.error("Vui lòng chỉ chọn tệp hình ảnh!");
+            return;
+        }
+        try {
+            setImageFile(file);
+            const base64 = await fileToBase64(file);
+            setImageBase64(base64);
+        } catch (error) {
+            console.error("Error reading file:", error);
+            toast.error("Lỗi khi đọc file ảnh!");
+        }
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            handleProcessImage(e.dataTransfer.files[0]);
+        }
+    };
+
+    const handleRemoveImage = (e) => {
+        e.stopPropagation();
+        setImageFile(null);
+        setImageBase64(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
     const handleClose = (shouldReload = false) => {
         setIsEditing(false);
         onClose(shouldReload);
     };
 
     const handleDelete = () => {
-        if (window.confirm(`Bạn có chắc chắn muốn xóa dịch vụ "${data.tenDichVu}" không?`)) {
+        if (window.confirm(`Bạn có chắc chắn muốn xóa dịch vụ "${data.tenDichVu}" (${data.maDichVu}) không?`)) {
             showLoading("Đang xóa dịch vụ...");
             otherService.ServiceRemoveProduct({ maDichVu: data.maDichVu })
                 .then((res) => {
@@ -112,7 +186,7 @@ function ServiceDetailDialog(props) {
                 })
                 .catch((err) => {
                     console.error(err);
-                    toast.error("Lỗi khi xóa dịch vụ!");
+                    toast.error("Lỗi khi xóa dịch vụ: " + (err?.message || "Đã có lỗi xảy ra"));
                 })
                 .finally(() => hideLoading());
         }
@@ -121,12 +195,12 @@ function ServiceDetailDialog(props) {
     const handleUpdate = (e) => {
         e.preventDefault();
 
-        if (!name || !description) {
-            toast.error("Vui lòng nhập đầy đủ thông tin!");
+        if (!name || !name.trim()) {
+            toast.error("Vui lòng nhập tên dịch vụ!");
             return;
         }
 
-        if (!priceRaw || priceRaw <= 0) {
+        if (!priceRaw || Number(priceRaw) <= 0) {
             toast.error("Giá dịch vụ không hợp lệ!");
             return;
         }
@@ -136,9 +210,9 @@ function ServiceDetailDialog(props) {
         otherService.ServiceUpdateProduct({
             maDichVu: data.maDichVu,
             tenDichVu: name.trim(),
-            giaTriDichVu: priceRaw,
-            loaiDichVu: loaiDichVu,
-            giaChoThueDichVu: priceThueRaw,
+            giaTriDichVu: Number(priceRaw),
+            loaiDichVu: Number(loaiDichVu),
+            giaChoThueDichVu: priceThueRaw ? Number(priceThueRaw) : 0,
             tonKhoDichVu: tonKho ? Number(tonKho) : 0,
             moTaDichVu: description.trim(),
             imageDichVu: imageBase64,
@@ -161,236 +235,587 @@ function ServiceDetailDialog(props) {
             })
             .catch((error) => {
                 console.error(error);
-                toast.error("Lỗi khi cập nhật dịch vụ.");
+                toast.error("Lỗi khi cập nhật dịch vụ: " + (error?.message || error?.response?.data?.message || "Đã có lỗi xảy ra"));
             })
             .finally(() => hideLoading());
     };
 
     if (!data) return null;
 
-    const getLoaiDichVuLabel = (type) => {
-        const num = Number(type);
-        if (num === 1) return "Trang Phục";
-        if (num === 2) return "Gói Dịch Vụ";
-        if (num === 3) return "Ảnh";
-        if (num === 4) return "Trang Điểm";
-        return "Khác";
-    };
+    const currentTypeObj = SERVICE_TYPES.find(t => t.id === Number(loaiDichVu)) || SERVICE_TYPES[0];
+    const dataTypeObj = SERVICE_TYPES.find(t => t.id === Number(data.loaiDichVu)) || SERVICE_TYPES[0];
 
     return (
-        <Dialog onClose={() => handleClose(false)} open={open} fullWidth maxWidth="lg">
-            <div className="dialog-container">
-                <div className="dialog-header">
-                    <h3>{isEditing ? "Chỉnh sửa dịch vụ" : "Chi tiết dịch vụ"}</h3>
+        <Dialog 
+            onClose={() => handleClose(false)} 
+            open={open} 
+            fullWidth 
+            maxWidth="lg"
+            classes={{ paper: 'service-modal-paper' }}
+        >
+            <div className="service-modal-container">
+                {/* ===== HEADER ===== */}
+                <div className="service-modal-header">
+                    <div className="service-header-title-wrap">
+                        <div className="service-header-icon" style={{ background: isEditing ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' }}>
+                            {isEditing ? <EditRoundedIcon /> : <InfoOutlinedIcon />}
+                        </div>
+                        <div>
+                            <h3>{isEditing ? "Chỉnh sửa sản phẩm & dịch vụ" : "Chi tiết sản phẩm & dịch vụ"}</h3>
+                            <p>{isEditing ? `Đang chỉnh sửa mã dịch vụ: ${data.maDichVu}` : `Mã dịch vụ: ${data.maDichVu}`}</p>
+                        </div>
+                    </div>
+                    <button 
+                        type="button" 
+                        className="service-close-btn"
+                        onClick={() => handleClose(false)}
+                        title="Đóng"
+                    >
+                        <CloseRoundedIcon fontSize="small" />
+                    </button>
                 </div>
 
-                <div className="dialog-body">
+                {/* ===== BODY ===== */}
+                <div className="service-modal-body">
                     {isEditing ? (
-                        /* ===== EDIT MODE ===== */
-                        <form className="service-form-grid" onSubmit={handleUpdate}>
-                            <div className="service-form-left">
-                                <div className="form-group">
-                                    <label>Mã dịch vụ (Không thể sửa)</label>
-                                    <input value={data.maDichVu} disabled style={{ backgroundColor: "#f0f0f0" }} />
+                        /* ================= EDIT MODE ================= */
+                        <form id="serviceEditForm" onSubmit={handleUpdate}>
+                            {/* 1. Loại dịch vụ */}
+                            <div className="service-type-section">
+                                <div className="service-section-label">
+                                    <span>Loại dịch vụ <span className="required-star">*</span></span>
                                 </div>
-
-                                <div className="form-group">
-                                    <label>Tên dịch vụ</label>
-                                    <input value={name} onChange={(e) => setName(e.target.value)} required />
+                                <div className="service-type-grid">
+                                    {SERVICE_TYPES.map((type) => {
+                                        const isSelected = Number(loaiDichVu) === type.id;
+                                        return (
+                                            <div
+                                                key={type.id}
+                                                className={`service-type-card ${isSelected ? 'active' : ''}`}
+                                                style={{
+                                                    '--card-color': type.color,
+                                                    '--badge-bg': type.badgeBg
+                                                }}
+                                                onClick={() => setLoaiDichVu(type.id)}
+                                            >
+                                                <div className="service-type-card-top">
+                                                    <span className="service-type-icon">{type.icon}</span>
+                                                    <div className="service-type-radio" />
+                                                </div>
+                                                <div className="service-type-name">{type.name}</div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
+                            </div>
 
-                                <FormControl fullWidth style={{ marginTop: "10px", marginBottom: "10px" }}>
-                                    <InputLabel id="edit-type-label">Loại dịch vụ</InputLabel>
-                                    <Select
-                                        labelId="edit-type-label"
-                                        value={loaiDichVu}
-                                        label="Loại dịch vụ"
-                                        onChange={(e) => setLoaiDichVu(e.target.value)}
-                                    >
-                                        <MenuItem value={1}>Trang Phục</MenuItem>
-                                        <MenuItem value={2}>Gói Dịch Vụ</MenuItem>
-                                        <MenuItem value={3}>Ảnh</MenuItem>
-                                        <MenuItem value={4}>Trang Điểm</MenuItem>
-                                    </Select>
-                                </FormControl>
+                            {/* 2. Bố cục 2 cột */}
+                            <div className="service-modal-main-grid">
+                                <div className="service-form-col-left">
+                                    <div className="service-form-row">
+                                        <div className="service-input-group">
+                                            <label>
+                                                <span>Mã dịch vụ</span>
+                                                <span className="service-input-helper">(Không thể sửa)</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                className="service-custom-input service-code-input"
+                                                value={data.maDichVu}
+                                                disabled
+                                                style={{ background: '#f1f5f9', cursor: 'not-allowed', color: '#64748b' }}
+                                            />
+                                        </div>
 
-                                <div className="form-group">
-                                    <label>Giá trị dịch vụ</label>
-                                    <input value={priceDisplay} onChange={handlePriceChange} placeholder="VD: 5.000.000 đ" />
-                                </div>
+                                        <div className="service-input-group">
+                                            <label>
+                                                <span>Tên dịch vụ <span className="required-star">*</span></span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                className="service-custom-input"
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
 
-                                <div className="form-group">
-                                    <label>Giá Cho Thuê</label>
-                                    <input value={priceThue} onChange={handlePriceThue} placeholder="VD: 1.500.000 đ" />
-                                </div>
-
-                                <div className="form-group">
-                                    <label>Tồn Kho</label>
-                                    <input
-                                        type="number"
-                                        value={tonKho}
-                                        onChange={(e) => setTonKho(e.target.value)}
-                                        placeholder="Nhập số lượng tồn kho"
-                                    />
-                                </div>
-
-                                {Number(loaiDichVu) === 2 && (
-                                    <>
-                                        <div className="package-parameters-title" style={{ marginTop: 20 }}>Thông số gói dịch vụ</div>
-                                        <div className="package-parameters-grid">
-                                            <div className="form-group">
-                                                <label>Số lượng ảnh chỉnh sửa</label>
-                                                <input type="number" value={soLuongAnhChinhSua} onChange={(e) => setSoLuongAnhChinhSua(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Số lượng ảnh 16x21</label>
-                                                <input type="number" value={soLuongAnh16x21} onChange={(e) => setSoLuongAnh16x21(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Số lượng ảnh 20x30</label>
-                                                <input type="number" value={soLuongAnh20x30} onChange={(e) => setSoLuongAnh20x30(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Số lượng ảnh 60x90</label>
-                                                <input type="number" value={soLuongAnh60x90} onChange={(e) => setSoLuongAnh60x90(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Trang điểm ngày ăn hỏi</label>
-                                                <input type="text" value={trangDiemNgayAnHoi} onChange={(e) => setTrangDiemNgayAnHoi(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Trang điểm ngày cưới</label>
-                                                <input type="text" value={trangDiemNgayCuoi} onChange={(e) => setTrangDiemNgayCuoi(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Trang phục bê lễ</label>
-                                                <input type="text" value={trangPhucChoDoiBeLe} onChange={(e) => setTrangPhucChoDoiBeLe(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>TP cô dâu ngày ăn hỏi</label>
-                                                <input type="text" value={trangPhucCoDauNgayAnHoi} onChange={(e) => setTrangPhucCoDauNgayAnHoi(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>TP chú rể ngày ăn hỏi</label>
-                                                <input type="text" value={trangPhucChuReNgayAnHoi} onChange={(e) => setTrangPhucChuReNgayAnHoi(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Váy cưới ngày cưới (giá trị)</label>
-                                                <input type="text" value={trangPhucVayCuoiNgayCuoi} onChange={(e) => setTrangPhucVayCuoiNgayCuoi(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Vest chú rể ngày cưới</label>
-                                                <input type="text" value={trangPhucVestChuReNgayCuoi} onChange={(e) => setTrangPhucVestChuReNgayCuoi(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Hoa cầm tay</label>
-                                                <input type="text" value={hoaCamTay} onChange={(e) => setHoaCamTay(e.target.value)} />
+                                    <div className="service-form-row-3">
+                                        <div className="service-input-group">
+                                            <label>
+                                                <span>Giá bán / Gói <span className="required-star">*</span></span>
+                                            </label>
+                                            <div className="service-input-wrap">
+                                                <input
+                                                    type="text"
+                                                    className="service-custom-input has-unit"
+                                                    value={priceDisplay}
+                                                    onChange={handlePriceChange}
+                                                    required
+                                                />
+                                                <span className="service-input-unit">₫</span>
                                             </div>
                                         </div>
-                                    </>
-                                )}
 
-                                <div className="form-group">
-                                    <label>Mô tả</label>
-                                    <textarea rows="5" value={description} onChange={(e) => setDescription(e.target.value)} />
+                                        <div className="service-input-group">
+                                            <label>
+                                                <span>Giá cho thuê</span>
+                                            </label>
+                                            <div className="service-input-wrap">
+                                                <input
+                                                    type="text"
+                                                    className="service-custom-input has-unit"
+                                                    value={priceThue}
+                                                    onChange={handlePriceThue}
+                                                />
+                                                <span className="service-input-unit">₫</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="service-input-group">
+                                            <label>
+                                                <span>Tồn kho</span>
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                className="service-custom-input"
+                                                value={tonKho}
+                                                onChange={(e) => setTonKho(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {Number(loaiDichVu) === 2 && (
+                                        <div className="service-package-box">
+                                            <div className="service-package-header">
+                                                <div className="service-package-title">
+                                                    <LayersOutlinedIcon fontSize="small" style={{ color: '#2563eb' }} />
+                                                    <span>Thông số chi tiết gói dịch vụ</span>
+                                                </div>
+                                                <span className="service-package-tag">Gói Dịch Vụ</span>
+                                            </div>
+
+                                            <div className="service-package-subgrid">
+                                                <div className="service-subgroup-title">📸 Hạng mục Ảnh</div>
+                                                
+                                                <div className="service-input-group">
+                                                    <label>SL ảnh chỉnh sửa</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        className="service-custom-input"
+                                                        value={soLuongAnhChinhSua}
+                                                        onChange={(e) => setSoLuongAnhChinhSua(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-input-group">
+                                                    <label>SL ảnh 16x21</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        className="service-custom-input"
+                                                        value={soLuongAnh16x21}
+                                                        onChange={(e) => setSoLuongAnh16x21(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-input-group">
+                                                    <label>SL ảnh 20x30</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        className="service-custom-input"
+                                                        value={soLuongAnh20x30}
+                                                        onChange={(e) => setSoLuongAnh20x30(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-input-group">
+                                                    <label>SL ảnh 60x90</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        className="service-custom-input"
+                                                        value={soLuongAnh60x90}
+                                                        onChange={(e) => setSoLuongAnh60x90(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-subgroup-title">💄 Trang điểm & Bê lễ</div>
+
+                                                <div className="service-input-group">
+                                                    <label>Trang điểm ngày ăn hỏi</label>
+                                                    <input
+                                                        type="text"
+                                                        className="service-custom-input"
+                                                        value={trangDiemNgayAnHoi}
+                                                        onChange={(e) => setTrangDiemNgayAnHoi(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-input-group">
+                                                    <label>Trang điểm ngày cưới</label>
+                                                    <input
+                                                        type="text"
+                                                        className="service-custom-input"
+                                                        value={trangDiemNgayCuoi}
+                                                        onChange={(e) => setTrangDiemNgayCuoi(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-input-group">
+                                                    <label>Trang phục đội bê lễ</label>
+                                                    <input
+                                                        type="text"
+                                                        className="service-custom-input"
+                                                        value={trangPhucChoDoiBeLe}
+                                                        onChange={(e) => setTrangPhucChoDoiBeLe(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-input-group">
+                                                    <label>Hoa cầm tay</label>
+                                                    <input
+                                                        type="text"
+                                                        className="service-custom-input"
+                                                        value={hoaCamTay}
+                                                        onChange={(e) => setHoaCamTay(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-subgroup-title">👗 Trang phục ngày cưới & ăn hỏi</div>
+
+                                                <div className="service-input-group">
+                                                    <label>TP cô dâu ngày ăn hỏi</label>
+                                                    <input
+                                                        type="text"
+                                                        className="service-custom-input"
+                                                        value={trangPhucCoDauNgayAnHoi}
+                                                        onChange={(e) => setTrangPhucCoDauNgayAnHoi(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-input-group">
+                                                    <label>TP chú rể ngày ăn hỏi</label>
+                                                    <input
+                                                        type="text"
+                                                        className="service-custom-input"
+                                                        value={trangPhucChuReNgayAnHoi}
+                                                        onChange={(e) => setTrangPhucChuReNgayAnHoi(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-input-group">
+                                                    <label>Váy cưới ngày cưới (giá trị)</label>
+                                                    <input
+                                                        type="text"
+                                                        className="service-custom-input"
+                                                        value={trangPhucVayCuoiNgayCuoi}
+                                                        onChange={(e) => setTrangPhucVayCuoiNgayCuoi(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="service-input-group">
+                                                    <label>Vest chú rể ngày cưới</label>
+                                                    <input
+                                                        type="text"
+                                                        className="service-custom-input"
+                                                        value={trangPhucVestChuReNgayCuoi}
+                                                        onChange={(e) => setTrangPhucVestChuReNgayCuoi(e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="service-input-group">
+                                        <label>Mô tả chi tiết</label>
+                                        <textarea
+                                            rows={4}
+                                            className="service-custom-textarea"
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                        />
+                                    </div>
                                 </div>
 
-                                <div className="form-group">
-                                    <label>Thay đổi ảnh</label>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={async (e) => {
-                                            const file = e.target.files[0];
-                                            if (!file) return;
-                                            setImageFile(file);
-                                            const base64 = await fileToBase64(file);
-                                            setImageBase64(base64);
-                                        }}
-                                    />
+                                {/* Right: Image Edit */}
+                                <div className="service-form-col-right">
+                                    <div className="service-image-card">
+                                        <div className="service-image-card-title">
+                                            <span>Ảnh đại diện dịch vụ</span>
+                                        </div>
+
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            accept="image/*"
+                                            style={{ display: 'none' }}
+                                            onChange={(e) => {
+                                                if (e.target.files && e.target.files[0]) {
+                                                    handleProcessImage(e.target.files[0]);
+                                                }
+                                            }}
+                                        />
+
+                                        {imageBase64 ? (
+                                            <div className="service-preview-wrapper">
+                                                <img
+                                                    src={getImageUrl(imageBase64)}
+                                                    alt="Preview"
+                                                    className="service-preview-img"
+                                                />
+                                                <div className="service-preview-overlay">
+                                                    <div className="service-preview-info">
+                                                        {imageFile ? imageFile.name : 'Ảnh hiện tại'}
+                                                    </div>
+                                                    <div className="service-preview-actions">
+                                                        <button
+                                                            type="button"
+                                                            className="service-btn-icon-action service-btn-change"
+                                                            onClick={() => fileInputRef.current?.click()}
+                                                            title="Đổi ảnh khác"
+                                                        >
+                                                            <AutorenewRoundedIcon fontSize="inherit" />
+                                                            <span>Đổi ảnh</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="service-btn-icon-action service-btn-delete"
+                                                            onClick={handleRemoveImage}
+                                                            title="Xóa ảnh này"
+                                                        >
+                                                            <DeleteOutlineRoundedIcon fontSize="inherit" />
+                                                            <span>Xóa</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className={`service-dropzone ${isDragging ? 'drag-active' : ''}`}
+                                                onClick={() => fileInputRef.current?.click()}
+                                                onDragOver={(e) => {
+                                                    e.preventDefault();
+                                                    setIsDragging(true);
+                                                }}
+                                                onDragLeave={() => setIsDragging(false)}
+                                                onDrop={handleDrop}
+                                            >
+                                                <div className="service-dropzone-icon">
+                                                    <CloudUploadOutlinedIcon fontSize="large" />
+                                                </div>
+                                                <p className="service-dropzone-text">
+                                                    Nhấn để duyệt file hoặc kéo thả ảnh vào đây
+                                                </p>
+                                                <p className="service-dropzone-sub">
+                                                    Hỗ trợ JPG, PNG, WEBP (Khuyên dùng tỉ lệ 3:4 hoặc 1:1)
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div className="service-form-right">
-                                {imageBase64 ? (
-                                    <img src={getImageUrl(imageBase64)} alt="Preview" className="service-image-preview" />
-                                ) : (
-                                    <div className="service-image-placeholder">Chưa có ảnh</div>
-                                )}
-                            </div>
-
-                            <div className="form-actions service-form-actions">
-                                <Button variant="outlined" onClick={() => setIsEditing(false)}>Hủy</Button>
-                                <Button variant="contained" type="submit">Lưu thay đổi</Button>
                             </div>
                         </form>
                     ) : (
-                        /* ===== READ-ONLY DETAILS VIEW ===== */
-                        <div className="service-form-grid">
-                            <div className="service-form-left text-details" style={{ fontSize: "1.05rem", lineHeight: "1.8" }}>
-                                <p><b>Mã dịch vụ:</b> <span style={{ color: "#d32f2f", fontWeight: "bold" }}>{data.maDichVu}</span></p>
-                                <p><b>Tên dịch vụ:</b> <strong>{data.tenDichVu}</strong></p>
-                                <p><b>Loại dịch vụ:</b> {getLoaiDichVuLabel(data.loaiDichVu)}</p>
-                                <p><b>Giá trị dịch vụ:</b> {data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : "0 đ"}</p>
-                                <p><b>Giá thuê dịch vụ:</b> {data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : "0 đ"}</p>
-                                <p><b>Tồn kho:</b> {data.tonKhoDichVu} sản phẩm</p>
-                                <p><b>Mô tả:</b></p>
-                                <div style={{ 
-                                    whiteSpace: "pre-line", 
-                                    background: "#f9f9f9", 
-                                    padding: "12px", 
-                                    borderRadius: "6px", 
-                                    border: "1px solid #eee",
-                                    marginBottom: "15px"
-                                }}>
-                                    {data.moTaDichVu || "Không có mô tả"}
+                        /* ================= READ-ONLY DETAILS VIEW ================= */
+                        <div className="service-modal-main-grid">
+                            {/* Cột trái: Thông tin hiển thị */}
+                            <div className="service-form-col-left">
+                                
+                                <div>
+                                    <h2 className="service-detail-main-title">{data.tenDichVu}</h2>
+                                    <div className="service-detail-badges">
+                                        <span className="service-code-badge">{data.maDichVu}</span>
+                                        <span 
+                                            className="service-type-badge-view"
+                                            style={{
+                                                background: dataTypeObj.badgeBg,
+                                                color: dataTypeObj.color
+                                            }}
+                                        >
+                                            <span>{dataTypeObj.icon}</span>
+                                            <span>{dataTypeObj.name}</span>
+                                        </span>
+                                    </div>
                                 </div>
 
+                                {/* 3 Metric Cards */}
+                                <div className="service-detail-metrics">
+                                    <div className="service-metric-card">
+                                        <span className="service-metric-label">Giá Bán / Gói</span>
+                                        <span className="service-metric-value price-sale">
+                                            {data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : "0 ₫"}
+                                        </span>
+                                    </div>
+                                    <div className="service-metric-card">
+                                        <span className="service-metric-label">Giá Cho Thuê</span>
+                                        <span className="service-metric-value price-rent">
+                                            {data.giaChoThueDichVu ? formatCurrency(data.giaChoThueDichVu) : "0 ₫"}
+                                        </span>
+                                    </div>
+                                    <div className="service-metric-card">
+                                        <span className="service-metric-label">Tồn Kho Hiện Tại</span>
+                                        <span className="service-metric-value">
+                                            {data.tonKhoDichVu !== undefined ? `${data.tonKhoDichVu} sản phẩm` : "0"}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Mô tả */}
+                                <div className="service-detail-section">
+                                    <div className="service-detail-section-title">
+                                        <DescriptionOutlinedIcon fontSize="small" style={{ color: '#2563eb' }} />
+                                        <span>Mô tả dịch vụ</span>
+                                    </div>
+                                    <div className="service-detail-desc-content">
+                                        {data.moTaDichVu || "Chưa có mô tả chi tiết cho dịch vụ này."}
+                                    </div>
+                                </div>
+
+                                {/* Thông số gói nếu là Gói Dịch Vụ */}
                                 {Number(data.loaiDichVu) === 2 && (
-                                    <>
-                                        <div className="package-parameters-title" style={{ marginTop: "20px", fontWeight: "bold", borderBottom: "1px solid #ddd", paddingBottom: "6px" }}>
-                                            Thông số gói dịch vụ đi kèm:
+                                    <div className="service-detail-section" style={{ background: '#f8fafc', borderColor: '#cbd5e1' }}>
+                                        <div className="service-detail-section-title" style={{ color: '#1e40af' }}>
+                                            <LayersOutlinedIcon fontSize="small" />
+                                            <span>Thông số chi tiết gói dịch vụ</span>
                                         </div>
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 20px", padding: "10px 0" }}>
-                                            <div><b>SL ảnh chỉnh sửa:</b> {data.soLuongAnhChinhSua || 0} ảnh</div>
-                                            <div><b>SL ảnh 16x21:</b> {data.soLuongAnh16x21 || 0} ảnh</div>
-                                            <div><b>SL ảnh 20x30:</b> {data.soLuongAnh20x30 || 0} ảnh</div>
-                                            <div><b>SL ảnh 60x90:</b> {data.soLuongAnh60x90 || 0} ảnh</div>
-                                            <div><b>Trang điểm ngày ăn hỏi:</b> {data.trangDiemNgayAnHoi || "Không có"}</div>
-                                            <div><b>Trang điểm ngày cưới:</b> {data.trangDiemNgayCuoi || "Không có"}</div>
-                                            <div><b>Trang phục bê lễ:</b> {data.trangPhucChoDoiBeLe || "Không có"}</div>
-                                            <div><b>TP cô dâu ngày ăn hỏi:</b> {data.trangPhucCoDauNgayAnHoi || "Không có"}</div>
-                                            <div><b>TP chú rể ngày ăn hỏi:</b> {data.trangPhucChuReNgayAnHoi || "Không có"}</div>
-                                            <div><b>Váy cưới ngày cưới (giá trị):</b> {data.trangPhucVayCuoiNgayCuoi || "Không có"}</div>
-                                            <div><b>Vest chú rể ngày cưới:</b> {data.trangPhucVestChuReNgayCuoi || "Không có"}</div>
-                                            <div><b>Hoa cầm tay:</b> {data.hoaCamTay || "Không có"}</div>
+
+                                        <div className="service-detail-package-grid">
+                                            <div className="service-detail-package-item">
+                                                <span>📸</span>
+                                                <div><b>SL ảnh chỉnh sửa:</b> {data.soLuongAnhChinhSua || 0} ảnh</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>🖼️</span>
+                                                <div><b>SL ảnh 16x21:</b> {data.soLuongAnh16x21 || 0} ảnh</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>🖼️</span>
+                                                <div><b>SL ảnh 20x30:</b> {data.soLuongAnh20x30 || 0} ảnh</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>🖼️</span>
+                                                <div><b>SL ảnh 60x90:</b> {data.soLuongAnh60x90 || 0} ảnh</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>💄</span>
+                                                <div><b>Makeup ăn hỏi:</b> {data.trangDiemNgayAnHoi || "Không có"}</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>💄</span>
+                                                <div><b>Makeup cưới:</b> {data.trangDiemNgayCuoi || "Không có"}</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>👥</span>
+                                                <div><b>Trang phục bê lễ:</b> {data.trangPhucChoDoiBeLe || "Không có"}</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>💐</span>
+                                                <div><b>Hoa cầm tay:</b> {data.hoaCamTay || "Không có"}</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>👰</span>
+                                                <div><b>TP cô dâu ăn hỏi:</b> {data.trangPhucCoDauNgayAnHoi || "Không có"}</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>🤵</span>
+                                                <div><b>TP chú rể ăn hỏi:</b> {data.trangPhucChuReNgayAnHoi || "Không có"}</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>👗</span>
+                                                <div><b>Váy cưới ngày cưới:</b> {data.trangPhucVayCuoiNgayCuoi || "Không có"}</div>
+                                            </div>
+                                            <div className="service-detail-package-item">
+                                                <span>🤵</span>
+                                                <div><b>Vest chú rể ngày cưới:</b> {data.trangPhucVestChuReNgayCuoi || "Không có"}</div>
+                                            </div>
                                         </div>
-                                    </>
+                                    </div>
                                 )}
+
                             </div>
 
-                            <div className="service-form-right">
-                                {data.imageDichVu ? (
-                                    <img src={getImageUrl(data.imageDichVu)} alt={data.tenDichVu} className="service-image-preview" />
-                                ) : (
-                                    <div className="service-image-placeholder">Không có ảnh đại diện</div>
-                                )}
-                            </div>
-
-                            <div className="form-actions service-form-actions" style={{ justifyContent: "space-between", width: "100%" }}>
-                                <Button variant="outlined" color="error" onClick={handleDelete}>
-                                    Xóa dịch vụ
-                                </Button>
-                                <div>
-                                    <Button variant="outlined" onClick={() => handleClose(false)} style={{ marginRight: "12px" }}>
-                                        Đóng
-                                    </Button>
-                                    <Button variant="contained" onClick={() => setIsEditing(true)}>
-                                        Chỉnh sửa
-                                    </Button>
+                            {/* Cột phải: Ảnh đại diện */}
+                            <div className="service-form-col-right">
+                                <div className="service-image-card">
+                                    <div className="service-image-card-title">
+                                        <span>Ảnh đại diện dịch vụ</span>
+                                    </div>
+                                    {data.imageDichVu && data.imageDichVu.length > 100 ? (
+                                        <div className="service-preview-wrapper" style={{ maxHeight: '380px' }}>
+                                            <img
+                                                src={getImageUrl(data.imageDichVu)}
+                                                alt={data.tenDichVu}
+                                                className="service-preview-img"
+                                                style={{ maxHeight: '380px' }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="service-dropzone" style={{ cursor: 'default', minHeight: '260px' }}>
+                                            <div className="service-dropzone-icon" style={{ background: '#f1f5f9', color: '#94a3b8' }}>
+                                                <CloudUploadOutlinedIcon fontSize="large" />
+                                            </div>
+                                            <p className="service-dropzone-text" style={{ color: '#64748b' }}>
+                                                Chưa có ảnh đại diện
+                                            </p>
+                                            <p className="service-dropzone-sub">
+                                                Nhấn nút "Chỉnh sửa" để tải ảnh lên
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
+                    )}
+                </div>
+
+                {/* ===== FOOTER ===== */}
+                <div className="service-modal-footer" style={{ justifyContent: 'space-between' }}>
+                    {isEditing ? (
+                        <>
+                            <button
+                                type="button"
+                                className="service-btn-cancel"
+                                onClick={() => setIsEditing(false)}
+                            >
+                                Hủy thay đổi
+                            </button>
+
+                            <button
+                                type="submit"
+                                form="serviceEditForm"
+                                className="service-btn-submit"
+                                style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+                            >
+                                <SaveRoundedIcon fontSize="small" />
+                                <span>Lưu thay đổi</span>
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button
+                                type="button"
+                                className="service-btn-clear"
+                                style={{ borderColor: '#fca5a5', color: '#dc2626', background: '#fff' }}
+                                onClick={handleDelete}
+                            >
+                                <DeleteOutlineRoundedIcon fontSize="small" />
+                                <span>Xóa dịch vụ</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                className="service-btn-submit"
+                                onClick={() => setIsEditing(true)}
+                            >
+                                <EditRoundedIcon fontSize="small" />
+                                <span>Chỉnh sửa dịch vụ</span>
+                            </button>
+                        </>
                     )}
                 </div>
             </div>

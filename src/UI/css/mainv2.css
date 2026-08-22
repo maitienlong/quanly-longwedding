@@ -30,118 +30,503 @@ body {
     display: flex;
     height: 100vh;
     overflow: hidden;
+    background-color: #f1f5f9;
 }
 
-/* ==== Sidebar Styling ==== */
-.sidebar {
-    width: 280px;
-    background-color: var(--dark-blue);
-    color: var(--white-color);
+/* =========================================================
+   ==== SAPO STYLE MODERN SIDEBAR DESIGN ====
+   ========================================================= */
+:root {
+    --sapo-bg: #0f172a;
+    --sapo-hover-bg: #1e293b;
+    --sapo-active-bg: #1e293b;
+    --sapo-blue: #0284c7;
+    --sapo-blue-hover: #0369a1;
+    --sapo-sky-blue: #38bdf8;
+    --sapo-text-main: #cbd5e1;
+    --sapo-text-muted: #64748b;
+    --sapo-border: rgba(255, 255, 255, 0.08);
+    --sapo-sidebar-width: 260px;
+    --sapo-sidebar-collapsed-width: 68px;
+}
+
+.sapo-sidebar {
+    width: var(--sapo-sidebar-width);
+    background-color: var(--sapo-bg);
+    color: var(--sapo-text-main);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    height: 100vh;
+    border-right: 1px solid var(--sapo-border);
+    transition: width 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    position: relative;
+    user-select: none;
 }
 
-.sidebar-header {
-    padding: 20px;
-    text-align: center;
+.sapo-sidebar.collapsed {
+    width: var(--sapo-sidebar-collapsed-width);
 }
 
-.sidebar-header .logo {
+/* 1. Header (Logo & Collapse Button) */
+.sapo-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 10px 14px 12px;
+    border-bottom: 1px solid var(--sapo-border);
+    min-height: 58px;
+    gap: 6px;
+}
+
+.sapo-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    overflow: hidden;
+    flex: 1;
+}
+
+.sapo-brand-logo {
+    max-height: 30px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+    flex-shrink: 0;
+}
+
+.sapo-brand-text {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sapo-brand-name {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.sapo-collapse-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    font-size: 50px;
-    font-weight: 700;
-    margin-bottom: 20px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    font-size: 11px;
+    flex-shrink: 0;
 }
 
-.sidebar-header .logo .fa-crown {
-    font-size: 60px;
+.sapo-collapse-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
-.time-display #clock {
-    font-size: 2rem;
-    font-weight: 500;
-    margin-bottom: 5px;
-}
-
-.time-display #date {
-    font-size: 12px;
-    color: var(--border-color);
-}
-
-.sidebar-nav {
-    flex-grow: 1;
-    padding: 15px;
-    overflow-y: auto;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE & Edge */
-}
-
-.sidebar, .sidebar-nav {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-.sidebar::-webkit-scrollbar,
-.sidebar-nav::-webkit-scrollbar {
+.sapo-mobile-header {
     display: none;
-    width: 0;
-    height: 0;
 }
 
-.sidebar-nav ul {
+/* 2. Primary Highlight Quick Action Button (Bán hàng) */
+.sapo-primary-action-wrap {
+    padding: 12px 12px 6px 12px;
+}
+
+.sapo-primary-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background-color: var(--sapo-blue);
+    color: #ffffff;
+    border: none;
+    border-radius: 7px;
+    font-weight: 700;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 3px 10px rgba(2, 132, 199, 0.28);
+}
+
+.sapo-primary-btn:hover {
+    background-color: var(--sapo-blue-hover);
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+}
+
+.sapo-primary-btn .sapo-btn-icon {
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sapo-primary-btn .sapo-btn-text {
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.sapo-primary-btn .sapo-btn-caret {
+    font-size: 11px;
+    opacity: 0.85;
+}
+
+.sapo-sidebar.collapsed .sapo-primary-btn {
+    padding: 10px 0;
+    justify-content: center;
+}
+
+/* 3. Navigation List */
+.sapo-sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 10px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.sapo-sidebar-nav::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sapo-sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+}
+
+.sapo-sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sapo-nav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sapo-nav-item {
+    position: relative;
     list-style: none;
 }
 
-.sidebar-nav ul li a {
+.sapo-nav-link {
     display: flex;
     align-items: center;
-    gap: 15px;
-    padding: 15px 20px;
-    color: var(--white-color);
+    gap: 12px;
+    padding: 8px 12px;
+    color: var(--sapo-text-main);
     text-decoration: none;
-    border-radius: 8px;
-    margin-bottom: 10px;
+    border-radius: 6px;
+    font-size: 13.5px;
     font-weight: 500;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
 }
 
-.sidebar-nav ul li a:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+.sapo-nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
 }
 
-.sidebar-nav ul li a.active {
-    background-color: var(--primary-blue);
+.sapo-nav-link.active {
+    background-color: var(--sapo-active-bg);
+    color: #ffffff;
+    font-weight: 600;
+    border-color: rgba(255, 255, 255, 0.06);
 }
 
-.sidebar-nav ul li a .fa-solid {
-    font-size: 20px;
-    width: 25px;
+.sapo-nav-link.active-parent {
+    background-color: #1e293b;
+    color: #ffffff;
+    font-weight: 600;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.sapo-item-icon {
+    width: 20px;
+    font-size: 15px;
     text-align: center;
-}
-
-.user-profile {
+    color: #94a3b8;
     display: flex;
     align-items: center;
-    gap: 15px;
-    background-color: var(--red-accent);
-    padding: 20px;
-    cursor: pointer;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: color 0.15s ease;
 }
 
-.user-profile .fa-user-circle {
-    font-size: 40px;
+.sapo-nav-link:hover .sapo-item-icon,
+.sapo-nav-link.active .sapo-item-icon,
+.sapo-nav-link.active-parent .sapo-item-icon {
+    color: #ffffff;
 }
 
-.user-info .user-name {
+.sapo-item-title {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sapo-submenu-arrow {
+    font-size: 10px;
+    color: #94a3b8;
+    transition: transform 0.2s ease;
+    margin-left: auto;
+}
+
+.sapo-submenu-arrow.open {
+    transform: rotate(180deg);
+}
+
+/* Submenu Items */
+.sapo-submenu-list {
+    list-style: none;
+    padding: 3px 0 4px 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.sapo-sub-link {
+    display: block;
+    padding: 6px 12px 6px 44px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.sapo-sub-link:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.sapo-sub-link.active-sub {
+    color: var(--sapo-sky-blue) !important;
     font-weight: 700;
+    background-color: rgba(56, 189, 248, 0.08);
 }
 
-.user-info .user-role {
+/* Section Dividers and Headers */
+.sapo-section-divider {
+    height: 1px;
+    background: var(--sapo-border);
+    margin: 8px 4px;
+    list-style: none;
+}
+
+.sapo-section-header {
+    padding: 10px 12px 4px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    list-style: none;
+}
+
+.sapo-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--sapo-text-muted);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+.sapo-section-add {
+    font-size: 13px;
+    color: var(--sapo-text-muted);
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.sapo-section-add:hover {
+    color: #cbd5e1;
+}
+
+.sapo-collapsed-divider {
+    height: 1px;
+    width: 28px;
+    background: var(--sapo-border);
+    margin: 6px auto;
+}
+
+/* App badge icons (Website, POS, etc.) */
+.sapo-app-badge-green {
+    background: rgba(16, 185, 129, 0.18);
+    color: #10b981 !important;
+    border-radius: 5px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 12px;
+}
+
+.sapo-app-badge-blue {
+    background: rgba(59, 130, 246, 0.18);
+    color: #60a5fa !important;
+    border-radius: 5px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.sapo-sub-action-icon {
+    font-size: 12px;
+    color: #64748b;
+    margin-left: auto;
+}
+
+/* 4. Bottom Footer Section */
+.sapo-sidebar-footer {
+    border-top: 1px solid var(--sapo-border);
+    padding: 10px 10px;
+    background: rgba(15, 23, 42, 0.95);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.sapo-time-card {
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 6px 8px;
+    text-align: center;
+    margin-bottom: 2px;
+}
+
+.sapo-time-clock {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #f8fafc;
+    font-family: monospace;
+    letter-spacing: 0.5px;
+}
+
+.sapo-time-date {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.sapo-time-lunar {
+    font-size: 11px;
+    color: #fbbf24;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.sapo-settings-btn {
+    color: #cbd5e1;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.sapo-user-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.sapo-user-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.sapo-user-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    background: var(--sapo-blue);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+}
+
+.sapo-user-meta {
+    flex: 1;
+    overflow: hidden;
+}
+
+.sapo-user-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.sapo-user-role {
+    font-size: 10.5px;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Collapsed mode adjustments */
+.sapo-sidebar.collapsed .sapo-sidebar-header {
+    padding: 12px 6px;
+    justify-content: center;
+}
+
+.sapo-sidebar.collapsed .sapo-nav-link {
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.sapo-sidebar.collapsed .sapo-item-icon {
+    font-size: 17px;
+    width: auto;
+}
+
+.sapo-sidebar.collapsed .sapo-user-card {
+    justify-content: center;
+    padding: 6px 0;
+}
+
+.sapo-mobile-topbar {
+    display: none;
 }
 
 /* ==== Main Content Styling ==== */
@@ -680,19 +1065,8 @@ tbody tr:hover {
 }
 
 /* Bố cục responsive cho Mobile / Tablet / Desktop */
-.mobile-menu-btn {
+.sapo-mobile-backdrop {
     display: none;
-}
-
-@keyframes slideDownMenu {
-    from {
-        opacity: 0;
-        transform: translateY(-8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 @media (max-width: 992px) {
@@ -703,175 +1077,124 @@ tbody tr:hover {
         overflow-x: hidden;
     }
 
-    .sidebar {
-        width: 100%;
-        height: auto;
+    /* Mobile Topbar */
+    .sapo-mobile-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 16px;
+        background: #0f172a;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         position: sticky;
         top: 0;
-        z-index: 1100;
-        background-color: var(--dark-blue);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        z-index: 1050;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
     }
 
-    .sidebar-header {
-        padding: 10px 16px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: rgba(13, 27, 63, 0.98);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border-bottom: 1px solid rgba(251, 191, 36, 0.2);
-    }
-
-    .logo-title-group {
-        flex-direction: row;
-        align-items: center;
-        gap: 12px;
-        justify-content: flex-start;
-        flex: 1;
-        margin-bottom: 0 !important;
-    }
-
-    .logo-login {
-        max-height: 48px;
-        width: auto;
-        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
-    }
-
-    .mobile-only-title {
-        display: block !important;
-        font-size: 0.95rem;
-        font-weight: 800;
-        color: #f8fafc;
-        letter-spacing: 0.5px;
-        margin: 0;
-        text-align: left;
-        line-height: 1.2;
-    }
-
-    .time-display {
-        display: none !important;
-    }
-
-    .mobile-menu-btn {
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
+    .sapo-mobile-menu-btn {
         background: rgba(255, 255, 255, 0.08);
         border: 1px solid rgba(255, 255, 255, 0.15);
         color: #f8fafc;
-        font-size: 20px;
-        cursor: pointer;
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        transition: all 0.2s ease;
-        margin-left: auto;
-    }
-
-    .mobile-menu-btn:active {
-        background: rgba(251, 191, 36, 0.2);
-        color: #fbbf24;
-        transform: scale(0.95);
-    }
-
-    .sidebar-nav {
-        display: none;
-        padding: 12px 16px 16px 16px;
-        background: rgba(10, 20, 48, 0.98);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-bottom: 2px solid #f59e0b;
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-        animation: slideDownMenu 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-        max-height: 80vh;
-        overflow-y: auto;
-    }
-
-    .sidebar-nav.open {
-        display: block;
-    }
-
-    .sidebar-nav ul {
-        display: flex;
-        flex-direction: column;
-        overflow-x: hidden;
-        gap: 6px;
-        padding-bottom: 4px;
-    }
-
-    .sidebar-nav ul li {
-        flex-shrink: 0;
-        width: 100%;
-    }
-
-    .sidebar-nav ul li a {
-        padding: 12px 16px;
-        margin-bottom: 0;
-        font-size: 0.92rem;
-        font-weight: 600;
-        white-space: normal;
-        gap: 12px;
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        color: #e2e8f0;
-        transition: all 0.2s ease;
-    }
-
-    .sidebar-nav ul li a:active,
-    .sidebar-nav ul li a.active {
-        background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
-        border-color: rgba(251, 191, 36, 0.4);
-        color: #fbbf24;
-    }
-
-    .user-profile {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 1050;
-        padding: 8px 16px;
-        height: 56px;
-        background: rgba(13, 27, 63, 0.96);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border-top: 1px solid rgba(251, 191, 36, 0.25);
-        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
-        justify-content: flex-start;
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
-        gap: 12px;
+        justify-content: center;
+        font-size: 18px;
         cursor: pointer;
     }
 
-    .user-profile:active {
-        background: rgba(20, 38, 86, 0.98);
+    .sapo-mobile-brand-title {
+        display: flex;
+        align-items: center;
+        font-size: 1rem;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: 0.5px;
     }
 
-    .user-profile .fa-user-circle {
-        font-size: 28px;
-        color: #fbbf24;
+    .sapo-mobile-user-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: var(--sapo-blue);
+        color: #ffffff;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
     }
 
-    .user-info .user-name {
-        font-size: 13px;
+    /* Mobile Drawer Sidebar */
+    .sapo-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px !important;
+        height: 100vh;
+        z-index: 1200;
+        transform: translateX(-100%);
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .sapo-sidebar.mobile-open {
+        transform: translateX(0);
+    }
+
+    .sapo-mobile-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: rgba(0, 0, 0, 0.2);
+        border-bottom: 1px solid var(--sapo-border);
         font-weight: 700;
-        color: #fff;
+        color: #94a3b8;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    .user-info .user-role {
-        font-size: 11px;
-        color: #94a3b8;
+    .sapo-mobile-close-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #ffffff;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .sapo-collapse-btn {
+        display: none;
+    }
+
+    .sapo-mobile-backdrop {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 1150;
+        animation: fadeIn 0.2s ease;
     }
 
     .main-content {
         padding: 12px 8px;
-        padding-bottom: 75px;
+        padding-bottom: 30px;
         height: auto;
-        min-height: calc(100vh - 65px);
+        min-height: calc(100vh - 60px);
         overflow-y: visible;
     }
 
@@ -955,9 +1278,11 @@ tbody tr:hover {
 
     /* Dialogs on mobile */
     .MuiDialog-paper {
-        margin: 12px !important;
-        width: calc(100% - 24px) !important;
-        border-radius: 16px !important;
-        max-height: calc(100% - 48px) !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        height: 100% !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
     }
 }

@@ -29,6 +29,12 @@ import { useTheme } from '@mui/material/styles';
 import Card from '@mui/material/Card';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
+import InputAdornment from '@mui/material/InputAdornment';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import CheckIcon from '@mui/icons-material/Check';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import './lichsoando.css';
 
 import Select from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
@@ -42,6 +48,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useAuth } from '../Login/AuthContext/AuthContext';
+import { getLoanReceiptPrintConfig, generateLoanReceiptPrintHtml } from '../../utils/printConfigHelper';
 
 function LichSoanDo() {
     const theme = useTheme();
@@ -118,7 +125,7 @@ function LichSoanDo() {
             })
             .catch(err => {
                 console.error(err);
-                toast.error("Lỗi khi tải danh sách lịch soạn đồ");
+                toast.error("Lỗi khi tải danh sách lịch soạn đồ: " + (err.message || "Không thể kết nối máy chủ"));
             })
             .finally(() => hideLoading());
     };
@@ -488,106 +495,38 @@ function LichSoanDo() {
             loadData();
         } catch (err) {
             console.error(err);
-            toast.error("Có lỗi xảy ra khi cập nhật!");
+            toast.error("Có lỗi xảy ra khi cập nhật: " + (err.message || "Đã có lỗi xảy ra"));
         } finally {
             hideLoading();
         }
     };
 
-    // Print Loan Receipt
+    // Print Loan Receipt with matching Contract layout
     const handlePrintPhieuMuon = () => {
         if (!selectedHD) return;
         const printWindow = window.open("", "_blank");
-        printWindow.document.write(`
-            <html>
-            <head>
-                <title>Phiếu Mượn Đồ - ${selectedHD.maHopDong}</title>
-                <style>
-                    body { font-family: sans-serif; padding: 20px; line-height: 1.6; color: #333; }
-                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-                    .title { font-size: 24px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
-                    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-                    .info-table td { padding: 8px 12px; vertical-align: top; border: none; }
-                    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    .items-table th, .items-table td { border: 1px solid #999; padding: 10px; text-align: left; }
-                    .items-table th { background-color: #f0f0f0; font-weight: bold; }
-                    .signature-section { display: flex; justify-content: space-between; margin-top: 60px; }
-                    .signature-box { text-align: center; width: 220px; }
-                    .signature-space { height: 90px; }
-                    .footer { text-align: center; font-size: 11px; color: #777; margin-top: 40px; border-top: 1px dashed #ccc; padding-top: 10px; }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <div class="title">PHIẾU MƯỢN TRANG PHỤC</div>
-                    <div>Mã hợp đồng: <strong>${selectedHD.maHopDong}</strong></div>
-                    <div>Cửa hàng: <strong>LONG WEDDING</strong></div>
-                </div>
-                <table class="info-table">
-                    <tr>
-                        <td style="width: 50%;"><strong>Khách hàng 1:</strong> ${selectedHD.khachHang1?.tenKhachHang || ''} (${selectedHD.khachHang1?.soDienThoai || ''})</td>
-                        <td style="width: 50%;"><strong>Ngày mượn:</strong> ${ngayMuon ? dayjs(ngayMuon).format('DD/MM/YYYY HH:mm') : ''}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Khách hàng 2:</strong> ${selectedHD.khachHang2?.tenKhachHang || ''} (${selectedHD.khachHang2?.soDienThoai || ''})</td>
-                        <td><strong>Ngày trả dự kiến:</strong> ${ngayTra ? dayjs(ngayTra).format('DD/MM/YYYY HH:mm') : ''}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Người bàn giao:</strong> ${nguoiKiem || ''}</td>
-                        <td><strong>Đặt cọc:</strong> ${datCoc ? Number(datCoc).toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="2"><strong>Ghi chú mượn:</strong> ${noiDung || ''}</td>
-                    </tr>
-                </table>
-                <h3>DANH SÁCH ĐỒ MƯỢN</h3>
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px; text-align: center;">STT</th>
-                            <th>Mã Đồ</th>
-                            <th>Tên Trang Phục</th>
-                            <th style="width: 110px; text-align: center;">Phân loại</th>
-                            <th style="width: 110px; text-align: right;">Nâng cấp</th>
-                            <th style="width: 70px; text-align: center;">SL</th>
-                            <th>Ghi chú</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${dsMuon.length === 0 ? `<tr><td colspan="7" style="text-align: center;">Chưa chọn đồ mượn</td></tr>` : 
-                          dsMuon.map((item, index) => `
-                            <tr>
-                                <td style="text-align: center;">${index + 1}</td>
-                                <td>${item.maDichVu}</td>
-                                <td>${item.tenDichVu}</td>
-                                <td style="text-align: center;">${item.isThueThem ? `Thuê thêm (${Number(item.donGiaThue || 0).toLocaleString('vi-VN')} đ)` : 'Trong gói'}</td>
-                                <td style="text-align: right;">${item.tienNangCap ? Number(item.tienNangCap).toLocaleString('vi-VN') + ' đ' : '-'}</td>
-                                <td style="text-align: center;">${item.soLuong}</td>
-                                <td>${item.ghiChu || ''}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                <div class="signature-section">
-                    <div class="signature-box">
-                        <p><strong>Khách hàng ký nhận</strong></p>
-                        <p style="font-size: 11px; color: #666; margin-top: -10px;">(Ký và ghi rõ họ tên)</p>
-                        <div class="signature-space"></div>
-                        <p><strong>${selectedHD.khachHang1?.tenKhachHang || ''}</strong></p>
-                    </div>
-                    <div class="signature-box">
-                        <p><strong>Người bàn giao</strong></p>
-                        <p style="font-size: 11px; color: #666; margin-top: -10px;">(Ký nhận)</p>
-                        <div class="signature-space"></div>
-                        <p><strong>${nguoiKiem || ''}</strong></p>
-                    </div>
-                </div>
-                <div class="footer">
-                    <p>Cảm ơn quý khách hàng đã lựa chọn dịch vụ của Long Wedding!</p>
-                </div>
-            </body>
-            </html>
-        `);
+        if (!printWindow) {
+            toast.error("Trình duyệt đang chặn cửa sổ pop-up. Vui lòng cho phép để in.");
+            return;
+        }
+
+        const data = {
+            maHopDong: selectedHD.maHopDong,
+            ngayLapFormatted: dayjs().format('DD/MM/YYYY'),
+            tenKhachHang1: selectedHD.khachHang1?.tenKhachHang,
+            tenKhachHang2: selectedHD.khachHang2?.tenKhachHang,
+            soDienThoai1: selectedHD.khachHang1?.soDienThoai,
+            soDienThoai2: selectedHD.khachHang2?.soDienThoai,
+            ngayMuonFormatted: ngayMuon ? dayjs(ngayMuon).format('DD/MM/YYYY HH:mm') : '',
+            ngayTraFormatted: ngayTra ? dayjs(ngayTra).format('DD/MM/YYYY HH:mm') : '',
+            nguoiKiem,
+            datCoc,
+            noiDung,
+            items: dsMuon
+        };
+
+        const html = generateLoanReceiptPrintHtml(data, false);
+        printWindow.document.write(html);
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => {
@@ -595,95 +534,32 @@ function LichSoanDo() {
         }, 300);
     };
 
-    // Print Return Receipt
+    // Print Return Receipt with matching Contract layout
     const handlePrintPhieuTra = () => {
         if (!selectedHD) return;
         const printWindow = window.open("", "_blank");
-        printWindow.document.write(`
-            <html>
-            <head>
-                <title>Phiếu Trả Đồ - ${selectedHD.maHopDong}</title>
-                <style>
-                    body { font-family: sans-serif; padding: 20px; line-height: 1.6; color: #333; }
-                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-                    .title { font-size: 24px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
-                    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-                    .info-table td { padding: 8px 12px; vertical-align: top; border: none; }
-                    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    .items-table th, .items-table td { border: 1px solid #999; padding: 10px; text-align: left; }
-                    .items-table th { background-color: #f0f0f0; font-weight: bold; }
-                    .signature-section { display: flex; justify-content: space-between; margin-top: 60px; }
-                    .signature-box { text-align: center; width: 220px; }
-                    .signature-space { height: 90px; }
-                    .footer { text-align: center; font-size: 11px; color: #777; margin-top: 40px; border-top: 1px dashed #ccc; padding-top: 10px; }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <div class="title">PHIẾU TRẢ TRANG PHỤC</div>
-                    <div>Mã hợp đồng: <strong>${selectedHD.maHopDong}</strong></div>
-                    <div>Cửa hàng: <strong>LONG WEDDING</strong></div>
-                </div>
-                <table class="info-table">
-                    <tr>
-                        <td style="width: 50%;"><strong>Khách hàng 1:</strong> ${selectedHD.khachHang1?.tenKhachHang || ''} (${selectedHD.khachHang1?.soDienThoai || ''})</td>
-                        <td style="width: 50%;"><strong>Ngày mượn:</strong> ${ngayMuon ? dayjs(ngayMuon).format('DD/MM/YYYY HH:mm') : ''}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Khách hàng 2:</strong> ${selectedHD.khachHang2?.tenKhachHang || ''} (${selectedHD.khachHang2?.soDienThoai || ''})</td>
-                        <td><strong>Ngày trả thực tế:</strong> ${dayjs().format('DD/MM/YYYY HH:mm')}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Người nhận đồ:</strong> ${nguoiKiem || ''}</td>
-                        <td><strong>Hoàn cọc:</strong> ${datCoc ? Number(datCoc).toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</td>
-                    </tr>
-                </table>
-                <h3>DANH SÁCH ĐỒ TRẢ</h3>
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 50px; text-align: center;">STT</th>
-                            <th>Mã Đồ</th>
-                            <th>Tên Trang Phục</th>
-                            <th style="width: 100px; text-align: center;">Số lượng</th>
-                            <th style="width: 120px;">Tình trạng đồ</th>
-                            <th>Ghi chú trả đồ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${dsTra.length === 0 ? `<tr><td colspan="6" style="text-align: center;">Chưa có đồ nào trong phiếu trả</td></tr>` : 
-                          dsTra.map((item, index) => `
-                            <tr>
-                                <td style="text-align: center;">${index + 1}</td>
-                                <td>${item.maDichVu}</td>
-                                <td>${item.tenDichVu}</td>
-                                <td style="text-align: center;">${item.soLuong}</td>
-                                <td><strong>${item.trangThaiDo || 'Nguyên vẹn'}</strong></td>
-                                <td>${item.ghiChuTra || ''}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                <div class="signature-section">
-                    <div class="signature-box">
-                        <p><strong>Khách hàng bàn giao</strong></p>
-                        <p style="font-size: 11px; color: #666; margin-top: -10px;">(Ký tên)</p>
-                        <div class="signature-space"></div>
-                        <p><strong>${selectedHD.khachHang1?.tenKhachHang || ''}</strong></p>
-                    </div>
-                    <div class="signature-box">
-                        <p><strong>Người nhận bàn giao</strong></p>
-                        <p style="font-size: 11px; color: #666; margin-top: -10px;">(Ký xác nhận)</p>
-                        <div class="signature-space"></div>
-                        <p><strong>${nguoiKiem || ''}</strong></p>
-                    </div>
-                </div>
-                <div class="footer">
-                    <p>LONG WEDDING COPYRIGHT 2025</p>
-                </div>
-            </body>
-            </html>
-        `);
+        if (!printWindow) {
+            toast.error("Trình duyệt đang chặn cửa sổ pop-up. Vui lòng cho phép để in.");
+            return;
+        }
+
+        const data = {
+            maHopDong: selectedHD.maHopDong,
+            ngayLapFormatted: dayjs().format('DD/MM/YYYY'),
+            tenKhachHang1: selectedHD.khachHang1?.tenKhachHang,
+            tenKhachHang2: selectedHD.khachHang2?.tenKhachHang,
+            soDienThoai1: selectedHD.khachHang1?.soDienThoai,
+            soDienThoai2: selectedHD.khachHang2?.soDienThoai,
+            ngayMuonFormatted: ngayMuon ? dayjs(ngayMuon).format('DD/MM/YYYY HH:mm') : '',
+            ngayTraFormatted: dayjs().format('DD/MM/YYYY HH:mm'),
+            nguoiKiem,
+            datCoc,
+            noiDung: `Hoàn cọc: ${datCoc ? Number(datCoc).toLocaleString('vi-VN') + ' đ' : '0 đ'}`,
+            items: dsTra
+        };
+
+        const html = generateLoanReceiptPrintHtml(data, true);
+        printWindow.document.write(html);
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => {
@@ -693,140 +569,146 @@ function LichSoanDo() {
 
     const listToDisplay = getFilteredHopDongs();
 
-    return (
-        <div className="LichSoanDo" style={{ padding: isMobile ? '10px' : '20px', height: isMobile ? 'calc(100vh - 145px)' : 'auto', display: isMobile ? 'flex' : 'block', flexDirection: 'column' }}>
-            <style>{`
-                .LichSoanDo .content-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 20px;
-                }
-                .LichSoanDo .content-header h2 {
-                    font-weight: bold;
-                    color: #1976d2;
-                    margin: 0;
-                }
-                .LichSoanDo .filters {
-                    display: flex;
-                    gap: 15px;
-                    align-items: center;
-                }
-                .LichSoanDo .status-badge {
-                    padding: 6px 12px;
-                    border-radius: 16px;
-                    font-size: 0.8rem;
-                    font-weight: bold;
-                    color: white;
-                    display: inline-block;
-                    text-align: center;
-                    min-width: 90px;
-                }
-                .LichSoanDo .badge-chua-muon {
-                    background-color: #95a5a6;
-                }
-                .LichSoanDo .badge-dang-muon {
-                    background-color: #2980b9;
-                }
-                .LichSoanDo .badge-da-tra {
-                    background-color: #2ecc71;
-                }
-                .LichSoanDo .badge-qua-han {
-                    background-color: #e74c3c;
-                    animation: pulse 2s infinite;
-                }
-                @keyframes pulse {
-                    0% { opacity: 1; }
-                    50% { opacity: 0.6; }
-                    100% { opacity: 1; }
-                }
-            `}</style>
+    const quickStatusOptions = [
+        { id: 'all', label: 'Tất cả trạng thái' },
+        { id: 'Chưa mượn', label: 'Chưa soạn / Chưa mượn' },
+        { id: 'Đang mượn', label: 'Đang mượn' },
+        { id: 'Đã trả', label: 'Đã trả' },
+        { id: 'Quá hạn', label: '⚠️ Quá hạn (Trễ trả)' }
+    ];
 
-            {/* HEADER & FILTERS */}
-            <div className="content-header">
-                <h2 style={{ color: '#0d1b3f', marginBottom: isMobile ? '12px' : '0' }}>LỊCH SOẠN & MƯỢN TRẢ ĐỒ</h2>
-                <Stack 
-                    spacing={2} 
-                    direction={isMobile ? 'column' : 'row'} 
-                    sx={{ width: '100%', mb: 2 }}
-                >
+    return (
+        <div className="soando-page-container">
+            {/* 1. HEADER TITLE & ACTIONS */}
+            <div className="soando-header">
+                <div className="soando-title-wrap">
+                    <div className="soando-badge-top">
+                        <i className="fa-solid fa-vest-patches"></i> LONG WEDDING COSTUME & EQUIPMENT OPERATIONS
+                    </div>
+                    <h2>
+                        <i className="fa-solid fa-shirt" style={{ color: '#0284c7' }}></i> QUẢN LÝ LỊCH SOẠN & MƯỢN TRẢ ĐỒ
+                    </h2>
+                    <p className="soando-subtitle">
+                        Theo dõi lịch soạn váy cưới, vest chú rể, trang phục chụp Pre-Wedding và quản lý mượn trả phụ kiện
+                    </p>
+                </div>
+
+                <div className="soando-header-actions">
+                    <Button
+                        onClick={handleAddNewVoucher}
+                        variant="contained"
+                        className="btn-add-soando"
+                        startIcon={<i className="fa-solid fa-plus"></i>}
+                    >
+                        Thêm Phiếu Soạn Trả
+                    </Button>
+                </div>
+            </div>
+
+            {/* 2. TOOLBAR & FILTERS */}
+            <div className="soando-toolbar glass-panel">
+                <div className="toolbar-left">
                     <TextField
-                        label="Tìm kiếm (Mã HĐ, SĐT, Tên)"
-                        variant="outlined"
-                        size={isMobile ? "small" : "medium"}
+                        size="small"
+                        placeholder="Tìm kiếm (Mã HĐ, SĐT, Tên KH)..."
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
+                        className="search-input"
                         InputProps={{
-                            sx: { height: isMobile ? 42 : commonHeight }
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <i className="fa-solid fa-magnifying-glass" style={{ color: '#94a3b8' }}></i>
+                                </InputAdornment>
+                            ),
+                            endAdornment: searchInput && (
+                                <InputAdornment position="end">
+                                    <IconButton size="small" onClick={() => setSearchInput('')}>
+                                        <i className="fa-solid fa-xmark" style={{ fontSize: '0.85rem' }}></i>
+                                    </IconButton>
+                                </InputAdornment>
+                            )
                         }}
-                        sx={{ width: isMobile ? '100%' : 280, order: isMobile ? 1 : 3 }}
                     />
-                    
-                    <Stack direction="row" spacing={2} sx={{ width: isMobile ? '100%' : 'auto', order: isMobile ? 2 : 1 }}>
-                        <FormControl variant="outlined" size={isMobile ? "small" : "medium"} sx={{ flex: 1, minWidth: isMobile ? 0 : 220 }}>
-                            <InputLabel>Lọc theo thời gian</InputLabel>
-                            <Select
-                                value={timeFilter}
-                                onChange={(e) => setTimeFilter(e.target.value)}
-                                label="Lọc theo thời gian"
-                                sx={{ height: isMobile ? 42 : commonHeight }}
-                            >
-                                <MenuItem value="all">Tất cả thời gian</MenuItem>
-                                <MenuItem value="today">Hôm nay</MenuItem>
-                                <MenuItem value="week">Tuần này</MenuItem>
-                                <MenuItem value="month">Tháng này</MenuItem>
-                            </Select>
-                        </FormControl>
 
-                        <FormControl variant="outlined" size={isMobile ? "small" : "medium"} sx={{ flex: 1, minWidth: isMobile ? 0 : 220 }}>
-                            <InputLabel>Trạng thái</InputLabel>
-                            <Select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                label="Trạng thái"
-                                sx={{ height: isMobile ? 42 : commonHeight }}
-                            >
-                                <MenuItem value="all">Tất cả trạng thái</MenuItem>
-                                <MenuItem value="Chưa mượn">Chưa soạn / Chưa mượn</MenuItem>
-                                <MenuItem value="Đang mượn">Đang mượn</MenuItem>
-                                <MenuItem value="Đã trả">Đã trả</MenuItem>
-                                <MenuItem value="Quá hạn">Quá hạn (Trễ trả)</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Stack>
+                    <FormControl size="small" sx={{ minWidth: 170 }}>
+                        <InputLabel>Thời gian</InputLabel>
+                        <Select
+                            value={timeFilter}
+                            onChange={(e) => setTimeFilter(e.target.value)}
+                            label="Thời gian"
+                        >
+                            <MenuItem value="all">Tất cả thời gian</MenuItem>
+                            <MenuItem value="today">Hôm nay</MenuItem>
+                            <MenuItem value="week">Tuần này</MenuItem>
+                            <MenuItem value="month">Tháng này</MenuItem>
+                        </Select>
+                    </FormControl>
 
-                    {!isMobile && (
-                        <Button
-                            onClick={handleAddNewVoucher}
-                            variant="contained"
-                            sx={{
-                                height: commonHeight, 
-                                whiteSpace: 'nowrap',  
-                                order: 4
-                            }}
-                        >Thêm phiếu soạn trả</Button>
-                    )}
-                </Stack>
-                {isMobile && (
-                    <div 
-                        style={{ 
-                            width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#1976d2', 
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                            color: 'white', fontSize: '24px', opacity: 0.8,
-                            boxShadow: '0 4px 8px rgba(0,0,0,0.2)', position: 'fixed', bottom: '90px', right: '20px', zIndex: 1000, cursor: 'pointer'
-                        }}
-                        onClick={handleAddNewVoucher}
-                    >
-                        <i className="fa-solid fa-plus"></i>
-                    </div>
-                )}
+                    <FormControl size="small" sx={{ minWidth: 190 }}>
+                        <InputLabel>Trạng thái</InputLabel>
+                        <Select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            label="Trạng thái"
+                        >
+                            {quickStatusOptions.map(opt => (
+                                <MenuItem key={opt.id} value={opt.id}>
+                                    {opt.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </div>
+
+                <div className="toolbar-right">
+                    <Tooltip title="Tải lại dữ liệu">
+                        <IconButton 
+                            onClick={loadData}
+                            sx={{ bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 2 }}
+                        >
+                            <i className="fa-solid fa-rotate"></i>
+                        </IconButton>
+                    </Tooltip>
+                </div>
             </div>
-            {/* CONTRACT LIST TABLE */}
+
+            {/* 3. QUICK FILTER CHIPS */}
+            <div className="soando-quick-filters glass-panel">
+                <Typography variant="caption" fontWeight="bold" sx={{ mr: 0.5, display: 'flex', alignItems: 'center', fontSize: '0.82rem', color: '#0369a1' }}>
+                    <FilterAltIcon fontSize="small" sx={{ mr: 0.3 }} /> Lọc nhanh trạng thái:
+                </Typography>
+                {quickStatusOptions.map((st) => {
+                    const isSelected = String(statusFilter) === String(st.id);
+                    return (
+                        <Chip
+                            key={st.id}
+                            label={st.label}
+                            size="small"
+                            clickable
+                            color={isSelected ? "primary" : "default"}
+                            variant={isSelected ? "filled" : "outlined"}
+                            icon={isSelected ? <CheckIcon fontSize="small" /> : undefined}
+                            onClick={() => setStatusFilter(st.id)}
+                            sx={{
+                                fontWeight: isSelected ? 800 : 600,
+                                fontSize: '0.78rem',
+                                borderRadius: '8px',
+                                transition: 'all 0.15s',
+                                bgcolor: isSelected ? undefined : '#ffffff',
+                                borderColor: isSelected ? undefined : '#cbd5e1'
+                            }}
+                        />
+                    );
+                })}
+            </div>
+
+            {/* 4. MAIN CONTRACT LIST TABLE */}
             {isMobile ? (
                 <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
                     <Stack spacing={2}>
                     {listToDisplay.length === 0 ? (
-                        <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
+                        <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>
+                            <i className="fa-solid fa-folder-open" style={{ fontSize: '2.5rem', marginBottom: '10px', display: 'block', color: '#cbd5e1' }}></i>
                             Không tìm thấy hợp đồng nào phù hợp.
                         </div>
                     ) : (
@@ -834,56 +716,58 @@ function LichSoanDo() {
                             const status = getTrangThaiText(hd.soanDo);
                             const isRed = status === "Quá hạn";
                             return (
-                                <Card key={index} sx={{ mb: 2, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }} onClick={() => handleRowClick(hd)}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>
+                                <Card 
+                                    key={index} 
+                                    sx={{ 
+                                        mb: 2, 
+                                        borderRadius: '14px', 
+                                        border: isRed ? '1px solid #fca5a5' : '1px solid #e2e8f0', 
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                                        bgcolor: isRed ? '#fef2f2' : '#ffffff' 
+                                    }} 
+                                    onClick={() => handleRowClick(hd)}
+                                >
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: isRed ? '#fee2e2' : '#f8fafc', borderBottom: '1px solid #e2e8f0', borderTopLeftRadius: '14px', borderTopRightRadius: '14px' }}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '0.96rem', color: isRed ? '#991b1b' : '#0284c7' }}>
                                             {hd.maHopDong}
                                         </Typography>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <Chip 
-                                                label={status} 
-                                                size="small" 
-                                                sx={{ 
-                                                    bgcolor: isRed ? '#d32f2f' : (status === "Đang mượn" ? '#2980b9' : (status === "Đã trả" ? '#2ecc71' : '#95a5a6')), 
-                                                    color: '#fff',
-                                                    fontWeight: 'bold',
-                                                    fontSize: '0.75rem',
-                                                    height: '24px'
-                                                }} 
-                                            />
+                                            <span className={`status-badge-modern ${status === "Đang mượn" ? "status-dang-muon" : status === "Đã trả" ? "status-da-tra" : status === "Quá hạn" ? "status-qua-han" : "status-chua-muon"}`}>
+                                                {status}
+                                            </span>
                                         </Box>
                                     </Box>
                                     <Box sx={{ p: 2 }}>
                                         <Grid container spacing={2}>
                                             <Grid item xs={6}>
                                                 <Typography variant="caption" color="text.secondary">Khách hàng</Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.96rem', color: '#0f172a' }}>
                                                     {hd.khachHang1 ? hd.khachHang1.tenKhachHang : ''}
                                                     {hd.khachHang2 && hd.khachHang2.tenKhachHang ? ' / ' + hd.khachHang2.tenKhachHang : ''}
                                                 </Typography>
                                             </Grid>
                                             <Grid item xs={6}>
                                                 <Typography variant="caption" color="text.secondary">Liên hệ</Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 600, color: '#2563eb' }}>
                                                     {hd.khachHang1 ? hd.khachHang1.soDienThoai : ''}
                                                     {hd.khachHang2 && hd.khachHang2.soDienThoai ? ' / ' + hd.khachHang2.soDienThoai : ''}
                                                 </Typography>
                                             </Grid>
                                             <Grid item xs={6}>
                                                 <Typography variant="caption" color="text.secondary">Dịch vụ</Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{getDichVuChinhLabel(hd.dichVuChinh)}</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 700, color: '#0369a1' }}>{getDichVuChinhLabel(hd.dichVuChinh)}</Typography>
                                             </Grid>
                                             <Grid item xs={6}>
                                                 <Typography variant="caption" color="text.secondary">Ngày mượn</Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{formatDate(hd.soanDo?.ngayMuon) || '-'}</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatDate(hd.soanDo?.ngayMuon) || '-'}</Typography>
                                             </Grid>
                                             <Grid item xs={6}>
                                                 <Typography variant="caption" color="text.secondary">Ngày trả</Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: isRed ? '#d32f2f' : 'inherit' }}>{formatDate(hd.soanDo?.ngayTra) || '-'}</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 800, color: isRed ? '#dc2626' : 'inherit' }}>{formatDate(hd.soanDo?.ngayTra) || '-'}</Typography>
                                             </Grid>
                                             <Grid item xs={6}>
                                                 <Typography variant="caption" color="text.secondary">Đặt cọc</Typography>
-                                                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#2e7d32' }}>{hd.soanDo?.datCoc ? Number(hd.soanDo.datCoc).toLocaleString('vi-VN') + ' đ' : '-'}</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 800, color: '#16a34a' }}>{hd.soanDo?.datCoc ? Number(hd.soanDo.datCoc).toLocaleString('vi-VN') + ' đ' : '-'}</Typography>
                                             </Grid>
                                         </Grid>
                                     </Box>
@@ -894,110 +778,131 @@ function LichSoanDo() {
                     </Stack>
                 </div>
             ) : (
-            <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
-                <Table stickyHeader>
-                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold', whiteSpace: 'nowrap' } }}>
-                        <TableRow>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '60px' }}>STT</TableCell>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '120px' }}>MÃ SỐ HĐ</TableCell>
-                            <TableCell style={{ fontWeight: 'bold', width: '180px' }}>LOẠI HỢP ĐỒNG</TableCell>
-                            <TableCell style={{ fontWeight: 'bold', width: '220px' }}>TÊN KHÁCH HÀNG</TableCell>
-                            <TableCell style={{ fontWeight: 'bold', width: '150px' }}>SĐT</TableCell>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '160px' }}>NGÀY SOẠN ĐỒ</TableCell>
-                            <TableCell style={{ fontWeight: 'bold', width: '200px' }}>NỘI DUNG</TableCell>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '160px' }}>NGÀY MƯỢN</TableCell>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '160px' }}>NGÀY TRẢ</TableCell>
-                            <TableCell align="right" style={{ fontWeight: 'bold', width: '140px' }}>ĐẶT CỌC</TableCell>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '150px' }}>TRẠNG THÁI</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {listToDisplay.length === 0 ? (
+            <Paper elevation={0} className="soando-table-container glass-panel">
+                <TableContainer style={{ overflow: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
+                    <Table stickyHeader size="small">
+                        <TableHead sx={{ '& th': { backgroundColor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.8, whiteSpace: 'nowrap' } }}>
                             <TableRow>
-                                <TableCell colSpan={11} align="center" style={{ padding: '30px', color: '#999' }}>
-                                    Không tìm thấy hợp đồng nào phù hợp.
-                                </TableCell>
+                                <TableCell align="center" style={{ width: '55px' }}>STT</TableCell>
+                                <TableCell align="center" style={{ width: '110px' }}>MÃ SỐ HĐ</TableCell>
+                                <TableCell style={{ width: '160px' }}>LOẠI HỢP ĐỒNG</TableCell>
+                                <TableCell style={{ width: '200px' }}>TÊN KHÁCH HÀNG</TableCell>
+                                <TableCell style={{ width: '140px' }}>LIÊN HỆ</TableCell>
+                                <TableCell align="center" style={{ width: '150px' }}>NGÀY SOẠN ĐỒ</TableCell>
+                                <TableCell style={{ width: '180px' }}>NỘI DUNG</TableCell>
+                                <TableCell align="center" style={{ width: '150px' }}>NGÀY MƯỢN</TableCell>
+                                <TableCell align="center" style={{ width: '150px' }}>NGÀY TRẢ</TableCell>
+                                <TableCell align="right" style={{ width: '130px' }}>ĐẶT CỌC</TableCell>
+                                <TableCell align="center" style={{ width: '140px' }}>TRẠNG THÁI</TableCell>
                             </TableRow>
-                        ) : (
-                            listToDisplay.map((hd, idx) => {
-                                const status = getTrangThaiText(hd.soanDo);
-                                const isRed = status === "Quá hạn";
-                                const badgeClass = status === "Đang mượn" ? "badge-dang-muon" :
-                                                   status === "Đã trả" ? "badge-da-tra" :
-                                                   status === "Quá hạn" ? "badge-qua-han" : "badge-chua-muon";
-                                return (
-                                    <TableRow
-                                        key={hd._id}
-                                        className="LichSoanDo-table-row"
-                                        style={{ backgroundColor: isRed ? '#ffebee' : 'inherit' }}
-                                        onClick={() => handleRowClick(hd)}
-                                    >
-                                        <TableCell align="center">{idx + 1}</TableCell>
-                                        <TableCell align="center" style={{ fontWeight: '500' }}>{hd.maHopDong}</TableCell>
-                                        <TableCell>{getDichVuChinhLabel(hd.dichVuChinh)}</TableCell>
-                                        <TableCell>
-                                            {hd.khachHang1 ? hd.khachHang1.tenKhachHang : ''}
-                                            {hd.khachHang2 && hd.khachHang2.tenKhachHang && (
-                                                <> & <br /> {hd.khachHang2.tenKhachHang}</>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <span>{hd.khachHang1 ? hd.khachHang1.soDienThoai : ''}</span>
-                                                {hd.khachHang1?.facebookId && (
-                                                    <a 
-                                                        href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer" 
-                                                        style={{ color: '#1877f2', textDecoration: 'none' }}
-                                                        title="Mở Facebook Khách hàng 1"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        <i className="fa-brands fa-facebook"></i>
-                                                    </a>
+                        </TableHead>
+                        <TableBody>
+                            {listToDisplay.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={11} align="center" sx={{ py: 6, color: '#94a3b8' }}>
+                                        <i className="fa-solid fa-folder-open" style={{ fontSize: '2.5rem', marginBottom: '10px', display: 'block', color: '#cbd5e1' }}></i>
+                                        Không tìm thấy hợp đồng nào phù hợp.
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                listToDisplay.map((hd, idx) => {
+                                    const status = getTrangThaiText(hd.soanDo);
+                                    const isRed = status === "Quá hạn";
+                                    const statusClass = status === "Đang mượn" ? "status-dang-muon" :
+                                                       status === "Đã trả" ? "status-da-tra" :
+                                                       status === "Quá hạn" ? "status-qua-han" : "status-chua-muon";
+                                    return (
+                                        <TableRow
+                                            key={hd._id || idx}
+                                            className={`soando-table-row ${isRed ? 'row-overdue' : ''}`}
+                                            onClick={() => handleRowClick(hd)}
+                                        >
+                                            <TableCell align="center" style={{ fontWeight: 600, color: '#64748b' }}>{idx + 1}</TableCell>
+                                            <TableCell align="center">
+                                                <span className="badge-code">
+                                                    {hd.maHopDong}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="badge-service-tag">
+                                                    {getDichVuChinhLabel(hd.dichVuChinh)}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div style={{ fontWeight: 800, fontSize: '0.94rem', color: '#0f172a' }}>
+                                                    {hd.khachHang1 ? hd.khachHang1.tenKhachHang : ''}
+                                                </div>
+                                                {hd.khachHang2 && hd.khachHang2.tenKhachHang && (
+                                                    <div style={{ fontSize: '0.84rem', color: '#475569', fontWeight: 600, marginTop: '2px' }}>
+                                                        & {hd.khachHang2.tenKhachHang}
+                                                    </div>
                                                 )}
-                                            </div>
-                                             {hd.khachHang2 && hd.khachHang2.soDienThoai && (
-                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                                                     <span>{hd.khachHang2.soDienThoai}</span>
-                                                     {hd.khachHang2?.facebookId && (
-                                                         <a 
-                                                             href={hd.khachHang2.facebookId.startsWith('http') ? hd.khachHang2.facebookId : `https://facebook.com/${hd.khachHang2.facebookId}`} 
-                                                             target="_blank" 
-                                                             rel="noopener noreferrer" 
-                                                             style={{ color: '#1877f2', textDecoration: 'none' }}
-                                                             title="Mở Facebook Khách hàng 2"
-                                                             onClick={(e) => e.stopPropagation()}
-                                                         >
-                                                             <i className="fa-brands fa-facebook"></i>
-                                                         </a>
-                                                     )}
-                                                 </div>
-                                             )}
-                                        </TableCell>
-                                        <TableCell align="center">{formatDate(hd.soanDo ? hd.soanDo.ngaySoan : null)}</TableCell>
-                                        <TableCell style={{ maxLines: 2, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {hd.soanDo && hd.soanDo.noiDung ? hd.soanDo.noiDung : '-'}
-                                        </TableCell>
-                                        <TableCell align="center">{formatDate(hd.soanDo ? hd.soanDo.ngayMuon : null)}</TableCell>
-                                        <TableCell align="center" style={{ color: isRed ? '#d32f2f' : 'inherit', fontWeight: isRed ? 'bold' : 'normal' }}>
-                                            {formatDate(hd.soanDo ? hd.soanDo.ngayTra : null)}
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            {hd.soanDo && hd.soanDo.datCoc ? Number(hd.soanDo.datCoc).toLocaleString('vi-VN') + ' đ' : '-'}
-                                        </TableCell>
-                                        <TableCell align="center">
-                                            <span className={"status-badge " + badgeClass}>
-                                                {status}
-                                            </span>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span style={{ fontWeight: 600, color: '#2563eb' }}>{hd.khachHang1 ? hd.khachHang1.soDienThoai : ''}</span>
+                                                    {hd.khachHang1?.facebookId && (
+                                                        <Tooltip title="Mở Facebook Khách 1">
+                                                            <a 
+                                                                href={hd.khachHang1.facebookId.startsWith('http') ? hd.khachHang1.facebookId : `https://facebook.com/${hd.khachHang1.facebookId}`} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer" 
+                                                                style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <i className="fa-brands fa-facebook"></i>
+                                                            </a>
+                                                        </Tooltip>
+                                                    )}
+                                                </div>
+                                                {hd.khachHang2 && hd.khachHang2.soDienThoai && (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                                                        <span style={{ fontSize: '0.82rem', color: '#64748b' }}>{hd.khachHang2.soDienThoai}</span>
+                                                        {hd.khachHang2?.facebookId && (
+                                                            <Tooltip title="Mở Facebook Khách 2">
+                                                                <a 
+                                                                    href={hd.khachHang2.facebookId.startsWith('http') ? hd.khachHang2.facebookId : `https://facebook.com/${hd.khachHang2.facebookId}`} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer" 
+                                                                    style={{ color: '#1877f2', textDecoration: 'none' }}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <i className="fa-brands fa-facebook"></i>
+                                                                </a>
+                                                            </Tooltip>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                            <TableCell align="center" style={{ color: '#334155', fontWeight: 500 }}>
+                                                {formatDate(hd.soanDo ? hd.soanDo.ngaySoan : null)}
+                                            </TableCell>
+                                            <TableCell style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#475569', fontSize: '0.85rem' }}>
+                                                {hd.soanDo && hd.soanDo.noiDung ? hd.soanDo.noiDung : '-'}
+                                            </TableCell>
+                                            <TableCell align="center" style={{ color: '#334155', fontWeight: 600 }}>
+                                                {formatDate(hd.soanDo ? hd.soanDo.ngayMuon : null)}
+                                            </TableCell>
+                                            <TableCell align="center" style={{ color: isRed ? '#dc2626' : '#334155', fontWeight: isRed ? 800 : 600 }}>
+                                                {formatDate(hd.soanDo ? hd.soanDo.ngayTra : null)}
+                                                {isRed && <span style={{ display: 'block', fontSize: '0.72rem', color: '#dc2626', fontWeight: 800 }}>(Trễ trả)</span>}
+                                            </TableCell>
+                                            <TableCell align="right" style={{ fontWeight: 800, color: '#16a34a' }}>
+                                                {hd.soanDo && hd.soanDo.datCoc ? Number(hd.soanDo.datCoc).toLocaleString('vi-VN') + ' đ' : '-'}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <span className={`status-badge-modern ${statusClass}`}>
+                                                    {status}
+                                                </span>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Paper>
             )}
 
             {/* DIALOG MANAGE FORM */}

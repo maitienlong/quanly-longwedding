@@ -18,9 +18,7 @@ import {
     Select,
     MenuItem,
     FormControl,
-    InputLabel,
-    Tabs,
-    Tab
+    InputLabel
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -29,11 +27,13 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DownloadIcon from '@mui/icons-material/Download';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import PaymentsIcon from '@mui/icons-material/Payments';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SaveIcon from '@mui/icons-material/Save';
+import PaymentsIcon from '@mui/icons-material/Payments';
+import BoltIcon from '@mui/icons-material/Bolt';
 import { toast } from 'sonner';
 import appService from '../../API/services/otherService';
+import './SePayDialogModern.css';
 
 const POPULAR_BANKS = [
     { code: 'MBBank', name: 'MBBank - Ngân hàng Quân Đội' },
@@ -51,23 +51,20 @@ const POPULAR_BANKS = [
 export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmount = 0, onSuccess }) {
     const activeMaHopDong = maHopDong || data?.maHopDong || '';
     
-    // Tab state: 0 = VietQR SePay Webhook, 1 = Tiền mặt
-    const [tabIndex, setTabIndex] = useState(0);
     const [sessionCode, setSessionCode] = useState('');
     const [sessionStartTime, setSessionStartTime] = useState(Date.now());
 
     const [loading, setLoading] = useState(true);
     const [qrData, setQrData] = useState(null);
     const [customAmount, setCustomAmount] = useState(defaultAmount);
-    const [isPolling, setIsPolling] = useState(false);
     const [paymentReceived, setPaymentReceived] = useState(false);
     const [paymentDetail, setPaymentDetail] = useState(null);
+    const [countdown, setCountdown] = useState(3);
 
-    // Cash Payment Form States
-    const [cashAmount, setCashAmount] = useState(defaultAmount);
-    const [cashMethod, setCashMethod] = useState('Tiền mặt');
-    const [cashNote, setCashNote] = useState('Thanh toán hợp đồng');
-    const [isSubmittingCash, setIsSubmittingCash] = useState(false);
+    // Tab state & Cash payment
+    const [paymentTab, setPaymentTab] = useState(0); // 0 = VietQR, 1 = Tiền mặt
+    const [cashNote, setCashNote] = useState("Thanh toán hợp đồng");
+    const [savingCash, setSavingCash] = useState(false);
 
     // Bank Config State
     const [showConfigEdit, setShowConfigEdit] = useState(false);
@@ -91,7 +88,6 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
                 setQrData(resData);
                 if (resData.amount !== undefined) {
                     setCustomAmount(resData.amount);
-                    if (!cashAmount) setCashAmount(resData.amount);
                 }
                 setEditBankName(resData.bankName || 'MBBank');
                 setEditAccountNumber(resData.accountNumber || '9990187764519');
@@ -123,13 +119,12 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
                 const detailObj = statusData.latestPayment || {
                     amount: currentPaid,
                     method: 'Chuyển khoản (VietQR SePay)',
-                    noiDung: `Thanh toán ${activeMaHopDong}`
+                    noiDung: qrData?.transferContent || `Thanh toán ${activeMaHopDong}`
                 };
 
                 if (initialPaymentCountRef.current === null) {
                     initialPaymentCountRef.current = currentCount;
                     initialPaidAmountRef.current = currentPaid;
-                    // If contract is fully paid or has paid amount, show success screen immediately!
                     if (currentPaid > 0 && conLai === 0) {
                         setPaymentReceived(true);
                         setPaymentDetail(detailObj);
@@ -138,8 +133,8 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
                     if (currentCount > initialPaymentCountRef.current || currentPaid > initialPaidAmountRef.current || (isManualCheck && currentPaid > 0)) {
                         setPaymentReceived(true);
                         setPaymentDetail(detailObj);
-                        toast.success(`🎉 Đã nhận thanh toán SePay Webhook thành công: ${(detailObj.amount || currentPaid || 0).toLocaleString('vi-VN')} đ!`, {
-                            duration: 6000
+                        toast.success(`🎉 Thanh toán thành công: ${(detailObj.amount || currentPaid || 0).toLocaleString('vi-VN')} đ - Nội dung: ${detailObj.noiDung || activeMaHopDong}`, {
+                            duration: 5000
                         });
                         if (onSuccess) {
                             onSuccess(statusData);
@@ -157,6 +152,27 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
         }
     };
 
+    // Auto close timer when payment is received
+    useEffect(() => {
+        let interval = null;
+        if (paymentReceived) {
+            setCountdown(3);
+            interval = setInterval(() => {
+                setCountdown((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(interval);
+                        if (onClose) onClose();
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [paymentReceived, onClose]);
+
     useEffect(() => {
         const handleSocketPayment = (paymentData) => {
             const cleanSocketMa = (paymentData?.maHopDong || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -168,14 +184,15 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
 
             if (isSameHopDong && isFreshSession && isMatchingSessionCode) {
                 console.log("⚡ [WebSocket Event] Received real-time payment success:", paymentData);
-                setPaymentReceived(true);
-                setPaymentDetail(paymentData.latestPayment || {
+                const finalDetail = paymentData.latestPayment || {
                     amount: paymentData.amount,
                     method: 'Chuyển khoản (VietQR SePay)',
-                    noiDung: `Thanh toán SePay ${paymentData.maHopDong}`
-                });
-                toast.success(`⚡ [WebSocket Real-time] Đã nhận thanh toán SePay thành công: ${(paymentData.amount || 0).toLocaleString('vi-VN')} đ!`, {
-                    duration: 6000
+                    noiDung: qrData?.transferContent || `Thanh toán SePay ${paymentData.maHopDong}`
+                };
+                setPaymentReceived(true);
+                setPaymentDetail(finalDetail);
+                toast.success(`🎉 Thanh toán thành công: ${(finalDetail.amount || 0).toLocaleString('vi-VN')} đ - Nội dung: ${finalDetail.noiDung || activeMaHopDong}`, {
+                    duration: 5000
                 });
                 if (onSuccess) {
                     onSuccess(paymentData);
@@ -192,15 +209,14 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
             setPaymentReceived(false);
             setPaymentDetail(null);
             setShowConfigEdit(false);
-            setTabIndex(0);
+            setPaymentTab(0);
+            setCashNote(`Thanh toán hợp đồng ${activeMaHopDong}`);
             setCustomAmount(defaultAmount);
-            setCashAmount(defaultAmount);
-            setCashNote('Thanh toán hợp đồng');
+            setCountdown(3);
             initialPaymentCountRef.current = null;
             initialPaidAmountRef.current = null;
             
             fetchQrInfo(defaultAmount);
-            setIsPolling(true);
 
             // Connect WebSocket when starting payment dialog
             if (!paymentSocket.connected) {
@@ -210,12 +226,11 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
 
             pollingTimerRef.current = setInterval(() => {
                 checkStatus();
-            }, 4000);
+            }, 3000);
         } else {
             if (pollingTimerRef.current) {
                 clearInterval(pollingTimerRef.current);
             }
-            setIsPolling(false);
         }
 
         return () => {
@@ -252,57 +267,6 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
         }
     };
 
-    // Submit Cash Payment
-    const handleSubmitCashPayment = async () => {
-        const amountNum = Number(cashAmount) || 0;
-        if (amountNum <= 0) {
-            toast.warning("Số tiền thanh toán phải lớn hơn 0!");
-            return;
-        }
-
-        if (!data || !data._id) {
-            toast.warning("Chưa có ID hợp đồng để ghi nhận thanh toán!");
-            return;
-        }
-
-        setIsSubmittingCash(true);
-        try {
-            const cacLuotThanhToan = [...(data?.thanhToan?.cacLuotThanhToan || [])];
-            const newPaymentObj = {
-                id: `TT-${activeMaHopDong}-${Date.now()}`,
-                khachHang: data?.khachHang1?.tenKhachHang || "Khách hàng",
-                amount: amountNum,
-                date: new Date().toISOString(),
-                method: cashMethod || "Tiền mặt",
-                noiDung: cashNote || "Thanh toán tiền mặt"
-            };
-            cacLuotThanhToan.push(newPaymentObj);
-
-            await appService.UPDATE_HOPDONG({
-                _id: data._id,
-                maHopDong: activeMaHopDong,
-                thanhToan: {
-                    giamGia: data?.thanhToan?.giamGia || 0,
-                    loaiGiamGia: data?.thanhToan?.loaiGiamGia || 0,
-                    cacLuotThanhToan: cacLuotThanhToan
-                }
-            });
-
-            toast.success(`Đã thu tiền mặt ${amountNum.toLocaleString('vi-VN')} đ thành công!`);
-            setPaymentReceived(true);
-            setPaymentDetail(newPaymentObj);
-
-            if (onSuccess) {
-                onSuccess({ latestPayment: newPaymentObj });
-            }
-        } catch (err) {
-            console.error("Lỗi khi ghi nhận thanh toán tiền mặt:", err);
-            toast.error("Có lỗi xảy ra khi ghi nhận thanh toán tiền mặt");
-        } finally {
-            setIsSubmittingCash(false);
-        }
-    };
-
     const handleCopy = (text, label) => {
         if (!text) return;
         navigator.clipboard.writeText(text);
@@ -314,8 +278,17 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
         setCustomAmount(val);
     };
 
-    const handleApplyCustomAmount = () => {
-        fetchQrInfo(customAmount);
+    const handleApplyCustomAmount = (newAmount) => {
+        const amt = newAmount !== undefined ? newAmount : customAmount;
+        setCustomAmount(amt);
+        fetchQrInfo(amt);
+    };
+
+    const handleQuickPercent = (percent) => {
+        const base = defaultAmount || customAmount || 0;
+        const calculated = Math.round((base * (percent / 100)) / 1000) * 1000;
+        setCustomAmount(calculated);
+        fetchQrInfo(calculated);
     };
 
     const handleDownloadQr = () => {
@@ -329,70 +302,144 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
         document.body.removeChild(link);
     };
 
+    const handleConfirmCashPayment = async () => {
+        if (!activeMaHopDong) return;
+        const payAmt = Number(customAmount) || 0;
+        if (payAmt <= 0) {
+            toast.warning("Vui lòng nhập số tiền thanh toán hợp lệ!");
+            return;
+        }
+        setSavingCash(true);
+        try {
+            let contract = data;
+            if (!contract || !contract._id) {
+                const resSearch = await appService.SEARCH_HOPDONG({ maHopDong: activeMaHopDong });
+                const list = resSearch.data?.hopDong || [];
+                contract = list.find(h => h.maHopDong === activeMaHopDong) || list[0];
+            }
+            if (!contract) {
+                toast.error("Không tìm thấy thông tin hợp đồng để ghi nhận thanh toán!");
+                return;
+            }
+
+            const existingPayments = contract.thanhToan?.cacLuotThanhToan || [];
+            const newPaymentItem = {
+                id: `TM_${activeMaHopDong}_${Date.now()}`,
+                amount: payAmt,
+                method: "Tiền mặt",
+                noiDung: cashNote || `Thanh toán tiền mặt ${activeMaHopDong}`,
+                date: new Date().toISOString(),
+                khachHang: contract.khachHang1?.tenKhachHang || "Khách hàng"
+            };
+
+            const updatedPayments = [...existingPayments, newPaymentItem];
+
+            await appService.UPDATE_HOPDONG({
+                _id: contract._id,
+                maHopDong: activeMaHopDong,
+                thanhToan: {
+                    ...contract.thanhToan,
+                    cacLuotThanhToan: updatedPayments
+                }
+            });
+
+            const detailObj = {
+                amount: payAmt,
+                method: 'Tiền mặt',
+                noiDung: newPaymentItem.noiDung
+            };
+
+            setPaymentReceived(true);
+            setPaymentDetail(detailObj);
+            toast.success(`🎉 Đã ghi nhận thu tiền mặt thành công: ${payAmt.toLocaleString('vi-VN')} đ`);
+
+            if (onSuccess) {
+                onSuccess({
+                    latestPayment: newPaymentItem,
+                    khachHangDaThanhToan: (contract.thanhToan?.khachHangDaThanhToan || 0) + payAmt
+                });
+            }
+        } catch (err) {
+            console.error("Lỗi khi ghi nhận tiền mặt:", err);
+            toast.error("Có lỗi xảy ra khi ghi nhận tiền mặt!");
+        } finally {
+            setSavingCash(false);
+        }
+    };
+
     return (
         <Dialog
             open={open}
             onClose={onClose}
             maxWidth="md"
             fullWidth
+            className="sp-dialog-root"
             PaperProps={{
-                style: {
-                    borderRadius: 16,
-                    padding: '8px'
-                }
+                className: "sp-dialog-paper"
             }}
         >
-            <DialogTitle style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-                <Box style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <AccountBalanceIcon style={{ color: '#0284c7', fontSize: 28 }} />
-                    <Typography variant="h6" style={{ fontWeight: 700, color: '#0f172a' }}>
-                        Thanh Toán Hợp Đồng ({activeMaHopDong})
-                    </Typography>
-                </Box>
-                <Box style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {/* 1. HEADER */}
+            <div className="sp-header">
+                <div className="sp-header-left">
+                    <div className="sp-header-icon">
+                        <BoltIcon />
+                    </div>
+                    <div>
+                        <h3 className="sp-header-title">
+                            Thanh Toán Hợp Đồng
+                            <span className="sp-header-badge">{activeMaHopDong}</span>
+                        </h3>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Tooltip title="Cấu hình tài khoản ngân hàng SePay">
-                        <IconButton size="small" onClick={() => setShowConfigEdit(!showConfigEdit)} style={{ color: '#0284c7' }}>
-                            <SettingsIcon />
+                        <IconButton
+                            size="small"
+                            onClick={() => setShowConfigEdit(!showConfigEdit)}
+                            style={{ color: '#94a3b8', background: 'rgba(255,255,255,0.08)' }}
+                        >
+                            <SettingsIcon fontSize="small" />
                         </IconButton>
                     </Tooltip>
-                    <IconButton onClick={onClose} size="small">
-                        <CloseIcon />
+                    <IconButton
+                        onClick={onClose}
+                        size="small"
+                        style={{ color: '#94a3b8', background: 'rgba(255,255,255,0.08)' }}
+                    >
+                        <CloseIcon fontSize="small" />
                     </IconButton>
-                </Box>
-            </DialogTitle>
+                </div>
+            </div>
 
-            <DialogContent dividers style={{ background: '#f8fafc', padding: 20 }}>
-                {/* Method Tabs */}
+            <DialogContent style={{ background: '#f8fafc', padding: '18px 22px' }}>
+                {/* 2. MODERN SEGMENTED TABS */}
                 {!paymentReceived && (
-                    <Box style={{ borderBottom: '1px solid #e2e8f0', marginBottom: 16 }}>
-                        <Tabs
-                            value={tabIndex}
-                            onChange={(e, val) => setTabIndex(val)}
-                            variant="fullWidth"
-                            textColor="primary"
-                            indicatorColor="primary"
+                    <div className="sp-tabs-container">
+                        <button
+                            type="button"
+                            className={`sp-tab-btn ${paymentTab === 0 ? 'active' : ''}`}
+                            onClick={() => setPaymentTab(0)}
                         >
-                            <Tab
-                                icon={<QrCode2Icon />}
-                                iconPosition="start"
-                                label="VietQR (SePay Webhook)"
-                                style={{ fontWeight: 700, textTransform: 'none', fontSize: '0.9rem' }}
-                            />
-                            <Tab
-                                icon={<PaymentsIcon />}
-                                iconPosition="start"
-                                label="Tiền mặt"
-                                style={{ fontWeight: 700, textTransform: 'none', fontSize: '0.9rem' }}
-                            />
-                        </Tabs>
-                    </Box>
+                            <AccountBalanceIcon style={{ fontSize: 18 }} />
+                            <span>Quét VietQR SePay (Tự Động)</span>
+                        </button>
+                        <button
+                            type="button"
+                            className={`sp-tab-btn cash ${paymentTab === 1 ? 'active cash' : ''}`}
+                            onClick={() => setPaymentTab(1)}
+                        >
+                            <PaymentsIcon style={{ fontSize: 18 }} />
+                            <span>Thu Tiền Mặt Trực Tiếp</span>
+                        </button>
+                    </div>
                 )}
 
                 {/* Bank Config Edit Drawer */}
                 {showConfigEdit && (
-                    <Paper elevation={3} style={{ padding: 16, borderRadius: 12, marginBottom: 16, border: '1.5px solid #0284c7', background: '#ffffff' }}>
-                        <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#0369a1', marginBottom: 12 }}>
-                            ⚙️ Thiết Lập Tài Khoản Ngân Hàng SePay
+                    <Paper elevation={0} style={{ padding: 16, borderRadius: 14, marginBottom: 16, border: '1.5px solid #0284c7', background: '#ffffff' }}>
+                        <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#0369a1', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            ⚙️ Thiết Lập Tài Khoản Ngân Hàng Nhận Tiền
                         </Typography>
                         <Box style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                             <FormControl size="small" fullWidth>
@@ -440,7 +487,7 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
                                     startIcon={<SaveIcon />}
                                     onClick={handleSaveBankConfig}
                                     disabled={savingConfig}
-                                    style={{ backgroundColor: '#0284c7', color: '#fff', fontWeight: 600 }}
+                                    style={{ backgroundColor: '#0284c7', color: '#fff', fontWeight: 600, textTransform: 'none' }}
                                 >
                                     {savingConfig ? "Đang lưu..." : "Lưu tài khoản"}
                                 </Button>
@@ -449,285 +496,348 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
                     </Paper>
                 )}
 
+                {/* 3. MAIN CONTENT */}
                 {paymentReceived ? (
-                    <Box style={{ textAlign: 'center', padding: '32px 16px', background: 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)', borderRadius: 16 }}>
-                        <Box style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: 90, height: 90, borderRadius: '50%', background: '#dcfce7', border: '4px solid #86efac', marginBottom: 20, boxShadow: '0 10px 25px -5px rgba(22, 163, 74, 0.3)' }}>
-                            <CheckCircleIcon style={{ fontSize: 64, color: '#16a34a' }} />
+                    /* SCREEN: THANH TOÁN THÀNH CÔNG */
+                    <Box style={{ textAlign: 'center', padding: '28px 16px', background: 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)', borderRadius: 16 }}>
+                        <Box style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: 76, height: 76, borderRadius: '50%', background: '#dcfce7', border: '3px solid #86efac', marginBottom: 14, boxShadow: '0 10px 25px -5px rgba(22, 163, 74, 0.3)' }}>
+                            <CheckCircleIcon style={{ fontSize: 50, color: '#16a34a' }} />
                         </Box>
 
-                        <Typography variant="h4" style={{ fontWeight: 800, color: '#15803d', marginBottom: 8, letterSpacing: '-0.5px' }}>
+                        <Typography variant="h5" style={{ fontWeight: 800, color: '#15803d', marginBottom: 6, fontSize: '1.45rem' }}>
                             THANH TOÁN THÀNH CÔNG!
                         </Typography>
 
                         <Chip
-                            label="⚡ Đã nhận SePay Webhook & Gạch nợ thành công"
+                            label="⚡ Đã ghi nhận & gạch nợ hợp đồng thành công"
                             color="success"
-                            style={{ fontWeight: 700, marginBottom: 24, padding: '4px 8px', background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', fontSize: 13 }}
+                            style={{ fontWeight: 700, marginBottom: 18, padding: '4px 8px', background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', fontSize: 13 }}
                         />
 
-                        {paymentDetail && (
-                            <Paper elevation={3} style={{ padding: 24, borderRadius: 20, background: '#ffffff', border: '2px solid #bbf7d0', maxWidth: 440, margin: '0 auto', textAlign: 'left', boxShadow: '0 12px 30px -10px rgba(0,0,0,0.06)' }}>
-                                <Box style={{ textAlign: 'center', paddingBottom: 16, marginBottom: 16, borderBottom: '2px dashed #e2e8f0' }}>
-                                    <Typography variant="caption" style={{ color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>
-                                        Số tiền đã gạch nợ
-                                    </Typography>
-                                    <Typography variant="h3" style={{ color: '#15803d', fontWeight: 900, fontSize: 32, marginTop: 4 }}>
-                                        {(paymentDetail.amount || 0).toLocaleString('vi-VN')} <span style={{ fontSize: 20 }}>đ</span>
-                                    </Typography>
-                                </Box>
+                        <Paper elevation={0} style={{ padding: 20, borderRadius: 16, background: '#ffffff', border: '1.5px solid #bbf7d0', maxWidth: 440, margin: '0 auto', textAlign: 'left', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.04)' }}>
+                            {/* Số tiền */}
+                            <Box style={{ textAlign: 'center', paddingBottom: 12, marginBottom: 12, borderBottom: '1.5px dashed #e2e8f0' }}>
+                                <Typography variant="caption" style={{ color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, fontSize: '0.74rem' }}>
+                                    Số tiền thanh toán
+                                </Typography>
+                                <Typography variant="h4" style={{ color: '#15803d', fontWeight: 900, fontSize: 28, marginTop: 4 }}>
+                                    {(paymentDetail?.amount || customAmount || 0).toLocaleString('vi-VN')} <span style={{ fontSize: 16 }}>đ</span>
+                                </Typography>
+                            </Box>
 
-                                <Box style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                    <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Typography variant="body2" style={{ color: '#64748b', fontWeight: 500 }}>Mã Hợp Đồng:</Typography>
-                                        <Typography variant="subtitle2" style={{ color: '#0f172a', fontWeight: 800 }}>{activeMaHopDong}</Typography>
-                                    </Box>
-                                    <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Typography variant="body2" style={{ color: '#64748b', fontWeight: 500 }}>Phương thức:</Typography>
-                                        <Typography variant="subtitle2" style={{ color: '#0284c7', fontWeight: 700 }}>{paymentDetail.method || 'Chuyển khoản (VietQR SePay)'}</Typography>
-                                    </Box>
-                                    <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Typography variant="body2" style={{ color: '#64748b', fontWeight: 500 }}>Nội dung:</Typography>
-                                        <Typography variant="body2" style={{ color: '#334155', fontWeight: 600, fontStyle: 'italic' }}>{paymentDetail.noiDung || '-'}</Typography>
-                                    </Box>
-                                    <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
-                                        <Typography variant="caption" style={{ color: '#94a3b8' }}>Thời gian ghi nhận:</Typography>
-                                        <Typography variant="caption" style={{ color: '#64748b', fontWeight: 600 }}>{new Date().toLocaleString('vi-VN')}</Typography>
-                                    </Box>
+                            {/* Thông tin chi tiết */}
+                            <Box style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                                <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Typography variant="body2" style={{ color: '#64748b', fontSize: '0.82rem' }}>Mã Hợp Đồng:</Typography>
+                                    <Typography variant="subtitle2" style={{ color: '#0f172a', fontWeight: 800, fontSize: '0.86rem' }}>{activeMaHopDong}</Typography>
                                 </Box>
-                            </Paper>
-                        )}
+                                <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Typography variant="body2" style={{ color: '#64748b', fontSize: '0.82rem' }}>Nội dung:</Typography>
+                                    <Typography variant="body2" style={{ color: '#1e40af', fontWeight: 700, fontStyle: 'italic', fontSize: '0.84rem' }}>
+                                        {paymentDetail?.noiDung || qrData?.transferContent || `Thanh toán ${activeMaHopDong}`}
+                                    </Typography>
+                                </Box>
+                                <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Typography variant="body2" style={{ color: '#64748b', fontSize: '0.82rem' }}>Phương thức:</Typography>
+                                    <Typography variant="subtitle2" style={{ color: '#0284c7', fontWeight: 700, fontSize: '0.84rem' }}>
+                                        {paymentDetail?.method || 'Chuyển khoản (VietQR SePay)'}
+                                    </Typography>
+                                </Box>
+                                <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: '1px solid #f1f5f9' }}>
+                                    <Typography variant="caption" style={{ color: '#94a3b8' }}>Thời gian ghi nhận:</Typography>
+                                    <Typography variant="caption" style={{ color: '#64748b', fontWeight: 600 }}>{new Date().toLocaleString('vi-VN')}</Typography>
+                                </Box>
+                            </Box>
+                        </Paper>
+
+                        {/* Đếm ngược tự động đóng */}
+                        <Box style={{ marginTop: 14 }}>
+                            <Typography variant="body2" style={{ color: '#059669', fontWeight: 600, fontSize: '0.84rem' }}>
+                                ⏱️ Cửa sổ sẽ tự động đóng sau <strong>{countdown}</strong> giây...
+                            </Typography>
+                        </Box>
                     </Box>
-                ) : tabIndex === 0 ? (
-                    /* TAB 0: VIETQR SEPAY WEBHOOK */
+                ) : paymentTab === 1 ? (
+                    /* SCREEN: THU TIỀN MẶT */
+                    <div className="sp-cash-card">
+                        <Box style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, borderBottom: '1px solid #f1f5f9', paddingBottom: 12 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
+                                <PaymentsIcon fontSize="small" />
+                            </div>
+                            <div>
+                                <Typography variant="subtitle1" style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.96rem' }}>
+                                    Phiếu Thu Tiền Mặt Trực Tiếp
+                                </Typography>
+                                <Typography variant="caption" style={{ color: '#64748b' }}>
+                                    Hợp đồng: <strong>{activeMaHopDong}</strong> • Khách hàng: <strong>{data?.khachHang1?.tenKhachHang || 'Khách hàng'}</strong>
+                                </Typography>
+                            </div>
+                        </Box>
+
+                        <Box style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                                    SỐ TIỀN THU (VNĐ)
+                                </label>
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    variant="outlined"
+                                    value={(customAmount || 0).toLocaleString('vi-VN')}
+                                    onChange={handleAmountChange}
+                                    style={{ background: '#ffffff' }}
+                                    inputProps={{ style: { fontSize: '1.2rem', fontWeight: 800, color: '#15803d' } }}
+                                />
+                                {/* Quick Percentage Chips */}
+                                <div className="sp-quick-chips">
+                                    <span style={{ fontSize: '0.72rem', color: '#64748b', alignSelf: 'center', marginRight: 4 }}>Chọn nhanh:</span>
+                                    <button type="button" className="sp-chip-btn" onClick={() => handleQuickPercent(100)}>100% (Đủ)</button>
+                                    <button type="button" className="sp-chip-btn" onClick={() => handleQuickPercent(50)}>50% (Cọc)</button>
+                                    <button type="button" className="sp-chip-btn" onClick={() => handleQuickPercent(30)}>30% (Cọc)</button>
+                                    <button type="button" className="sp-chip-btn" onClick={() => handleQuickPercent(20)}>20% (Cọc)</button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                                    GHI CHÚ / NỘI DUNG THU
+                                </label>
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    variant="outlined"
+                                    value={cashNote}
+                                    onChange={(e) => setCashNote(e.target.value)}
+                                    placeholder="Thanh toán tiền mặt..."
+                                    style={{ background: '#ffffff' }}
+                                />
+                            </div>
+
+                            <Button
+                                variant="contained"
+                                color="success"
+                                size="large"
+                                disabled={savingCash || Number(customAmount) <= 0}
+                                onClick={handleConfirmCashPayment}
+                                startIcon={<CheckCircleIcon />}
+                                style={{
+                                    height: 44,
+                                    fontWeight: 800,
+                                    textTransform: 'none',
+                                    fontSize: '0.94rem',
+                                    borderRadius: 10,
+                                    backgroundColor: '#16a34a',
+                                    marginTop: 8,
+                                    boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)'
+                                }}
+                            >
+                                {savingCash ? "Đang ghi nhận..." : `Xác Nhận Đã Thu ${(Number(customAmount) || 0).toLocaleString('vi-VN')} đ (Tiền Mặt)`}
+                            </Button>
+                        </Box>
+                    </div>
+                ) : (
+                    /* SCREEN: QUÉT MÃ VIETQR (BENTO GRID) */
                     loading ? (
-                        <Box style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 40 }}>
-                            <CircularProgress size={44} style={{ color: '#0284c7', marginBottom: 16 }} />
-                            <Typography variant="body2" style={{ color: '#64748b' }}>
+                        <Box style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 50 }}>
+                            <CircularProgress size={42} style={{ color: '#0284c7', marginBottom: 14 }} />
+                            <Typography variant="body2" style={{ color: '#64748b', fontSize: '0.86rem' }}>
                                 Đang khởi tạo mã QR thanh toán VietQR SePay...
                             </Typography>
                         </Box>
                     ) : (
-                        <Box style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                            {/* Status bar */}
-                            <Box style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                                <Box style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    <Button
-                                        size="small"
-                                        variant="outlined"
-                                        color="success"
-                                        startIcon={<RefreshIcon />}
-                                        onClick={() => checkStatus(true)}
-                                        style={{ textTransform: 'none', fontWeight: 600, borderRadius: 8, fontSize: 12 }}
-                                    >
-                                        Kiểm tra ngay
-                                    </Button>
-                                    <Typography variant="caption" style={{ color: '#64748b' }}>
-                                        Mã HĐ: <strong>{activeMaHopDong}</strong>
-                                    </Typography>
-                                </Box>
-                            </Box>
+                        <div>
+                            <div className="sp-bento-grid">
+                                {/* CỘT 1 (BÊN TRÁI): KHUNG QUÉT QR */}
+                                <div className="sp-qr-card">
+                                    <div className="sp-qr-badge-top">
+                                        <span>⚡</span>
+                                        <span>VietQR 2.0 • NAPAS 247</span>
+                                    </div>
 
-                            <Box style={{ display: 'flex', flexDirection: 'row', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'center' }}>
-                                {/* CỘT 1 (BÊN TRÁI): Ảnh mã QR Thuần phóng to */}
-                                <Box style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 320 }}>
                                     {qrData?.accountNumber && (qrData?.vietQrUrl || qrData?.sepayQrUrl) ? (
-                                        <Paper elevation={2} style={{ padding: 12, borderRadius: 16, border: '1px solid #e2e8f0', background: '#fff', textAlign: 'center' }}>
+                                        <div className="sp-qr-wrapper">
                                             <img
                                                 src={qrData.vietQrUrl || qrData.sepayQrUrl}
                                                 alt="VietQR SePay Payment"
-                                                style={{ width: 320, height: 320, objectFit: 'contain', borderRadius: 8 }}
+                                                className="sp-qr-img"
                                                 onError={(e) => {
                                                     if (qrData.sepayQrUrl && e.target.src !== qrData.sepayQrUrl) {
                                                         e.target.src = qrData.sepayQrUrl;
                                                     }
                                                 }}
                                             />
-                                            <Button
-                                                size="small"
-                                                startIcon={<DownloadIcon style={{ fontSize: 16 }} />}
-                                                onClick={handleDownloadQr}
-                                                style={{ marginTop: 8, fontSize: 12, color: '#0284c7', fontWeight: 600, textTransform: 'none' }}
-                                            >
-                                                Tải ảnh QR
-                                            </Button>
-                                        </Paper>
+                                        </div>
                                     ) : (
-                                        <Box style={{ width: 320, height: 320, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: 16, padding: 12, textAlign: 'center' }}>
-                                            <QrCode2Icon style={{ fontSize: 48, color: '#94a3b8', marginBottom: 8 }} />
+                                        <Box style={{ width: 260, height: 260, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', borderRadius: 12, margin: '0 auto' }}>
+                                            <QrCode2Icon style={{ fontSize: 44, color: '#94a3b8', marginBottom: 6 }} />
                                             <Typography variant="caption" style={{ color: '#64748b', fontWeight: 600 }}>
-                                                Chưa cài đặt số tài khoản
+                                                Chưa cấu hình tài khoản
                                             </Typography>
-                                            <Button size="small" variant="text" onClick={() => setShowConfigEdit(true)} style={{ marginTop: 4, fontSize: 11, color: '#0284c7' }}>
-                                                Thêm số tài khoản
+                                            <Button size="small" onClick={() => setShowConfigEdit(true)} style={{ marginTop: 4, fontSize: 11, color: '#0284c7', textTransform: 'none' }}>
+                                                Thêm STK
                                             </Button>
                                         </Box>
                                     )}
-                                </Box>
 
-                                {/* CỘT 2 (BÊN PHẢI): 5 mục thông tin thanh toán nằm hoàn toàn ở cột phải */}
-                                <Box style={{ flex: 1, minWidth: 300, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {/* 1. Ngân hàng */}
-                                    <Paper style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                                        <Typography variant="caption" style={{ color: '#64748b', fontSize: 11, display: 'block' }}>Ngân hàng nhận</Typography>
-                                        <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#0f172a', fontSize: 14 }}>
-                                            {qrData?.bankName || 'MBBank'}
-                                        </Typography>
-                                    </Paper>
+                                    {/* Live Pulse Status */}
+                                    <div className="sp-pulse-status">
+                                        <div className="sp-pulse-dot"></div>
+                                        <span>Đang chờ chuyển khoản tự động...</span>
+                                    </div>
 
-                                    {/* 2. Số tài khoản & Chủ TK */}
-                                    <Paper style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #bae6fd', background: '#f0f9ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Box style={{ overflow: 'hidden' }}>
-                                            <Typography variant="caption" style={{ color: '#0369a1', fontSize: 11, display: 'block' }}>Số tài khoản nhận</Typography>
-                                            <Typography variant="subtitle2" style={{ fontWeight: 800, color: '#0284c7', fontSize: 16, letterSpacing: '0.5px' }}>
-                                                {qrData?.accountNumber || 'Chưa thiết lập'}
-                                            </Typography>
-                                            <Typography variant="caption" style={{ color: '#475569', display: 'block', fontSize: 11 }}>
-                                                Chủ TK: <strong>{qrData?.accountName || 'LONG WEDDING'}</strong>
-                                            </Typography>
-                                        </Box>
-                                        {qrData?.accountNumber ? (
-                                            <Tooltip title="Sao chép số tài khoản">
-                                                <IconButton size="small" onClick={() => handleCopy(qrData?.accountNumber || '', 'Số tài khoản')} style={{ background: '#e0f2fe' }}>
-                                                    <ContentCopyIcon style={{ fontSize: 18, color: '#0284c7' }} />
-                                                </IconButton>
-                                            </Tooltip>
-                                        ) : (
-                                            <Button size="small" onClick={() => setShowConfigEdit(true)} style={{ fontSize: 11, color: '#0284c7' }}>
-                                                Sửa
-                                            </Button>
-                                        )}
-                                    </Paper>
-
-                                    {/* 3. Nội dung chuyển khoản */}
-                                    <Paper style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Box style={{ overflow: 'hidden' }}>
-                                            <Typography variant="caption" style={{ color: '#475569', fontSize: 11, display: 'block' }}>Nội dung chuyển khoản (Bắt buộc)</Typography>
-                                            <Typography variant="subtitle2" style={{ fontWeight: 800, color: '#1d4ed8', fontSize: 15 }}>
-                                                {qrData?.transferContent || activeMaHopDong}
-                                            </Typography>
-                                        </Box>
-                                        <Tooltip title="Sao chép nội dung">
-                                            <IconButton size="small" onClick={() => handleCopy(qrData?.transferContent || activeMaHopDong, 'Nội dung')} style={{ background: '#eff6ff' }}>
-                                                <ContentCopyIcon style={{ fontSize: 18, color: '#1d4ed8' }} />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Paper>
-
-                                    {/* 4. Số tiền thanh toán */}
-                                    <Paper style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #bbf7d0', background: '#f0fdf4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Box>
-                                            <Typography variant="caption" style={{ color: '#166534', fontSize: 11, display: 'block' }}>Số tiền thanh toán</Typography>
-                                            <Typography variant="subtitle1" style={{ fontWeight: 800, color: '#15803d', fontSize: 17 }}>
-                                                {(customAmount || 0).toLocaleString('vi-VN')} đ
-                                            </Typography>
-                                        </Box>
-                                        <Tooltip title="Sao chép số tiền">
-                                            <IconButton size="small" onClick={() => handleCopy(customAmount.toString(), 'Số tiền')} style={{ background: '#dcfce7' }}>
-                                                <ContentCopyIcon style={{ fontSize: 18, color: '#15803d' }} />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Paper>
-
-                                    {/* 5. Khung nhập Số tiền muốn chuyển & Nút Cập nhật QR */}
-                                    <Box style={{ marginTop: 2, display: 'flex', gap: 10, alignItems: 'center' }}>
-                                        <TextField
-                                            label="Số tiền muốn chuyển (VND)"
-                                            size="small"
-                                            variant="outlined"
-                                            value={(customAmount || 0).toLocaleString('vi-VN')}
-                                            onChange={handleAmountChange}
-                                            style={{ flex: 1, background: '#ffffff' }}
-                                        />
-                                        <Button
-                                            variant="outlined"
-                                            onClick={handleApplyCustomAmount}
-                                            style={{ height: 40, borderColor: '#0284c7', color: '#0284c7', textTransform: 'none', fontWeight: 600, px: 2 }}
+                                    {/* Action Buttons under QR */}
+                                    <div className="sp-qr-actions">
+                                        <button
+                                            type="button"
+                                            className="sp-btn-subtle"
+                                            onClick={handleDownloadQr}
                                         >
-                                            Cập nhật QR
-                                        </Button>
-                                    </Box>
-                                </Box>
-                            </Box>
+                                            <DownloadIcon style={{ fontSize: 14 }} />
+                                            <span>Tải ảnh QR</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="sp-btn-subtle"
+                                            onClick={() => checkStatus(true)}
+                                            style={{ color: '#059669', borderColor: '#a7f3d0', background: '#f0fdf4' }}
+                                        >
+                                            <RefreshIcon style={{ fontSize: 14 }} />
+                                            <span>Kiểm tra</span>
+                                        </button>
+                                    </div>
+                                </div>
 
-                            <Alert severity="info" style={{ borderRadius: 8, fontSize: 12, marginTop: 4 }}>
-                                Khi quý khách hoàn tất chuyển khoản trên ứng dụng Ngân hàng, hệ thống sẽ tự động nhận SePay Webhook và gạch nợ thành công ngay lập tức!
-                            </Alert>
-                        </Box>
+                                {/* CỘT 2 (BÊN PHẢI): BENTO INFO CARDS */}
+                                <div className="sp-info-column">
+                                    {/* 1. Số tiền thanh toán */}
+                                    <div className="sp-info-card primary">
+                                        <div>
+                                            <div className="sp-label-sub" style={{ color: '#166534' }}>Số tiền thanh toán</div>
+                                            <div className="sp-val-main" style={{ color: '#15803d', fontSize: '1.25rem' }}>
+                                                {(customAmount || 0).toLocaleString('vi-VN')} đ
+                                            </div>
+                                        </div>
+                                        <Tooltip title="Sao chép số tiền">
+                                            <button
+                                                type="button"
+                                                className="sp-copy-btn"
+                                                onClick={() => handleCopy(customAmount.toString(), 'Số tiền')}
+                                                style={{ color: '#16a34a', borderColor: '#bbf7d0', background: '#ffffff' }}
+                                            >
+                                                <ContentCopyIcon style={{ fontSize: 16 }} />
+                                            </button>
+                                        </Tooltip>
+                                    </div>
+
+                                    {/* 2. Nội dung chuyển khoản */}
+                                    <div className="sp-info-card accent">
+                                        <div style={{ overflow: 'hidden' }}>
+                                            <div className="sp-label-sub" style={{ color: '#1e40af' }}>Nội dung chuyển khoản (Bắt buộc)</div>
+                                            <div className="sp-val-main" style={{ color: '#1d4ed8', letterSpacing: '0.5px' }}>
+                                                {qrData?.transferContent || activeMaHopDong}
+                                            </div>
+                                        </div>
+                                        <Tooltip title="Sao chép nội dung">
+                                            <button
+                                                type="button"
+                                                className="sp-copy-btn"
+                                                onClick={() => handleCopy(qrData?.transferContent || activeMaHopDong, 'Nội dung')}
+                                                style={{ color: '#1d4ed8', borderColor: '#bfdbfe', background: '#ffffff' }}
+                                            >
+                                                <ContentCopyIcon style={{ fontSize: 16 }} />
+                                            </button>
+                                        </Tooltip>
+                                    </div>
+
+                                    {/* 3. Số tài khoản & Chủ TK */}
+                                    <div className="sp-info-card">
+                                        <div style={{ overflow: 'hidden' }}>
+                                            <div className="sp-label-sub">
+                                                {qrData?.bankName || 'MBBank'} • Số tài khoản
+                                            </div>
+                                            <div className="sp-val-main" style={{ color: '#0284c7', fontSize: '1.05rem', letterSpacing: '0.5px' }}>
+                                                {qrData?.accountNumber || 'Chưa thiết lập'}
+                                            </div>
+                                            <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: 1 }}>
+                                                Chủ TK: <strong style={{ color: '#334155' }}>{qrData?.accountName || 'LONG WEDDING'}</strong>
+                                            </div>
+                                        </div>
+                                        {qrData?.accountNumber && (
+                                            <Tooltip title="Sao chép số tài khoản">
+                                                <button
+                                                    type="button"
+                                                    className="sp-copy-btn"
+                                                    onClick={() => handleCopy(qrData?.accountNumber || '', 'Số tài khoản')}
+                                                >
+                                                    <ContentCopyIcon style={{ fontSize: 16 }} />
+                                                </button>
+                                            </Tooltip>
+                                        )}
+                                    </div>
+
+                                    {/* 4. Tùy chỉnh số tiền muốn chuyển */}
+                                    <Paper elevation={0} style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
+                                                Chỉnh số tiền cọc / thanh toán:
+                                            </span>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <TextField
+                                                size="small"
+                                                variant="outlined"
+                                                value={(customAmount || 0).toLocaleString('vi-VN')}
+                                                onChange={handleAmountChange}
+                                                style={{ flex: 1, background: '#ffffff' }}
+                                                inputProps={{ style: { fontSize: '0.88rem', fontWeight: 700 } }}
+                                            />
+                                            <Button
+                                                variant="contained"
+                                                onClick={() => handleApplyCustomAmount(customAmount)}
+                                                style={{ height: 38, backgroundColor: '#0284c7', color: '#fff', textTransform: 'none', fontWeight: 700, fontSize: '0.82rem', borderRadius: 8, px: 2 }}
+                                            >
+                                                Cập nhật QR
+                                            </Button>
+                                        </div>
+
+                                        {/* Quick percentage shortcuts */}
+                                        <div className="sp-quick-chips">
+                                            <span style={{ fontSize: '0.72rem', color: '#64748b', alignSelf: 'center' }}>Chọn nhanh:</span>
+                                            <button type="button" className="sp-chip-btn" onClick={() => handleQuickPercent(100)}>100% Đủ</button>
+                                            <button type="button" className="sp-chip-btn" onClick={() => handleQuickPercent(50)}>50% Cọc</button>
+                                            <button type="button" className="sp-chip-btn" onClick={() => handleQuickPercent(30)}>30% Cọc</button>
+                                            <button type="button" className="sp-chip-btn" onClick={() => handleQuickPercent(20)}>20% Cọc</button>
+                                        </div>
+                                    </Paper>
+                                </div>
+                            </div>
+
+                            {/* Alert footer */}
+                            <div className="sp-tip-banner">
+                                <span style={{ fontSize: '1rem' }}>💡</span>
+                                <span>Khi khách hàng chuyển khoản thành công trên app ngân hàng, hệ thống sẽ tự động xác nhận, hiển thị thông báo và đóng cửa sổ này.</span>
+                            </div>
+                        </div>
                     )
-                ) : (
-                    /* TAB 1: TIỀN MẶT */
-                    <Box style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '10px 0' }}>
-                        <Paper style={{ padding: 16, borderRadius: 12, background: '#ffffff', border: '1px solid #e2e8f0' }}>
-                            <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#0f172a', marginBottom: 16 }}>
-                                💵 Thu Tiền Mặt Trực Tiếp
-                            </Typography>
-                            <Box style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                                <FormControl size="small" fullWidth>
-                                    <InputLabel>Hình thức thanh toán</InputLabel>
-                                    <Select
-                                        value={cashMethod}
-                                        label="Hình thức thanh toán"
-                                        onChange={(e) => setCashMethod(e.target.value)}
-                                    >
-                                        <MenuItem value="Tiền mặt">Tiền mặt</MenuItem>
-                                        <MenuItem value="Chuyển khoản">Chuyển khoản (Thủ công)</MenuItem>
-                                        <MenuItem value="Cà thẻ">Cà thẻ / Thẻ ngân hàng</MenuItem>
-                                    </Select>
-                                </FormControl>
-
-                                <TextField
-                                    label="Số tiền thanh toán (VND)"
-                                    fullWidth
-                                    variant="outlined"
-                                    size="small"
-                                    value={(cashAmount || 0).toLocaleString('vi-VN')}
-                                    onChange={(e) => {
-                                        const raw = Number(e.target.value.replace(/[^0-9]/g, '')) || 0;
-                                        setCashAmount(raw);
-                                    }}
-                                />
-
-                                <TextField
-                                    label="Ghi chú thanh toán"
-                                    fullWidth
-                                    variant="outlined"
-                                    size="small"
-                                    value={cashNote}
-                                    onChange={(e) => setCashNote(e.target.value)}
-                                    placeholder="Thanh toán tiền mặt"
-                                />
-
-                                <Button
-                                    variant="contained"
-                                    color="success"
-                                    size="large"
-                                    disabled={isSubmittingCash || Number(cashAmount) <= 0}
-                                    onClick={handleSubmitCashPayment}
-                                    style={{ marginTop: 8, borderRadius: 8, fontWeight: 700, height: 44 }}
-                                >
-                                    {isSubmittingCash ? "Đang xử lý..." : `Xác Nhận Thu ${(Number(cashAmount) || 0).toLocaleString('vi-VN')} đ (Tiền Mặt)`}
-                                </Button>
-                            </Box>
-                        </Paper>
-                    </Box>
                 )}
             </DialogContent>
 
-            <DialogActions style={{ padding: '12px 20px' }}>
+            <DialogActions style={{ padding: '12px 22px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
                 {paymentReceived ? (
                     <Button
                         variant="contained"
                         color="success"
                         onClick={onClose}
-                        style={{ borderRadius: 8, fontWeight: 700, px: 3 }}
+                        style={{ borderRadius: 9, fontWeight: 700, padding: '7px 22px', textTransform: 'none', backgroundColor: '#16a34a' }}
                     >
-                        Hoàn tất & Đóng
+                        Đóng ngay ({countdown}s)
                     </Button>
                 ) : (
                     <Button
                         variant="outlined"
                         onClick={onClose}
-                        style={{ borderRadius: 8, color: '#64748b', borderColor: '#cbd5e1' }}
+                        style={{ borderRadius: 9, color: '#64748b', borderColor: '#cbd5e1', textTransform: 'none', fontWeight: 600 }}
                     >
                         Đóng
                     </Button>

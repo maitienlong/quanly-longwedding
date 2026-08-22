@@ -41,13 +41,23 @@ const appService = {
    updateLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.UPDATE, params),
    removeLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.REMOVE, params),
    getThiDuaStats: (params) => axiosClient.post(ENDPOINTS.THI_DUA.STATS, params),
+   getStoreTarget: (params) => axiosClient.post(ENDPOINTS.THI_DUA.STORE_TARGET, params),
+   updateStoreTarget: (params) => axiosClient.post(ENDPOINTS.THI_DUA.UPDATE_STORE_TARGET, params),
    updateBatchTargets: (params) => axiosClient.post(ENDPOINTS.THI_DUA.UPDATE_TARGETS, params),
    // SEPAY
    getSepayConfig: () => axiosClient.get(ENDPOINTS.SEPAY.CONFIG),
    updateSepayConfig: (params) => axiosClient.post(ENDPOINTS.SEPAY.CONFIG, params),
    getSepayQrInfo: (maHopDong, amount, sessionCode) => axiosClient.get(`${ENDPOINTS.SEPAY.QR_INFO}/${maHopDong}?amount=${amount || 0}${sessionCode ? `&sessionCode=${sessionCode}` : ''}`),
    checkSepayStatus: (maHopDong) => axiosClient.get(`${ENDPOINTS.SEPAY.CHECK_STATUS}/${maHopDong}`),
-   getSepayNotifications: (since) => axiosClient.get(`${ENDPOINTS.SEPAY.NOTIFICATIONS}${since ? `?since=${since}` : ""}`)
+   getSepayNotifications: (since) => axiosClient.get(`${ENDPOINTS.SEPAY.NOTIFICATIONS}${since ? `?since=${since}` : ""}`),
+   // BÁO CÁO KINH DOANH
+   getBaoCaoKinhDoanh: (params) => axiosClient.post(ENDPOINTS.BAO_CAO.KINH_DOANH, params),
+   getBaoCaoTongQuan: (params) => axiosClient.post(ENDPOINTS.BAO_CAO.TONG_QUAN, params),
+   // ĐƠN VỊ NHẬN TIỀN
+   findAllDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.LIST, params),
+   createDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.CREATE, params),
+   updateDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.UPDATE, params),
+   removeDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.REMOVE, params)
 };
 
 export default appService;

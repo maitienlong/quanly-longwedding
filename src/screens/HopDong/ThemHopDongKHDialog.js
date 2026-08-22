@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment, useCallback, useMemo } from "react";
+import "./DetailHopDongModern.css";
 import "./ThemHopDongDialog.css";
 import AppSearchInput from "../../components/AppSearchInput";
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import otherService from '../../API/services/otherService';
@@ -10,36 +10,21 @@ import { toast } from 'sonner';
 import { useLoading } from "../../context/LoadingContext";
 import { useContractTypes } from "../../hooks/useContractTypes";
 import { NumericFormat } from 'react-number-format';
-import { styled } from '@mui/material/styles';
-import Divider from '@mui/material/Divider';
 import Autocomplete from '@mui/material/Autocomplete';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
-import logoVang from '../../assets/logo/logo-vang.png';
 import { formatLunarDateFull } from '../../utils/lunarDateUtils';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPrint, faCircleCheck, faCreditCard } from '@fortawesome/free-solid-svg-icons';
 import SePayDialog from './SePayDialog';
+import { generateContractPrintHtml } from '../../utils/printConfigHelper';
 
 function ThemHopDongKHDialog(props) {
-    const { onClose, data, selectedValue, open } = props;
+    const { onClose, selectedValue, open } = props;
     const [openPaymentDialog, setOpenPaymentDialog] = useState(false);
-    const handleClose = () => {
-        if (isSuccess) {
-            handleCloseAndReset();
-        } else {
-            onClose(selectedValue);
-        }
-    };
-
-    const handleCloseAndReset = () => {
-        setIsSuccess(false);
-        resetForm();
-        onClose(true);
-    };
 
     const generateMaHopDong = () => {
         const year = new Date().getFullYear();
@@ -62,49 +47,44 @@ function ThemHopDongKHDialog(props) {
         return `${year}-${month}-${day}T09:00`;
     };
 
-
     const convertDateToISOString = (dateString) => {
         if (!dateString) return null;
         const date = new Date(dateString);
         return isNaN(date.getTime()) ? null : date.toISOString();
-    }
+    };
 
     const { loaiHopDongOptions } = useContractTypes();
-
-    const itemMethodPayment = [
-        { label: 'Chuyển khoản', id: 0 },
-        { label: 'Tiền mặt', id: 1 }]
-
-
     const { showLoading, hideLoading } = useLoading();
+
     const [listDichVu, setListDichVu] = useState([]);
+    const [listStaff, setListStaff] = useState([]);
+    const [listHopDong, setListHopDong] = useState([]);
+    const [isSuccess, setIsSuccess] = useState(false);
 
+    // Customer 1 States
+    const [idKH1, setIDKH1] = useState("");
     const [phoneKH1, setPhoneKH1] = useState("");
-    const [phoneKH2, setPhoneKH2] = useState("");
-
-
     const [nameKH1, setNameKH1] = useState("");
-    const [nameKH2, setNameKH2] = useState("");
     const [addressKH1, setAddressKH1] = useState("");
-    const [addressKH2, setAddressKH2] = useState("");
     const [facebookKH1, setFacebookKH1] = useState("");
+
+    // Customer 2 States
+    const [idKH2, setIDKH2] = useState("");
+    const [phoneKH2, setPhoneKH2] = useState("");
+    const [nameKH2, setNameKH2] = useState("");
+    const [addressKH2, setAddressKH2] = useState("");
     const [facebookKH2, setFacebookKH2] = useState("");
 
-
-    // DU LIEU BAN DAU CHO HOP DONG
+    // Contract Info States
     const [maHopDong, setMaHopDong] = useState(generateMaHopDong());
     const [ngayHopDong, setNgayHopDong] = useState(getToday());
-    const [idKH1, setIDKH1] = useState("");
-    const [idKH2, setIDKH2] = useState("");
     const [gioHang, setGioHang] = useState([]);
-    const [thanhToan, setThanhToan] = useState("");
     const [tongTien, setTongTien] = useState(0);
-    const [ngayChup, setNgayChup] = useState(getTodayDateTime());
+    const [ngayChup, setNgayChup] = useState("");
     const [ngayAnHoi, setNgayAnHoi] = useState("");
     const [ngayCuoi, setNgayCuoi] = useState("");
     const [ngayChinhAnh, setNgayChinhAnh] = useState(getToday());
     const [ngayTraAnh, setNgayTraAnh] = useState("");
-    const [giaiDoan, setGiaiDoan] = useState(1);
     const [dichVuChinh, setDichVuChinh] = useState(0);
     const [khachThanhToan, setKhachThanhToan] = useState(0);
     const [methodPayment, setMethodPayment] = useState(0);
@@ -114,89 +94,144 @@ function ThemHopDongKHDialog(props) {
     const [thoChupHinh, setThoChupHinh] = useState("");
     const [thoMakeUp, setThoMakeUp] = useState("");
     const [thoChinhAnh, setThoChinhAnh] = useState("");
-    const [listStaff, setListStaff] = useState([]);
     const [chotLich, setChotLich] = useState("Chưa gọi điện");
-    const [listHopDong, setListHopDong] = useState([]);
-    const [isSuccess, setIsSuccess] = useState(false);
 
-    // state cho giảm giá
+    // Discount States
     const [giamGia, setGiamGia] = useState(0);
-    const [loaiGiamGia, setLoaiGiamGia] = useState(0); // "VND" hoặc "%"
+    const [loaiGiamGia, setLoaiGiamGia] = useState(0); // 0 = "VND", 1 = "%"
 
-    const commonHeight = 56;
+    // Search suggestions
+    const [searchTerm, setSearchTerm] = useState("");
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [showSuggestionPhone1, setShowSuggestionPhone1] = useState(false);
+    const [showSuggestionPhone2, setShowSuggestionPhone2] = useState(false);
+    const [showSuggestionName1, setShowSuggestionName1] = useState(false);
+    const [showSuggestionName2, setShowSuggestionName2] = useState(false);
+    const [suggestionPhone1, setSuggestionPhone1] = useState([]);
+    const [suggestionPhone2, setSuggestionPhone2] = useState([]);
+    const [suggestionName1, setSuggestionName1] = useState([]);
+    const [suggestionName2, setSuggestionName2] = useState([]);
+    const [btnAddKHShow1, setBtnAddKHShow1] = useState(true);
+    const [btnAddKHShow2, setBtnAddKHShow2] = useState(true);
 
-    const handleListItemClick = (value) => {
-        onClose(value);
+    const customer1Ref = useRef(null);
+    const customer2Ref = useRef(null);
+    const searchRef = useRef(null);
+
+    const handleClose = () => {
+        if (isSuccess) {
+            handleCloseAndReset();
+        } else {
+            onClose(selectedValue);
+        }
     };
 
-    const [openSepayDialog, setOpenSepayDialog] = useState(false);
+    const handleCloseAndReset = () => {
+        setIsSuccess(false);
+        resetForm();
+        onClose(true);
+    };
 
     useEffect(() => {
-        showLoading("Đang tải các dịch vụ.");
+        const handleClickOutside = (event) => {
+            if (customer1Ref.current && !customer1Ref.current.contains(event.target)) {
+                setShowSuggestionPhone1(false);
+                setShowSuggestionName1(false);
+            }
+            if (customer2Ref.current && !customer2Ref.current.contains(event.target)) {
+                setShowSuggestionPhone2(false);
+                setShowSuggestionName2(false);
+            }
+            if (searchRef.current && !searchRef.current.contains(event.target)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+    const removeVietnameseTones = (str) => {
+        if (!str) return "";
+        return str
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/đ/g, "d")
+            .replace(/Đ/g, "D")
+            .toLowerCase()
+            .trim();
+    };
+
+    const loadDichVu = useCallback(() => {
         otherService.findDichVu()
             .then((response) => {
-                setListDichVu(response.data.dichVu);
-                hideLoading();
+                const list = response?.data?.dichVu || 
+                             response?.data?.data?.dichVu || 
+                             response?.dichVu || 
+                             (Array.isArray(response?.data) ? response.data : []) || 
+                             (Array.isArray(response) ? response : []) || 
+                             [];
+                setListDichVu(Array.isArray(list) ? list : []);
             })
             .catch((error) => {
-                console.error('Error fetching data:', error);
-                toast.error("Lỗi khi tải dữ liệu dịch vụ.");
-                hideLoading();
+                console.error('Error fetching services:', error);
             });
-    }, [showLoading, hideLoading]);
+    }, []);
 
-    useEffect(() => {
+    const loadStaff = useCallback(() => {
         otherService.findUsers({})
             .then((res) => {
-                if (res.data && res.data.status === 'success') {
-                    setListStaff(res.data.data.users || []);
-                } else if (res.status === 'success') {
-                    setListStaff(res.data.users || []);
-                } else {
-                    setListStaff(res.data?.users || []);
-                }
+                const users = res?.data?.data?.users || res?.data?.users || res?.users || [];
+                setListStaff(Array.isArray(users) ? users : []);
             })
             .catch((err) => {
                 console.error("Lỗi khi tải danh sách nhân viên:", err);
             });
     }, []);
 
+    useEffect(() => {
+        loadDichVu();
+        loadStaff();
+    }, [loadDichVu, loadStaff]);
 
     useEffect(() => {
         if (open) {
             resetForm();
+            loadDichVu();
+            loadStaff();
             otherService.LIST_HOPDONG({})
                 .then(response => {
-                    setListHopDong(response.data.hopDong || []);
+                    setListHopDong(response.data?.hopDong || response.data || []);
                 })
                 .catch(error => {
-                    console.error("Lỗi khi tải danh sách hợp đồng để kiểm tra trùng lịch chụp:", error);
+                    console.error("Lỗi khi tải danh sách hợp đồng:", error);
                 });
         }
-    }, [open]);
+    }, [open, loadDichVu, loadStaff]);
 
     useEffect(() => {
         setTongTien(tinhTongThanhToan());
-    }, [, gioHang, giamGia, loaiGiamGia]);
+    }, [gioHang, giamGia, loaiGiamGia]);
 
-    const [searchTerm, setSearchTerm] = useState("");
+    const suggestions = useMemo(() => {
+        const term = searchTerm?.trim();
+        if (!term) return [];
+        const cleanTerm = term.toLowerCase();
+        const cleanTermNoTone = removeVietnameseTones(term);
 
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [showSuggestionPhone1, setShowSuggestionPhone1] = useState(false);
-    const [showSuggestionPhone2, setShowSuggestionPhone2] = useState(false);
-    const [suggestionPhone1, setSuggestionPhone1] = useState([]);
-    const [suggestionPhone2, setSuggestionPhone2] = useState([]);
-    const [btnAddKHShow1, setBtnAddKHShow1] = useState(true);
-    const [btnAddKHShow2, setBtnAddKHShow2] = useState(true);
+        return (listDichVu || []).filter(p => {
+            const name = (p.tenDichVu || '').toLowerCase();
+            const code = (p.maDichVu || '').toLowerCase();
+            const nameNoTone = removeVietnameseTones(p.tenDichVu);
+            const codeNoTone = removeVietnameseTones(p.maDichVu);
 
-    const searchRef = useRef(null);
-    const [dataIsDialog, setDataIsDialog] = useState(data);
-
-    const suggestions = listDichVu.filter(p =>
-        searchTerm.trim() &&
-        (p.tenDichVu?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         p.maDichVu?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+            return name.includes(cleanTerm) || 
+                   code.includes(cleanTerm) ||
+                   nameNoTone.includes(cleanTermNoTone) ||
+                   codeNoTone.includes(cleanTermNoTone);
+        });
+    }, [listDichVu, searchTerm]);
 
     const handleSelectProduct = (product) => {
         const isNewPreW = product.maDichVu?.toUpperCase().startsWith("PRE-W");
@@ -205,7 +240,6 @@ function ThemHopDongKHDialog(props) {
         let updatedGioHang;
 
         if (existingPreW) {
-            // Thay thế hoàn toàn dịch vụ PRE-W cũ bằng dịch vụ PRE-W mới
             updatedGioHang = gioHang.map(sp => {
                 if (sp.maDichVu === existingPreW.maDichVu) {
                     return {
@@ -233,10 +267,7 @@ function ThemHopDongKHDialog(props) {
             if (isExisting) {
                 updatedGioHang = gioHang.map(sp =>
                     sp.maDichVu === product.maDichVu
-                        ? {
-                            ...sp, soLuong: (sp.soLuong || 0) + 1,
-                            dichVu: product._id
-                          }
+                        ? { ...sp, soLuong: (sp.soLuong || 0) + 1, dichVu: product._id }
                         : sp
                 );
             } else {
@@ -261,34 +292,17 @@ function ThemHopDongKHDialog(props) {
             }
         }
 
-        // 2. Cập nhật state giỏ hàng (giữ đúng định dạng mảng)
         setGioHang(updatedGioHang);
-
-        // 3. Tính toán tổng tiền
         const newTotal = updatedGioHang.reduce((sum, item) => {
             const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
             const discountItem = parseFloat(item.giamGiaDichVu || 0);
             return sum + Math.max(0, (price * (item.soLuong || 0)) - discountItem);
         }, 0);
-
-        // 4. Cập nhật state tổng tiền
         setTongTien(newTotal);
 
-        // 5. Reset các ô search
         setSearchTerm("");
         setShowSuggestions(false);
     };
-
-    const handleParamChange = (maDichVu, field, value) => {
-        const updatedCart = gioHang.map(sp => {
-            if (sp.maDichVu === maDichVu) {
-                return { ...sp, [field]: value };
-            }
-            return sp;
-        });
-        setGioHang(updatedCart);
-    };
-
 
     const handleDiscountItemChange = (maDichVu, value) => {
         const discountVal = Math.max(0, parseFloat(value) || 0);
@@ -311,31 +325,25 @@ function ThemHopDongKHDialog(props) {
         setTongTien(newTotal);
     };
 
-    // Hàm xóa hoàn toàn sản phẩm khỏi giỏ
     const handleDeleteProduct = (maDichVu) => {
         const updatedCart = gioHang.filter(sp => sp.maDichVu !== maDichVu);
         updateCartAndTotal(updatedCart);
-        toast.info(" Đã xóa sản phẩm khỏi giỏ hàng");
+        toast.info("Đã xóa sản phẩm khỏi giỏ hàng");
     };
 
-    // Hàm giảm số lượng sản phẩm
     const handleDecreaseQuantity = (maDichVu) => {
         const existingProduct = gioHang.find(sp => sp.maDichVu === maDichVu);
-
         if (existingProduct.soLuong > 1) {
-            // Nếu số lượng > 1 thì giảm đi 1
             const updatedCart = gioHang.map(sp =>
                 sp.maDichVu === maDichVu ? { ...sp, soLuong: sp.soLuong - 1 } : sp
             );
             updateCartAndTotal(updatedCart);
         } else {
-            // Nếu số lượng bằng 1 thì hỏi người dùng có muốn xóa không (hoặc xóa luôn)
             handleDeleteProduct(maDichVu);
         }
     };
 
     const tinhTongThanhToan = () => {
-        // Tính tổng tiền gốc từ giỏ hàng (đã khấu trừ giảm giá từng dịch vụ)
         const tongGoc = gioHang.reduce((sum, item) => {
             const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
             const discountItem = parseFloat(item.giamGiaDichVu || 0);
@@ -348,130 +356,178 @@ function ThemHopDongKHDialog(props) {
         } else {
             tongSauGiam = tongGoc - giamGia;
         }
-
-        return tongSauGiam < 0 ? 0 : tongSauGiam; // Đảm bảo không âm
+        return tongSauGiam < 0 ? 0 : tongSauGiam;
     };
 
-
     const resetForm = () => {
-        // 1. Thông tin hợp đồng cơ bản
         setMaHopDong(generateMaHopDong());
         setNgayHopDong(getToday());
         setNgayChup("");
         setNgayAnHoi("");
         setNgayCuoi("");
-
         setDiaDiemChup("");
         setThoChupHinh("");
         setThoMakeUp("");
         setThoChinhAnh("");
         setChotLich("Chưa gọi điện");
 
-        // 2. Thông tin khách hàng 1
         setIDKH1("");
         setPhoneKH1("");
         setNameKH1("");
         setAddressKH1("");
-        setBtnAddKHShow1(false);
+        setFacebookKH1("");
+        setBtnAddKHShow1(true);
         setShowSuggestionPhone1(false);
+        setShowSuggestionName1(false);
+        setSuggestionPhone1([]);
+        setSuggestionName1([]);
 
-        // 3. Thông tin khách hàng 2
         setIDKH2("");
         setPhoneKH2("");
         setNameKH2("");
         setAddressKH2("");
-        setBtnAddKHShow2(false);
+        setFacebookKH2("");
+        setBtnAddKHShow2(true);
         setShowSuggestionPhone2(false);
+        setShowSuggestionName2(false);
+        setSuggestionPhone2([]);
+        setSuggestionName2([]);
 
-        // 4. Giỏ hàng và tiền bạc
         setGioHang([]);
         setTongTien(0);
         setSearchTerm("");
         setShowSuggestions(false);
-
-        // Nếu bạn đã thêm logic giảm giá ở bước trước
-        if (typeof setGiamGia === "function") setGiamGia(0);
+        setGiamGia(0);
+        setLoaiGiamGia(0);
+        setKhachThanhToan(0);
     };
 
     const onChangePhoneKH1 = (e) => {
-
-        if (e.target.value.length > 10) {
+        const val = e.target.value;
+        if (val.length > 10) return;
+        setPhoneKH1(val);
+        if (val.length === 0) {
+            clearPhoneKH1();
             return;
         }
-        setPhoneKH1(e.target.value);
-        if (e.target.value.length === 0) {
-            clearPhoneKH1();
-            return
-        }
-
-        otherService.findKhachHang({ soDienThoai: e.target.value })
+        otherService.findKhachHang({ soDienThoai: val })
             .then((response) => {
-                setShowSuggestionPhone1(true);
-                setSuggestionPhone1(response.data);
-                // Hiển thị nút Tạo mới nếu không tìm thấy khách hàng nào
-                setBtnAddKHShow1(response.data.length === 0);
+                const list = response.data || [];
+                setShowSuggestionPhone1(list.length > 0);
+                setShowSuggestionName1(false);
+                setSuggestionPhone1(list);
+                setBtnAddKHShow1(list.length === 0);
             })
-            .catch((error) => {
+            .catch(() => {
                 clearPhoneKH1();
                 setBtnAddKHShow1(true);
             });
+    };
 
-
+    const onChangeNameKH1 = (e) => {
+        const val = e.target.value;
+        setNameKH1(val);
+        if (!val.trim()) {
+            setShowSuggestionName1(false);
+            setSuggestionName1([]);
+            return;
+        }
+        otherService.findKhachHang({ tenKhachHang: val.trim() })
+            .then((response) => {
+                const list = response.data || [];
+                setShowSuggestionName1(list.length > 0);
+                setShowSuggestionPhone1(false);
+                setSuggestionName1(list);
+                setBtnAddKHShow1(list.length === 0);
+            })
+            .catch(() => {
+                setShowSuggestionName1(false);
+                setBtnAddKHShow1(true);
+            });
     };
 
     const handleSelectProductPhone1 = (product) => {
         setIDKH1(product._id);
-        setPhoneKH1(product.soDienThoai);
-        setNameKH1(product.tenKhachHang);
-        setAddressKH1(product.diaChi);
+        setPhoneKH1(product.soDienThoai || "");
+        setNameKH1(product.tenKhachHang || "");
+        setAddressKH1(product.diaChi || "");
         setFacebookKH1(product.facebookId || "");
         setShowSuggestionPhone1(false);
+        setShowSuggestionName1(false);
         setBtnAddKHShow1(false);
-    }
+    };
+
     const clearPhoneKH1 = () => {
         setNameKH1("");
         setAddressKH1("");
         setFacebookKH1("");
+        setIDKH1("");
         setShowSuggestionPhone1(false);
+        setShowSuggestionName1(false);
         setBtnAddKHShow1(false);
-    }
+    };
 
     const handleSelectProductPhone2 = (product) => {
         setIDKH2(product._id);
-        setPhoneKH2(product.soDienThoai);
-        setNameKH2(product.tenKhachHang);
-        setAddressKH2(product.diaChi);
+        setPhoneKH2(product.soDienThoai || "");
+        setNameKH2(product.tenKhachHang || "");
+        setAddressKH2(product.diaChi || "");
         setFacebookKH2(product.facebookId || "");
         setShowSuggestionPhone2(false);
+        setShowSuggestionName2(false);
         setBtnAddKHShow2(false);
-    }
+    };
 
     const clearPhoneKH2 = () => {
         setNameKH2("");
         setAddressKH2("");
         setFacebookKH2("");
+        setIDKH2("");
         setShowSuggestionPhone2(false);
+        setShowSuggestionName2(false);
         setBtnAddKHShow2(false);
-    }
+    };
 
     const onChangePhoneKH2 = (e) => {
-        if (e.target.value.length > 10) {
+        const val = e.target.value;
+        if (val.length > 10) return;
+        setPhoneKH2(val);
+        if (val.length === 0) {
+            clearPhoneKH2();
             return;
         }
-        setPhoneKH2(e.target.value);
-        if (e.target.value.length === 0) {
-            clearPhoneKH2();
-            return
-        }
-        otherService.findKhachHang({ soDienThoai: e.target.value })
+        otherService.findKhachHang({ soDienThoai: val })
             .then((response) => {
-                setShowSuggestionPhone2(true);
-                setSuggestionPhone2(response.data);
-                // Hiển thị nút Tạo mới nếu không tìm thấy khách hàng nào
-                setBtnAddKHShow2(response.data.length === 0);
+                const list = response.data || [];
+                setShowSuggestionPhone2(list.length > 0);
+                setShowSuggestionName2(false);
+                setSuggestionPhone2(list);
+                setBtnAddKHShow2(list.length === 0);
             })
-            .catch((error) => {
+            .catch(() => {
                 clearPhoneKH2();
+                setBtnAddKHShow2(true);
+            });
+    };
+
+    const onChangeNameKH2 = (e) => {
+        const val = e.target.value;
+        setNameKH2(val);
+        if (!val.trim()) {
+            setShowSuggestionName2(false);
+            setSuggestionName2([]);
+            return;
+        }
+        otherService.findKhachHang({ tenKhachHang: val.trim() })
+            .then((response) => {
+                const list = response.data || [];
+                setShowSuggestionName2(list.length > 0);
+                setShowSuggestionPhone2(false);
+                setSuggestionName2(list);
+                setBtnAddKHShow2(list.length === 0);
+            })
+            .catch(() => {
+                setShowSuggestionName2(false);
                 setBtnAddKHShow2(true);
             });
     };
@@ -505,6 +561,7 @@ function ThemHopDongKHDialog(props) {
                     setAddressKH1(response.data.diaChi);
                     setFacebookKH1(response.data.facebookId || "");
                     setShowSuggestionPhone1(false);
+                    setShowSuggestionName1(false);
                     setBtnAddKHShow1(false);
                 } else {
                     setIDKH2(response.data._id);
@@ -513,13 +570,14 @@ function ThemHopDongKHDialog(props) {
                     setAddressKH2(response.data.diaChi);
                     setFacebookKH2(response.data.facebookId || "");
                     setShowSuggestionPhone2(false);
+                    setShowSuggestionName2(false);
                     setBtnAddKHShow2(false);
                 }
             })
             .catch((error) => {
-                toast.error("Có lỗi xảy ra khi tạo khách hàng mới!" + error);
+                toast.error("Có lỗi xảy ra khi tạo khách hàng: " + (error?.message || error));
             });
-    }
+    };
 
     const onChangeFacebookKH1 = (e) => {
         let originalUrl = e.target.value;
@@ -551,17 +609,18 @@ function ThemHopDongKHDialog(props) {
         const checkCustomerExists1 = (searchId) => {
             otherService.findKhachHang({ facebookId: searchId })
                 .then((response) => {
-                    setShowSuggestionPhone1(true);
-                    setSuggestionPhone1(response.data);
-                    setBtnAddKHShow1(response.data.length === 0);
+                    const list = response.data || [];
+                    setShowSuggestionPhone1(list.length > 0);
+                    setShowSuggestionName1(false);
+                    setSuggestionPhone1(list);
+                    setBtnAddKHShow1(list.length === 0);
                 })
-                .catch((error) => {
+                .catch(() => {
                     clearPhoneKH1();
                     setBtnAddKHShow1(true);
                 });
         };
 
-        // Auto-fetch Facebook UID and name if it's a URL
         if (originalUrl.includes('facebook.com') || originalUrl.includes('fb.com')) {
             let fullUrl = originalUrl.startsWith('http') ? originalUrl : `https://${originalUrl}`;
             otherService.getFacebookInfo({ url: fullUrl })
@@ -617,17 +676,18 @@ function ThemHopDongKHDialog(props) {
         const checkCustomerExists2 = (searchId) => {
             otherService.findKhachHang({ facebookId: searchId })
                 .then((response) => {
-                    setShowSuggestionPhone2(true);
-                    setSuggestionPhone2(response.data);
-                    setBtnAddKHShow2(response.data.length === 0);
+                    const list = response.data || [];
+                    setShowSuggestionPhone2(list.length > 0);
+                    setShowSuggestionName2(false);
+                    setSuggestionPhone2(list);
+                    setBtnAddKHShow2(list.length === 0);
                 })
-                .catch((error) => {
+                .catch(() => {
                     clearPhoneKH2();
                     setBtnAddKHShow2(true);
                 });
         };
 
-        // Auto-fetch Facebook UID and name if it's a URL
         if (originalUrl.includes('facebook.com') || originalUrl.includes('fb.com')) {
             let fullUrl = originalUrl.startsWith('http') ? originalUrl : `https://${originalUrl}`;
             otherService.getFacebookInfo({ url: fullUrl })
@@ -676,8 +736,12 @@ function ThemHopDongKHDialog(props) {
         return null;
     };
 
-    const onSaveHopDong = () => {
-        // Kiểm tra trùng lịch chụp hình (khoảng cách dưới 3 tiếng)
+    const onSaveHopDong = (goToPayment = false) => {
+        if (!nameKH1.trim() && !nameKH2.trim()) {
+            toast.warning("Vui lòng nhập tên khách hàng!");
+            return;
+        }
+
         if (ngayChup) {
             const conflict = checkNgayChupConflict(ngayChup);
             if (conflict) {
@@ -728,17 +792,17 @@ function ThemHopDongKHDialog(props) {
             nhanVienSale: nhanVienSale,
             giaiDoan: 1,
             dichVuChinh: dichVuChinh
-
-        }).then((response) => {
+        }).then(() => {
             toast.success("Tạo hợp đồng mới thành công!");
-            setIsSuccess(true);
+            if (goToPayment) {
+                setOpenPaymentDialog(true);
+            } else {
+                setIsSuccess(true);
+            }
         }).catch((error) => {
-            toast.error("Có lỗi xảy ra khi tạo hợp đồng mới!" + error);
+            toast.error("Có lỗi xảy ra khi tạo hợp đồng mới: " + (error?.message || error));
         });
-
-    }
-
-
+    };
 
     const updateGioHangParam = (fieldName, value) => {
         if (!Array.isArray(gioHang) || gioHang.length === 0) return;
@@ -803,240 +867,53 @@ function ThemHopDongKHDialog(props) {
 
     const handlePrintHopDong = () => {
         const printWindow = window.open("", "_blank");
+        if (!printWindow) {
+            toast.error("Trình duyệt đang chặn cửa sổ pop-up. Vui lòng cho phép để in.");
+            return;
+        }
+
         const ngayHDFormatted = dayjs(ngayHopDong).format('DD/MM/YYYY');
-        const ngayChupFormatted = ngayChup ? dayjs(ngayChup).format('DD/MM/YYYY HH:mm') : 'Chưa xếp lịch';
-        const ngayAnHoiFormatted = ngayAnHoi ? dayjs(ngayAnHoi).format('DD/MM/YYYY HH:mm') : '';
-        const ngayCuoiFormatted = ngayCuoi ? dayjs(ngayCuoi).format('DD/MM/YYYY HH:mm') : '';
-        
+        const ngayChupFormatted = ngayChup ? dayjs(ngayChup).format('DD/MM/YYYY') : '';
+        const ngayAnHoiFormatted = ngayAnHoi ? dayjs(ngayAnHoi).format('DD/MM/YYYY') : '';
+        const ngayCuoiFormatted = ngayCuoi ? dayjs(ngayCuoi).format('DD/MM/YYYY') : '';
+
         const tongGoc = gioHang.reduce((sum, item) => {
             const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
             return sum + (price * (item.soLuong || 0));
         }, 0);
-        
+
         const conLai = Math.max(0, tongTien - (Number(khachThanhToan) || 0));
         const totals = getAggregatedParams();
-        
-        printWindow.document.write(`
-            <html>
-            <head>
-                <title>Hợp Đồng Dịch Vụ - ${maHopDong}</title>
-                <style>
-                    @page {
-                        size: A4;
-                        margin: 6mm 10mm;
-                    }
-                    body { font-family: "Arial", "Helvetica", sans-serif; padding: 0; margin: 0; line-height: 1.25; color: #333; font-size: 11px; }
-                    .header-sec { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1.5px solid #333; padding-bottom: 6px; }
-                    .company-logo { font-size: 20px; font-weight: bold; color: #111; }
-                    .company-info { text-align: right; font-size: 11px; color: #555; }
-                    .contract-title-sec { text-align: center; margin: 8px 0; }
-                    .title { font-size: 18px; font-weight: bold; margin: 0; text-transform: uppercase; color: #000; letter-spacing: 0.5px; }
-                    .date-line { font-style: italic; font-size: 11px; margin-top: 3px; color: #555; }
-                    .section-title { font-size: 12px; font-weight: bold; text-transform: uppercase; margin-top: 8px; margin-bottom: 4px; border-left: 3px solid #333; padding-left: 6px; }
-                    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-                    .info-table td { padding: 3px 0; vertical-align: top; border: none; font-size: 11px; }
-                    .items-table { width: 100%; border-collapse: collapse; margin-top: 4px; margin-bottom: 6px; }
-                    .items-table th, .items-table td { border: 1px solid #ddd; padding: 5px; text-align: left; font-size: 11px; }
-                    .items-table th { background-color: #f5f5f5; font-weight: bold; }
-                    .items-table td.number, .items-table th.number { text-align: right; }
-                    .items-table td.center, .items-table th.center { text-align: center; }
-                    
-                    /* Grid parameters style */
-                    .params-grid {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr 1fr;
-                        gap: 6px 12px;
-                        background: #f9f9f9;
-                        padding: 8px 12px;
-                        border: 1px solid #e0e0e0;
-                        border-radius: 4px;
-                        margin-top: 4px;
-                        margin-bottom: 8px;
-                    }
-                    .param-item {
-                        font-size: 10.5px;
-                    }
-                    .param-item strong {
-                        color: #111;
-                    }
-                    
-                    .summary-container { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-                    .summary-table { width: 300px; border-collapse: collapse; }
-                    .summary-table td { padding: 3px 0; font-size: 11px; }
-                    .summary-table td.label { text-align: left; color: #555; }
-                    .summary-table td.value { text-align: right; font-weight: 500; }
-                    .summary-table tr.total td { font-weight: bold; font-size: 13px; border-top: 1px solid #333; padding-top: 4px; }
-                    .signatures { display: flex; justify-content: space-between; margin-top: 15px; font-size: 11px; text-align: center; page-break-inside: avoid; }
-                    .sig-box { width: 220px; }
-                    .sig-title { font-weight: bold; margin-bottom: 45px; }
-                    .sig-name { font-weight: bold; }
-                    .terms { font-size: 9.5px; color: #666; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 6px; }
-                    .terms-title { font-weight: bold; margin-bottom: 3px; color: #444; }
-                    .terms p { margin: 1px 0; }
-                </style>
-            </head>
-            <body>
-                <div class="header-sec" style="align-items: center;">
-                    <div class="company-logo-sec">
-                        <img src="${window.location.origin}${logoVang}" alt="LONG WEDDING" style="height: 50px; object-fit: contain;" />
-                    </div>
-                    <div class="company-info" style="text-align: right;">
-                        <div>Website: <strong>longwedding.vn</strong></div>
-                        <div>Hotline: <strong>0868.66.3637</strong></div>
-                        <div>Địa chỉ: <strong>Số 129 đường 1/5, xóm Tân Hồng, xã Nghĩa Đàn, tỉnh Nghệ An</strong></div>
-                    </div>
-                </div>
-                
-                <div class="contract-title-sec">
-                    <div class="title">HỢP ĐỒNG DỊCH VỤ</div>
-                    <div class="date-line">Mã số HĐ: <strong>${maHopDong}</strong> - Ngày lập: ${ngayHDFormatted}</div>
-                </div>
 
-                <div class="section-title">Thông tin khách hàng</div>
-                <table class="info-table">
-                    <tr>
-                        <td style="width: 50%;"><strong>Khách hàng A:</strong> ${nameKH1 || 'Chưa cập nhật'}</td>
-                        <td style="width: 50%;"><strong>Khách hàng B:</strong> ${nameKH2 || 'Chưa cập nhật'}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Số điện thoại:</strong> ${phoneKH1 || 'Chưa cập nhật'}</td>
-                        <td><strong>Số điện thoại:</strong> ${phoneKH2 || 'Chưa cập nhật'}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Địa chỉ:</strong> ${addressKH1 || 'Chưa cập nhật'}</td>
-                        <td><strong>Địa chỉ:</strong> ${addressKH2 || 'Chưa cập nhật'}</td>
-                    </tr>
-                </table>
+        const contractPrintData = {
+            maHopDong,
+            ngayLapHopDongFormatted: ngayHDFormatted,
+            nameKH1,
+            nameKH2,
+            phoneKH1,
+            phoneKH2,
+            addressKH1,
+            addressKH2,
+            goiPreWedding: gioHang[0]?.tenDichVu || '',
+            giaPreWedding: tongGoc ? `${tongGoc.toLocaleString('vi-VN')} đ` : '',
+            ngayChupFormatted,
+            ngayAnHoiFormatted,
+            ngayCuoiFormatted,
+            totals,
+            soLuongAnh60x90: totals.soLuongAnh60x90,
+            soLuongAnh20x30: totals.soLuongAnh20x30,
+            trangPhucCoDauNgayAnHoi: totals.trangPhucCoDauNgayAnHoi,
+            trangPhucVayCuoiNgayCuoi: totals.trangPhucVayCuoiNgayCuoi,
+            trangPhucChoDoiBeLe: totals.trangPhucChoDoiBeLe,
+            trangPhucVestChuReNgayCuoi: totals.trangPhucVestChuReNgayCuoi,
+            tongTien: tongTien,
+            datCoc: Number(khachThanhToan) || 0,
+            daThanhToan: Number(khachThanhToan) || 0,
+            conLai: conLai
+        };
 
-                <div class="section-title">Nội dung dịch vụ đăng ký</div>
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px; text-align: center;">STT</th>
-                            <th>Tên Dịch Vụ / Sản Phẩm</th>
-                            <th style="width: 60px; text-align: center;">Số lượng</th>
-                            <th style="width: 110px; text-align: right;">Đơn giá</th>
-                            <th style="width: 110px; text-align: right;">Giảm giá</th>
-                            <th style="width: 130px; text-align: right;">Thành tiền</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${gioHang.length === 0 ? `<tr><td colspan="6" style="text-align: center; color: #999;">Chưa đăng ký dịch vụ nào</td></tr>` : 
-                          gioHang.map((item, index) => {
-                            const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
-                            const discountItem = parseFloat(item.giamGiaDichVu || 0);
-                            const total = Math.max(0, (price * (item.soLuong || 0)) - discountItem);
-                            return `
-                                <tr>
-                                    <td style="text-align: center;">${index + 1}</td>
-                                    <td>${item.tenDichVu}</td>
-                                    <td style="text-align: center;">${item.soLuong}</td>
-                                    <td style="text-align: right;">${price.toLocaleString('vi-VN')} đ</td>
-                                    <td style="text-align: right; color: ${discountItem > 0 ? '#dc2626' : '#666'};">${discountItem > 0 ? `-${discountItem.toLocaleString('vi-VN')} đ` : '0 đ'}</td>
-                                    <td style="text-align: right; font-weight: bold;">${total.toLocaleString('vi-VN')} đ</td>
-                                </tr>
-                            `;
-                          }).join('')}
-                    </tbody>
-                </table>
-
-                <div class="section-title">Chi tiết tham số dịch vụ</div>
-                <div class="params-grid">
-                    <div class="param-item"><strong>SL ảnh chỉnh sửa:</strong> ${totals.soLuongAnhChinhSua}</div>
-                    <div class="param-item"><strong>SL ảnh 16x21:</strong> ${totals.soLuongAnh16x21}</div>
-                    <div class="param-item"><strong>SL ảnh 20x30:</strong> ${totals.soLuongAnh20x30}</div>
-                    <div class="param-item"><strong>SL ảnh 60x90:</strong> ${totals.soLuongAnh60x90}</div>
-                    <div class="param-item"><strong>Trang điểm ngày ăn hỏi:</strong> ${totals.trangDiemNgayAnHoi}</div>
-                    <div class="param-item"><strong>Trang điểm ngày cưới:</strong> ${totals.trangDiemNgayCuoi}</div>
-                    <div class="param-item"><strong>Trang phục bê lễ:</strong> ${totals.trangPhucChoDoiBeLe}</div>
-                    <div class="param-item"><strong>TP cô dâu ngày ăn hỏi:</strong> ${totals.trangPhucCoDauNgayAnHoi}</div>
-                    <div class="param-item"><strong>TP chú rể ngày ăn hỏi:</strong> ${totals.trangPhucChuReNgayAnHoi}</div>
-                    <div class="param-item"><strong>Váy cưới ngày cưới (giá trị):</strong> ${totals.trangPhucVayCuoiNgayCuoi}</div>
-                    <div class="param-item"><strong>Vest chú rể ngày cưới:</strong> ${totals.trangPhucVestChuReNgayCuoi}</div>
-                    <div class="param-item"><strong>Hoa cầm tay:</strong> ${totals.hoaCamTay}</div>
-                </div>
-
-                <div class="summary-container">
-                    <table class="summary-table">
-                        <tr>
-                            <td class="label">Tổng giá trị dịch vụ:</td>
-                            <td class="value">${tongGoc.toLocaleString('vi-VN')} đ</td>
-                        </tr>
-                        ${gioHang.some(i => Number(i.giamGiaDichVu) > 0) ? `
-                        <tr>
-                            <td class="label" style="color: #dc2626;">Tổng giảm giá dịch vụ:</td>
-                            <td class="value" style="color: #dc2626;">-${gioHang.reduce((s, i) => s + (Number(i.giamGiaDichVu) || 0), 0).toLocaleString('vi-VN')} đ</td>
-                        </tr>
-                        ` : ''}
-                        ${giamGia > 0 ? `
-                        <tr>
-                            <td class="label" style="color: #dc2626;">Giảm giá hợp đồng:</td>
-                            <td class="value" style="color: #dc2626;">-${giamGia.toLocaleString('vi-VN')}${loaiGiamGia === 1 ? '%' : ' đ'}</td>
-                        </tr>
-                        ` : ''}
-                        <tr class="total">
-                            <td class="label">Tổng cộng thanh toán:</td>
-                            <td class="value">${tongTien.toLocaleString('vi-VN')} đ</td>
-                        </tr>
-                        <tr>
-                            <td class="label" style="color: green; font-weight: bold;">Đã thanh toán:</td>
-                            <td class="value" style="color: green; font-weight: bold;">${(Number(khachThanhToan) || 0).toLocaleString('vi-VN')} đ</td>
-                        </tr>
-                        <tr style="border-top: 1px dashed #ddd;">
-                            <td class="label" style="color: red; font-weight: bold; padding-top: 8px;">Còn lại phải thanh toán:</td>
-                            <td class="value" style="color: red; font-weight: bold; padding-top: 8px;">${conLai.toLocaleString('vi-VN')} đ</td>
-                        </tr>
-                    </table>
-                </div>
-
-                <div class="section-title">Lịch trình & Nhân sự</div>
-                <table class="info-table">
-                    <tr>
-                        <td style="width: 50%;"><strong>Ngày chụp ảnh:</strong> ${ngayChupFormatted}</td>
-                        <td style="width: 50%;"><strong>Địa điểm chụp:</strong> ${diaDiemChup || 'Chưa cập nhật'}</td>
-                    </tr>
-                    ${ngayAnHoiFormatted ? `
-                    <tr>
-                        <td><strong>Ngày ăn hỏi:</strong> ${ngayAnHoiFormatted}</td>
-                        <td></td>
-                    </tr>
-                    ` : ''}
-                    ${ngayCuoiFormatted ? `
-                    <tr>
-                        <td><strong>Ngày cưới:</strong> ${ngayCuoiFormatted}</td>
-                        <td></td>
-                    </tr>
-                    ` : ''}
-                    <tr>
-                        <td><strong>Thợ chụp hình:</strong> ${thoChupHinh || 'Chưa phân công'}</td>
-                        <td><strong>Thợ Make-up:</strong> ${thoMakeUp || 'Chưa phân công'}</td>
-                    </tr>
-                </table>
-
-                <div class="signatures">
-                    <div class="sig-box">
-                        <div class="sig-title">ĐẠI DIỆN KHÁCH HÀNG (BÊN A)</div>
-                        <div class="sig-name">${nameKH1 || ''}</div>
-                    </div>
-                    <div class="sig-box">
-                        <div class="sig-title">ĐẠI DIỆN CỬA HÀNG (BÊN B)</div>
-                        <div class="sig-name">LONG WEDDING</div>
-                    </div>
-                </div>
-
-                <div class="terms">
-                    <div class="terms-title">Điều khoản chung & Cam kết dịch vụ:</div>
-                    <p>1. Bên A cam kết thanh toán đầy đủ các khoản chi phí theo tiến độ đã thoả thuận trong hợp đồng.</p>
-                    <p>2. Bên B cam kết thực hiện đúng, đầy đủ các dịch vụ chất lượng đã ký kết với khách hàng.</p>
-                    <p>3. Mọi thay đổi về lịch trình hoặc dịch vụ cần được thông báo trước ít nhất 3 ngày.</p>
-                    <p>4. Trang phục không được để rượu vang đổ lên váy, nếu bị sẽ phải mua luôn váy.</p>
-                    <p>5. Tiền cọc không được hoàn trả bất kỳ hình thức nào.</p>
-                    <p>6. Hợp đồng được đồng bộ hóa trên đám mây, Quý khách có thể tra cứu trên website longwedding.vn.</p>
-                    <p>7. Mọi thắc mắc xin quý khách liên hệ về số hotline: 0868 66 3637</p>
-                </div>
-            </body>
-            </html>
-        `);
+        const html = generateContractPrintHtml(contractPrintData);
+        printWindow.document.write(html);
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => {
@@ -1044,121 +921,273 @@ function ThemHopDongKHDialog(props) {
         }, 300);
     };
 
+    const tongGocDonHang = gioHang.reduce((sum, item) => {
+        const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
+        return sum + (price * (item.soLuong || 0));
+    }, 0);
+
+    const tongGiamTungMon = gioHang.reduce((sum, item) => {
+        return sum + (parseFloat(item.giamGiaDichVu || 0));
+    }, 0);
+
+    const soTienTietKiem = Math.max(0, tongGocDonHang - tongTien);
+    const conLaiPhaiThu = Math.max(0, tongTien - (Number(khachThanhToan) || 0));
+    const firstCartItem = gioHang[0] || {};
+
     return (
-        <Dialog onClose={handleClose} open={open}
+        <Dialog 
+            onClose={handleClose} 
+            open={open}
             fullWidth={true}
             maxWidth={isSuccess ? "sm" : "xl"}
+            PaperProps={{
+                className: isSuccess ? "" : "hd-modern-dialog-root",
+                style: isSuccess ? {
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                    margin: '16px',
+                    backgroundColor: '#ffffff'
+                } : {}
+            }}
         >
             {isSuccess ? (
-                <div style={{ padding: '40px 24px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-                    <div style={{ color: '#2e7d32', fontSize: '64px', marginBottom: '16px' }}>
+                /* SCREEN: SUCCESS MODAL */
+                <div style={{ padding: '36px 24px', textAlign: 'center', fontFamily: "'Inter', 'Plus Jakarta Sans', -apple-system, Roboto, sans-serif" }}>
+                    <div style={{ color: '#16a34a', fontSize: '64px', marginBottom: '14px' }}>
                         <FontAwesomeIcon icon={faCircleCheck} />
                     </div>
-                    <h3 style={{ margin: '0 0 8px 0', color: '#2e7d32', fontWeight: 'bold', fontSize: '1.6rem' }}>
+                    <h3 style={{ margin: '0 0 6px 0', color: '#15803d', fontWeight: 700, fontSize: '1.45rem', letterSpacing: '-0.3px' }}>
                         TẠO HỢP ĐỒNG THÀNH CÔNG!
                     </h3>
-                    <p style={{ margin: '0 0 24px 0', color: '#555', fontSize: '1rem' }}>
-                        Hợp đồng <strong style={{ color: '#d32f2f' }}>{maHopDong}</strong> đã được lưu thành công vào hệ thống.
+                    <p style={{ margin: '0 0 20px 0', color: '#64748b', fontSize: '0.92rem' }}>
+                        Hợp đồng <strong style={{ color: '#b45309' }}>{maHopDong}</strong> đã được lưu thành công vào hệ thống.
                     </p>
                     
                     <div style={{ 
-                        backgroundColor: '#f9f9f9', 
-                        borderRadius: '8px', 
-                        padding: '20px', 
+                        backgroundColor: '#f8fafc', 
+                        borderRadius: '12px', 
+                        padding: '16px 20px', 
                         textAlign: 'left',
-                        marginBottom: '32px',
-                        border: '1px solid #e0e0e0',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                        marginBottom: '24px',
+                        border: '1.5px solid #e2e8f0'
                     }}>
-                        <div style={{ marginBottom: '10px', fontSize: '0.95rem' }}>
-                            <strong>Mã hợp đồng:</strong> <span style={{ color: '#d32f2f', fontWeight: 'bold' }}>{maHopDong}</span>
+                        <div style={{ marginBottom: '8px', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#64748b' }}>Mã hợp đồng:</span>
+                            <span style={{ color: '#b45309', fontWeight: 700 }}>{maHopDong}</span>
                         </div>
-                        <div style={{ marginBottom: '10px', fontSize: '0.95rem' }}>
-                            <strong>Khách hàng 1:</strong> {nameKH1 || 'Chưa cập nhật'} {phoneKH1 ? `(${phoneKH1})` : ''}
+                        <div style={{ marginBottom: '8px', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#64748b' }}>Khách hàng 1:</span>
+                            <span style={{ fontWeight: 600, color: '#0f172a' }}>{nameKH1 || 'Chưa cập nhật'} {phoneKH1 ? `(${phoneKH1})` : ''}</span>
                         </div>
                         {nameKH2 && (
-                            <div style={{ marginBottom: '10px', fontSize: '0.95rem' }}>
-                                <strong>Khách hàng 2:</strong> {nameKH2} {phoneKH2 ? `(${phoneKH2})` : ''}
+                            <div style={{ marginBottom: '8px', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#64748b' }}>Khách hàng 2:</span>
+                                <span style={{ fontWeight: 600, color: '#0f172a' }}>{nameKH2} {phoneKH2 ? `(${phoneKH2})` : ''}</span>
                             </div>
                         )}
-                        <div style={{ marginBottom: '10px', fontSize: '0.95rem' }}>
-                            <strong>Tổng tiền:</strong> <span style={{ fontWeight: 'bold' }}>{tongTien.toLocaleString('vi-VN')} đ</span>
+                        <div style={{ marginBottom: '8px', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#64748b' }}>Tổng tiền sau giảm:</span>
+                            <span style={{ fontWeight: 700, color: '#15803d' }}>{tongTien.toLocaleString('vi-VN')} đ</span>
                         </div>
-                        <div style={{ fontSize: '0.95rem' }}>
-                            <strong>Đã cọc:</strong> <span style={{ color: '#2e7d32', fontWeight: 'bold' }}>{Number(khachThanhToan).toLocaleString('vi-VN')} đ</span>
+                        <div style={{ fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#64748b' }}>Đã đặt cọc:</span>
+                            <span style={{ color: '#0284c7', fontWeight: 700 }}>{Number(khachThanhToan).toLocaleString('vi-VN')} đ</span>
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
                         <Button 
                             variant="outlined" 
                             color="inherit" 
                             onClick={handleCloseAndReset}
-                            style={{ minWidth: '140px', height: '44px' }}
+                            style={{ minWidth: '130px', height: '40px', textTransform: 'none', fontWeight: 600, borderRadius: '8px' }}
                         >
-                            Đóng cửa sổ
-                        </Button>
-                        <Button 
-                            variant="contained" 
-                            onClick={() => setOpenSepayDialog(true)}
-                            startIcon={<FontAwesomeIcon icon={faCreditCard} />}
-                            style={{ minWidth: '150px', height: '44px', backgroundColor: '#0284c7', color: '#ffffff', fontWeight: 700 }}
-                        >
-                            Thanh toán
+                            Thoát
                         </Button>
                         <Button 
                             variant="contained" 
                             color="success" 
                             onClick={handlePrintHopDong}
                             startIcon={<FontAwesomeIcon icon={faPrint} />}
-                            style={{ minWidth: '160px', height: '44px' }}
+                            style={{ minWidth: '150px', height: '40px', fontWeight: 700, textTransform: 'none', borderRadius: '8px', backgroundColor: '#16a34a' }}
                         >
                             In hợp đồng
                         </Button>
                     </div>
                 </div>
             ) : (
-                <div className="dialog-overlay">
-                    <div className="dialog large">
-                    <button className="close-btn" onClick={onClose}>×</button>
-                    <h3 className="dialog-title">TẠO HỢP ĐỒNG MỚI</h3>
+                /* SCREEN: MAIN BENTO GRID FORM */
+                <div className="hd-modern-wrapper">
+                    {/* 1. TOP HEADER (~48px) */}
+                    <div className="hd-compact-header">
+                        <div className="hd-header-left-group">
+                            <div className="hd-header-icon-mini">
+                                <span>💎</span>
+                            </div>
+                            <div className="hd-header-title-text">
+                                <h2>
+                                    TẠO HỢP ĐỒNG MỚI: 
+                                    <input
+                                        type="text"
+                                        value={maHopDong}
+                                        onChange={(e) => setMaHopDong(e.target.value)}
+                                        style={{
+                                            background: 'rgba(251, 191, 36, 0.15)',
+                                            border: '1px solid rgba(251, 191, 36, 0.4)',
+                                            borderRadius: '6px',
+                                            color: '#fbbf24',
+                                            fontWeight: 800,
+                                            fontSize: '0.92rem',
+                                            padding: '2px 8px',
+                                            width: '150px',
+                                            marginLeft: '6px',
+                                            outline: 'none'
+                                        }}
+                                        title="Nhấp để sửa mã hợp đồng nếu cần"
+                                    />
+                                </h2>
+                            </div>
+                            <Autocomplete
+                                disablePortal
+                                options={loaiHopDongOptions}
+                                size="small"
+                                defaultValue={loaiHopDongOptions[0]}
+                                sx={{
+                                    minWidth: 260,
+                                    '& .MuiOutlinedInput-root': {
+                                        height: 32,
+                                        fontSize: '0.82rem',
+                                        fontWeight: 700,
+                                        color: '#fbbf24',
+                                        backgroundColor: 'rgba(251, 191, 36, 0.08)',
+                                        borderRadius: '6px',
+                                        '& fieldset': {
+                                            borderColor: '#fbbf24',
+                                            borderWidth: '1.5px'
+                                        },
+                                        '&:hover fieldset': {
+                                            borderColor: '#f59e0b'
+                                        },
+                                        '&.Mui-focused fieldset': {
+                                            borderColor: '#fbbf24'
+                                        },
+                                        '& .MuiSvgIcon-root': {
+                                            color: '#fbbf24'
+                                        }
+                                    }
+                                }}
+                                renderInput={(params) => (
+                                    <TextField 
+                                        {...params} 
+                                        placeholder="Chọn loại hợp đồng" 
+                                    />
+                                )}
+                                onChange={(event, newValue) => {
+                                    setDichVuChinh(newValue ? newValue.id : 0);
+                                }}
+                            />
+                        </div>
 
-                    <div className="dialog-content">
-                        <div className="right-column">
-                            <div className="dialog-section-khachhang">
-                                <div className="dialog-section-khachhang-item">
-                                    <h4>Thông tin khách hàng 1</h4>
-                                    <div className="floating-label">
-                                        <input name="phoneKH1" value={phoneKH1} onChange={onChangePhoneKH1} type="Number" maxLength={10} autoComplete="off" required />
-                                        <label>Phone khách hàng 1</label>
+                        <div className="hd-header-right-group">
+                            <button className="hd-close-btn-mini" onClick={onClose} title="Đóng cửa sổ">
+                                ×
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 2. MAIN BENTO GRID BODY (3 COLUMNS) */}
+                    <div className="hd-dashboard-content">
+                        <div className="hd-bento-grid">
+                            
+                            {/* ===== CỘT 1 (310px): KHÁCH HÀNG & NHÂN SỰ & LỊCH TRÌNH ===== */}
+                            <div className="hd-bento-col">
+                                
+                                {/* Thẻ 1: Khách hàng 1 */}
+                                <div className="hd-card" ref={customer1Ref}>
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>👰</span> Khách Hàng 1 (Chính)
+                                        </h3>
                                     </div>
-
-                                    <div className="floating-label">
+                                    <div className="hd-floating-field">
+                                        <label>Số điện thoại</label>
+                                        <input 
+                                            name="phoneKH1" 
+                                            value={phoneKH1} 
+                                            onChange={onChangePhoneKH1} 
+                                            type="text" 
+                                            maxLength={10} 
+                                            autoComplete="off" 
+                                            placeholder="Nhập SĐT để tìm/tạo..."
+                                        />
                                         {showSuggestionPhone1 && suggestionPhone1.length > 0 && (
                                             <ul className="search-suggestions-pop">
                                                 {suggestionPhone1.map(p => (
-                                                    <li key={p.soDienThoai} onClick={() => handleSelectProductPhone1(p)}>
-                                                        <span className="p-name">{p.tenKhachHang || "Đang cập nhật ..."}</span>
-                                                        <span className="p-price">{p.soDienThoai || "Đang cập nhật ..."}</span>
+                                                    <li key={p._id || p.soDienThoai} onClick={() => handleSelectProductPhone1(p)}>
+                                                        <div>
+                                                            <span className="p-name">{p.tenKhachHang || "Chưa có tên"}</span>
+                                                            {p.soHopDong > 0 && (
+                                                                <span style={{ fontSize: '0.72rem', color: '#0284c7', marginLeft: '4px', fontWeight: 600 }}>
+                                                                    ({p.soHopDong} HĐ)
+                                                                </span>
+                                                            )}
+                                                            {p.diaChi && <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{p.diaChi}</div>}
+                                                        </div>
+                                                        <span className="p-price">{p.soDienThoai || p.facebookId || ""}</span>
                                                     </li>
                                                 ))}
                                             </ul>
                                         )}
                                     </div>
 
-                                    <div className="floating-label">
-                                        <input name="tenKhachHang" value={nameKH1} onChange={(e) => { setNameKH1(e.target.value) }} required />
+                                    <div className="hd-floating-field">
                                         <label>Tên khách hàng</label>
+                                        <input 
+                                            name="tenKhachHang1" 
+                                            value={nameKH1} 
+                                            onChange={onChangeNameKH1} 
+                                            autoComplete="off" 
+                                            placeholder="Tên cô dâu / KH1..."
+                                        />
+                                        {showSuggestionName1 && suggestionName1.length > 0 && (
+                                            <ul className="search-suggestions-pop">
+                                                {suggestionName1.map(p => (
+                                                    <li key={p._id || p.soDienThoai} onClick={() => handleSelectProductPhone1(p)}>
+                                                        <div>
+                                                            <span className="p-name">{p.tenKhachHang || "Chưa có tên"}</span>
+                                                            {p.soHopDong > 0 && (
+                                                                <span style={{ fontSize: '0.72rem', color: '#0284c7', marginLeft: '4px', fontWeight: 600 }}>
+                                                                    ({p.soHopDong} HĐ)
+                                                                </span>
+                                                            )}
+                                                            {p.diaChi && <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{p.diaChi}</div>}
+                                                        </div>
+                                                        <span className="p-price">{p.soDienThoai || p.facebookId || ""}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
                                     </div>
 
-                                    <div className="floating-label">
-                                        <input name="diaChiCodau" value={addressKH1} onChange={(e) => { setAddressKH1(e.target.value) }} autoComplete="off" required />
+                                    <div className="hd-floating-field">
                                         <label>Địa chỉ</label>
+                                        <input 
+                                            name="diaChi1" 
+                                            value={addressKH1} 
+                                            onChange={(e) => setAddressKH1(e.target.value)} 
+                                            placeholder="Địa chỉ cư trú..."
+                                        />
                                     </div>
 
-                                    <div className="floating-label">
-                                        <input name="facebookKH1" value={facebookKH1} onChange={onChangeFacebookKH1} autoComplete="off" />
-                                        <label>Link / ID Facebook 1</label>
+                                    <div className="hd-floating-field">
+                                        <label>Link / ID Facebook</label>
+                                        <input 
+                                            name="facebookKH1" 
+                                            value={facebookKH1} 
+                                            onChange={onChangeFacebookKH1} 
+                                            placeholder="Link Facebook..."
+                                        />
                                     </div>
 
                                     {btnAddKHShow1 && (
@@ -1166,144 +1195,182 @@ function ThemHopDongKHDialog(props) {
                                             onClick={() => onCreateNewCustomer(1, phoneKH1, nameKH1, addressKH1, facebookKH1)}
                                             color="success"
                                             variant="contained"
-                                            sx={{
-                                                whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
-                                            }}
-                                        >Tạo khách hàng mới</Button>
+                                            size="small"
+                                            sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.74rem', width: '100%', mt: 0.5 }}
+                                        >
+                                            + Tạo khách hàng 1 mới
+                                        </Button>
                                     )}
                                 </div>
 
-                                <div className="dialog-section-khachhang-item">
-                                    <h4>Thông tin khách hàng 2</h4>
-                                    <div className="floating-label">
-                                        <input name="phoneKH2" value={phoneKH2} onChange={onChangePhoneKH2} type="Number" maxLength={10} required />
-                                        <label>Phone khách hàng 2</label>
+                                {/* Thẻ 2: Khách hàng 2 */}
+                                <div className="hd-card" ref={customer2Ref}>
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>🤵</span> Khách Hàng 2 (Chú Rể)
+                                        </h3>
                                     </div>
-
-                                    <div className="floating-label">
+                                    <div className="hd-floating-field">
+                                        <label>Số điện thoại</label>
+                                        <input 
+                                            name="phoneKH2" 
+                                            value={phoneKH2} 
+                                            onChange={onChangePhoneKH2} 
+                                            type="text" 
+                                            maxLength={10} 
+                                            placeholder="SĐT chú rể..."
+                                        />
                                         {showSuggestionPhone2 && suggestionPhone2.length > 0 && (
                                             <ul className="search-suggestions-pop">
                                                 {suggestionPhone2.map(p => (
-                                                    <li key={p.soDienThoai} onClick={() => handleSelectProductPhone2(p)}>
-                                                        <span className="p-name">{p.tenKhachHang || "Đang cập nhật ..."}</span>
-                                                        <span className="p-price">{p.soDienThoai || "Đang cập nhật ..."}</span>
+                                                    <li key={p._id || p.soDienThoai} onClick={() => handleSelectProductPhone2(p)}>
+                                                        <div>
+                                                            <span className="p-name">{p.tenKhachHang || "Chưa có tên"}</span>
+                                                            {p.soHopDong > 0 && (
+                                                                <span style={{ fontSize: '0.72rem', color: '#0284c7', marginLeft: '4px', fontWeight: 600 }}>
+                                                                    ({p.soHopDong} HĐ)
+                                                                </span>
+                                                            )}
+                                                            {p.diaChi && <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{p.diaChi}</div>}
+                                                        </div>
+                                                        <span className="p-price">{p.soDienThoai || p.facebookId || ""}</span>
                                                     </li>
                                                 ))}
                                             </ul>
                                         )}
                                     </div>
 
-                                    <div className="floating-label">
-                                        <input name="tenKhachHang" value={nameKH2} onChange={(e) => { setNameKH2(e.target.value) }} required />
+                                    <div className="hd-floating-field">
                                         <label>Tên khách hàng 2</label>
+                                        <input 
+                                            name="tenKhachHang2" 
+                                            value={nameKH2} 
+                                            onChange={onChangeNameKH2} 
+                                            placeholder="Tên chú rể / KH2..."
+                                        />
+                                        {showSuggestionName2 && suggestionName2.length > 0 && (
+                                            <ul className="search-suggestions-pop">
+                                                {suggestionName2.map(p => (
+                                                    <li key={p._id || p.soDienThoai} onClick={() => handleSelectProductPhone2(p)}>
+                                                        <div>
+                                                            <span className="p-name">{p.tenKhachHang || "Chưa có tên"}</span>
+                                                            {p.soHopDong > 0 && (
+                                                                <span style={{ fontSize: '0.72rem', color: '#0284c7', marginLeft: '4px', fontWeight: 600 }}>
+                                                                    ({p.soHopDong} HĐ)
+                                                                </span>
+                                                            )}
+                                                            {p.diaChi && <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{p.diaChi}</div>}
+                                                        </div>
+                                                        <span className="p-price">{p.soDienThoai || p.facebookId || ""}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
                                     </div>
 
-                                    <div className="floating-label">
-                                        <input name="diaChiCodau" value={addressKH2} onChange={(e) => { setAddressKH2(e.target.value) }} required />
-                                        <label>Địa chỉ khách hàng 2</label>
+                                    <div className="hd-floating-field">
+                                        <label>Địa chỉ</label>
+                                        <input 
+                                            name="diaChi2" 
+                                            value={addressKH2} 
+                                            onChange={(e) => setAddressKH2(e.target.value)} 
+                                            placeholder="Địa chỉ..."
+                                        />
                                     </div>
-                                    <div className="floating-label">
-                                        <input name="facebookKH2" value={facebookKH2} onChange={onChangeFacebookKH2} autoComplete="off" />
-                                        <label>Link / ID Facebook 2</label>
+
+                                    <div className="hd-floating-field">
+                                        <label>Link / ID Facebook</label>
+                                        <input 
+                                            name="facebookKH2" 
+                                            value={facebookKH2} 
+                                            onChange={onChangeFacebookKH2} 
+                                            placeholder="Link Facebook..."
+                                        />
                                     </div>
+
                                     {btnAddKHShow2 && (
                                         <Button
                                             onClick={() => onCreateNewCustomer(2, phoneKH2, nameKH2, addressKH2, facebookKH2)}
                                             color="success"
                                             variant="contained"
-                                            sx={{
-                                                whiteSpace: 'nowrap'  // Giữ cho text không bị rớt dòng nếu thu nhỏ màn hình
-                                            }}
-                                        >Tạo khách hàng mới</Button>
+                                            size="small"
+                                            sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.74rem', width: '100%', mt: 0.5 }}
+                                        >
+                                            + Tạo khách hàng 2 mới
+                                        </Button>
                                     )}
-
                                 </div>
 
-                            </div>
-
-
-
-                            <div className="dialog-section">
-                                <h4>Thông tin hợp đồng</h4>
-                                <div className="two-col-grid">
-                                    <div className="floating-label">
-                                        <input name="maHopDong" value={maHopDong} onChange={(e) => setMaHopDong(e.target.value)} required />
-                                        <label>Mã hợp đồng</label>
+                                {/* Thẻ 3: Phân Công Đội Ngũ */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>👥</span> Phân Công Đội Ngũ
+                                        </h3>
                                     </div>
-
-                                    <Autocomplete
-                                        disablePortal
-                                        options={loaiHopDongOptions}
-                                        size="small"
-                                        renderInput={(params) => <TextField {...params} label="Loại hợp đồng" />}
-                                        onChange={(event, newValue) => {
-                                            setDichVuChinh(newValue ? newValue.id : 0);
-                                        }}
-                                        sx={{ marginTop: '-8px' }}
-                                    />
-
-                                    <div className="floating-label">
-                                        <select name="nhanVienSale" value={nhanVienSale} onChange={(e) => setNhanVienSale(e.target.value)}>
+                                    <div className="hd-floating-field">
+                                        <label>Nhân viên Sale</label>
+                                        <select value={nhanVienSale} onChange={(e) => setNhanVienSale(e.target.value)}>
                                             <option value="0">Chưa phân công</option>
                                             {listStaff.filter(s => s.positon === 'Nhân viên Sale').map(s => {
                                                 const name = s.fullname || s.username;
                                                 return <option key={s.username} value={name}>{name}</option>;
                                             })}
                                         </select>
-                                        <label>Nhân viên sale</label>
                                     </div>
-
-                                    <div className="floating-label">
-                                        <select name="thoChupHinh" value={thoChupHinh} onChange={(e) => setThoChupHinh(e.target.value)}>
+                                    <div className="hd-floating-field">
+                                        <label>Thợ chụp hình</label>
+                                        <select value={thoChupHinh} onChange={(e) => setThoChupHinh(e.target.value)}>
                                             <option value="">Chưa phân công</option>
                                             {listStaff.filter(s => s.positon === 'Thợ chụp hình').map(s => {
                                                 const name = s.fullname || s.username;
                                                 return <option key={s.username} value={name}>{name}</option>;
                                             })}
                                         </select>
-                                        <label>Thợ chụp hình</label>
                                     </div>
-
-                                    <div className="floating-label">
-                                        <select name="thoMakeUp" value={thoMakeUp} onChange={(e) => setThoMakeUp(e.target.value)}>
+                                    <div className="hd-floating-field">
+                                        <label>Thợ Make-up</label>
+                                        <select value={thoMakeUp} onChange={(e) => setThoMakeUp(e.target.value)}>
                                             <option value="">Chưa phân công</option>
                                             {listStaff.filter(s => s.positon === 'Thợ trang điểm').map(s => {
                                                 const name = s.fullname || s.username;
                                                 return <option key={s.username} value={name}>{name}</option>;
                                             })}
                                         </select>
-                                        <label>Thợ Make-up</label>
                                     </div>
-
-                                    <div className="floating-label">
-                                        <select name="chotLich" value={chotLich} onChange={(e) => setChotLich(e.target.value)}>
-                                            <option value="Chưa gọi điện">Chưa gọi điện</option>
-                                            <option value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</option>
-                                            <option value="Đã chốt lịch">Đã chốt lịch</option>
-                                        </select>
-                                        <label>Chốt lịch</label>
-                                    </div>
-
-                                    <div className="floating-label">
-                                        <select name="thoChinhAnh" value={thoChinhAnh} onChange={(e) => setThoChinhAnh(e.target.value)}>
+                                    <div className="hd-floating-field">
+                                        <label>Thợ chỉnh ảnh</label>
+                                        <select value={thoChinhAnh} onChange={(e) => setThoChinhAnh(e.target.value)}>
                                             <option value="">Chưa phân công</option>
                                             {listStaff.filter(s => s.positon === 'Thợ chỉnh ảnh').map(s => {
                                                 const name = s.fullname || s.username;
                                                 return <option key={s.username} value={name}>{name}</option>;
                                             })}
                                         </select>
-                                        <label>Thợ chỉnh ảnh</label>
+                                    </div>
+                                    <div className="hd-floating-field">
+                                        <label>Chốt lịch</label>
+                                        <select value={chotLich} onChange={(e) => setChotLich(e.target.value)}>
+                                            <option value="Chưa gọi điện">Chưa gọi điện</option>
+                                            <option value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</option>
+                                            <option value="Đã chốt lịch">Đã chốt lịch</option>
+                                        </select>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="dialog-section" style={{ marginTop: '20px' }}>
-                                <h4>Thông tin chung & Lịch trình</h4>
-                                <div className="two-col-grid">
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                {/* Thẻ 4: Lịch Trình & Phong Thủy */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>📅</span> Lịch Trình & Phong Thủy
+                                        </h3>
+                                    </div>
+                                    
+                                    {/* Ngày chụp */}
+                                    <div className="hd-floating-field">
+                                        <label>Ngày & Giờ chụp ảnh</label>
                                         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
                                             <DateTimePicker
-                                                label="Ngày chụp ảnh"
                                                 value={ngayChup ? dayjs(ngayChup) : null}
                                                 onChange={(newValue) => {
                                                     const formatted = newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '';
@@ -1313,453 +1380,557 @@ function ThemHopDongKHDialog(props) {
                                                         if (conflict) {
                                                             const conflictTime = new Date(conflict.cacNgay.ngayChup);
                                                             const timeStr = `${String(conflictTime.getHours()).padStart(2, '0')}:${String(conflictTime.getMinutes()).padStart(2, '0')} ngày ${conflictTime.getDate()}/${conflictTime.getMonth() + 1}/${conflictTime.getFullYear()}`;
-                                                            toast.warning(`Cảnh báo: Trùng hoặc quá gần lịch chụp với HĐ ${conflict.maHopDong} (${conflict.khachHang1?.tenKhachHang || ''}) vào lúc ${timeStr} (khoảng cách dưới 3 tiếng).`);
+                                                            toast.warning(`Cảnh báo: Trùng hoặc quá gần lịch chụp với HĐ ${conflict.maHopDong} (${conflict.khachHang1?.tenKhachHang || ''}) lúc ${timeStr}.`);
                                                         }
                                                     }
                                                 }}
-                                                slotProps={{
-                                                    textField: {
-                                                        fullWidth: true,
-                                                        required: true,
-                                                        size: 'small',
-                                                    }
-                                                }}
+                                                slotProps={{ textField: { fullWidth: true, size: 'small' } }}
                                                 format="DD/MM/YYYY HH:mm"
                                             />
                                         </LocalizationProvider>
                                         {ngayChup && (
-                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500' }}>
-                                                Âm lịch: {formatLunarDateFull(ngayChup)}
+                                            <div className="hd-lunar-tag">
+                                                🌙 Âm lịch: {formatLunarDateFull(ngayChup)}
                                             </div>
                                         )}
-                                        
+                                    </div>
+
+                                    {/* Ngày ăn hỏi */}
+                                    <div className="hd-floating-field">
+                                        <label>Ngày ăn hỏi</label>
                                         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
                                             <DateTimePicker
-                                                label="Ngày ăn hỏi"
                                                 value={ngayAnHoi ? dayjs(ngayAnHoi) : null}
                                                 onChange={(newValue) => setNgayAnHoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
-                                                slotProps={{
-                                                    textField: {
-                                                        fullWidth: true,
-                                                        required: true,
-                                                        size: 'small',
-                                                    }
-                                                }}
+                                                slotProps={{ textField: { fullWidth: true, size: 'small' } }}
                                                 format="DD/MM/YYYY HH:mm"
                                             />
                                         </LocalizationProvider>
                                         {ngayAnHoi && (
-                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500' }}>
-                                                Âm lịch: {formatLunarDateFull(ngayAnHoi)}
+                                            <div className="hd-lunar-tag">
+                                                🌙 Âm lịch: {formatLunarDateFull(ngayAnHoi)}
                                             </div>
                                         )}
                                     </div>
 
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                    {/* Ngày cưới */}
+                                    <div className="hd-floating-field">
+                                        <label>Ngày cưới</label>
                                         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
                                             <DateTimePicker
-                                                label="Ngày cưới"
                                                 value={ngayCuoi ? dayjs(ngayCuoi) : null}
                                                 onChange={(newValue) => setNgayCuoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
-                                                slotProps={{
-                                                    textField: {
-                                                        fullWidth: true,
-                                                        required: true,
-                                                        size: 'small',
-                                                    }
-                                                }}
+                                                slotProps={{ textField: { fullWidth: true, size: 'small' } }}
                                                 format="DD/MM/YYYY HH:mm"
                                             />
                                         </LocalizationProvider>
                                         {ngayCuoi && (
-                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500' }}>
-                                                Âm lịch: {formatLunarDateFull(ngayCuoi)}
+                                            <div className="hd-lunar-tag">
+                                                🌙 Âm lịch: {formatLunarDateFull(ngayCuoi)}
                                             </div>
                                         )}
+                                    </div>
 
-                                        <div className="floating-label" style={{ marginTop: '0px' }}>
-                                            <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />
-                                            <label>Địa điểm chụp</label>
-                                        </div>
+                                    {/* Địa điểm chụp */}
+                                    <div className="hd-floating-field">
+                                        <label>Địa điểm chụp</label>
+                                        <input 
+                                            type="text" 
+                                            value={diaDiemChup} 
+                                            onChange={(e) => setDiaDiemChup(e.target.value)} 
+                                            placeholder="Địa điểm chụp ảnh..."
+                                        />
+                                    </div>
 
-                                        <div className="floating-label" style={{ marginTop: '5px' }}>
-                                            <input type="date" name="ngayTraAnh" value={ngayTraAnh} onChange={(e) => setNgayTraAnh(e.target.value)} />
-                                            <label>Ngày trả ảnh</label>
-                                        </div>
+                                    {/* Ngày trả ảnh */}
+                                    <div className="hd-floating-field">
+                                        <label>Ngày trả ảnh</label>
+                                        <input 
+                                            type="date" 
+                                            value={ngayTraAnh} 
+                                            onChange={(e) => setNgayTraAnh(e.target.value)} 
+                                        />
                                         {ngayTraAnh && (
-                                            <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                Âm lịch: {formatLunarDateFull(ngayTraAnh)}
+                                            <div className="hd-lunar-tag">
+                                                🌙 Âm lịch: {formatLunarDateFull(ngayTraAnh)}
                                             </div>
                                         )}
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="left-column">
-                            <h4>Sản phẩm</h4>
+                            {/* ===== CỘT 2 (2fr - CHIẾM 2/3): SẢN PHẨM & QUY CÁCH CHI TIẾT ===== */}
+                            <div className="hd-bento-col">
+                                
+                                {/* Thẻ: Sản phẩm & Gói Dịch Vụ */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>📦</span> Sản Phẩm & Gói Dịch Vụ
+                                        </h3>
+                                        <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>
+                                            {gioHang.length} mục đã chọn
+                                        </span>
+                                    </div>
 
-                            <div className="product-search-container" ref={searchRef}>
-                                <AppSearchInput
-                                    value={searchTerm}
-                                    placeholder="Tìm tên hoặc mã sản phẩm"
-                                    width="100%"
-                                    autoComplete="off"
-                                    onFocus={() => setShowSuggestions(true)}
-                                    onChange={(e) => {
-                                        const value = e.target ? e.target.value : e;
-                                        setSearchTerm(value);
-                                        setShowSuggestions(true);
-                                    }}
-                                />
-
-                                {showSuggestions && suggestions.length > 0 && (
-                                    <ul className="search-suggestions-pop">
-                                        {suggestions.map(p => (
-                                            <li key={p.maDichVu} onClick={() => handleSelectProduct(p)}>
-                                                <span className="p-name">{p.tenDichVu} <small style={{ color: '#888', marginLeft: '5px' }}>({p.maDichVu})</small></span>
-                                                <span className="p-price">{p.giaChoThueDichVu.toLocaleString("vi-VN")}đ</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-
-                            {/* ===== TABLE ===== */}
-                            <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', maxHeight: '250px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px', marginBottom: '15px' }}>
-                                <table className="product-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Tên SP</th>
-                                            <th style={{ textAlign: "center" }}>Số lượng</th>
-                                            <th>Đơn giá</th>
-                                            <th style={{ width: '130px' }}>Giảm giá (đ)</th>
-                                            <th>Thành tiền</th>
-                                            <th>Hành động</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {Array.isArray(gioHang) && gioHang.length > 0 ? (
-                                            gioHang.map((sp) => {
-                                                const price = parseFloat(sp.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
-                                                const discountItem = parseFloat(sp.giamGiaDichVu || 0);
-                                                const total = Math.max(0, (price * (sp.soLuong || 0)) - discountItem);
-
-                                                return (
-                                                    <Fragment key={sp.maDichVu}>
-                                                        <tr style={{ backgroundColor: Number(sp.loaiDichVu) !== 1 ? '#f5f8fc' : 'transparent' }}>
-                                                            <td style={{ fontWeight: Number(sp.loaiDichVu) !== 1 ? '600' : 'normal' }}>{sp.tenDichVu}</td>
-                                                            <td style={{ textAlign: "center" }}>
-                                                                <button className="btn-qty" onClick={() => handleDecreaseQuantity(sp.maDichVu)}>-</button>
-                                                                <span style={{ margin: "0 10px" }}>{sp.soLuong}</span>
-                                                                <button className="btn-qty" onClick={() => handleSelectProduct(sp)}>+</button>
-                                                            </td>
-                                                            <td>{price.toLocaleString("vi-VN")}đ</td>
-                                                            <td>
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    placeholder="0"
-                                                                    value={sp.giamGiaDichVu !== undefined && sp.giamGiaDichVu !== null ? sp.giamGiaDichVu : ''}
-                                                                    onChange={(e) => handleDiscountItemChange(sp.maDichVu, e.target.value)}
-                                                                    style={{
-                                                                        width: '100px',
-                                                                        padding: '4px 8px',
-                                                                        borderRadius: '6px',
-                                                                        border: '1px solid #cbd5e1',
-                                                                        fontSize: '0.85rem'
-                                                                    }}
-                                                                />
-                                                            </td>
-                                                            <td style={{ fontWeight: 'bold', color: discountItem > 0 ? '#059669' : 'inherit' }}>
-                                                                {total.toLocaleString("vi-VN")}đ
-                                                                {discountItem > 0 && (
-                                                                    <div style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: '500' }}>
-                                                                        (Giảm: -{discountItem.toLocaleString("vi-VN")}đ)
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            <td style={{ textAlign: "center" }}>
-                                                                <Button
-                                                                    size="small"
-                                                                    color="error"
-                                                                    onClick={() => handleDeleteProduct(sp.maDichVu)}
-                                                                >
-                                                                    Xóa
-                                                                </Button>
-                                                            </td>
-                                                        </tr>
-                                                    </Fragment>
-                                                );
-                                            })
-                                        ) : (
-                                            <tr>
-                                                <td colSpan={6} style={{ textAlign: "center", color: "#999" }}>
-                                                    Chưa sử dụng dịch vụ
-                                                </td>
-                                            </tr>
+                                    {/* Tìm kiếm Dịch vụ */}
+                                    <div style={{ position: 'relative', marginBottom: '10px' }} ref={searchRef}>
+                                        <AppSearchInput
+                                            value={searchTerm}
+                                            placeholder="Tìm kiếm tên hoặc mã sản phẩm/dịch vụ..."
+                                            width="100%"
+                                            autoComplete="off"
+                                            onFocus={() => setShowSuggestions(true)}
+                                            onChange={(e) => {
+                                                const value = e.target ? e.target.value : e;
+                                                setSearchTerm(value);
+                                                setShowSuggestions(true);
+                                            }}
+                                        />
+                                        {showSuggestions && suggestions.length > 0 && (
+                                            <ul className="search-suggestions-pop">
+                                                {suggestions.map(p => (
+                                                    <li key={p.maDichVu} onClick={() => handleSelectProduct(p)}>
+                                                        <span className="p-name">
+                                                            {p.tenDichVu} <small style={{ color: '#64748b', marginLeft: '4px' }}>({p.maDichVu})</small>
+                                                        </span>
+                                                        <span className="p-price">{p.giaChoThueDichVu?.toLocaleString("vi-VN")} đ</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    </div>
 
-                            {(() => {
-                                const hasItems = Array.isArray(gioHang) && gioHang.length > 0;
-                                const firstItem = hasItems ? gioHang[0] : {};
+                                    {/* Bảng Giỏ Hàng Bento */}
+                                    <div className="hd-table-wrap">
+                                        <table className="hd-table-compact">
+                                            <thead>
+                                                <tr>
+                                                    <th>Tên Dịch Vụ</th>
+                                                    <th style={{ textAlign: 'center', width: '90px' }}>Số lượng</th>
+                                                    <th style={{ textAlign: 'right' }}>Đơn giá</th>
+                                                    <th style={{ width: '110px', textAlign: 'center' }}>Giảm giá (đ)</th>
+                                                    <th style={{ textAlign: 'right' }}>Thành tiền</th>
+                                                    <th style={{ textAlign: 'center', width: '50px' }}>Xóa</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {gioHang.length > 0 ? (
+                                                    gioHang.map((sp) => {
+                                                        const price = parseFloat(sp.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
+                                                        const discountItem = parseFloat(sp.giamGiaDichVu || 0);
+                                                        const total = Math.max(0, (price * (sp.soLuong || 0)) - discountItem);
 
-                                return (
-                                    <>
-                                        <div className="package-parameters-title" style={{ marginTop: '25px' }}>Tổng hợp dịch vụ trong hợp đồng</div>
-                                        <div className="summary-parameters-grid">
-                                            <div className="form-group-summary">
-                                                <label>SL ảnh chỉnh sửa</label>
-                                                <input
-                                                    type="number"
-                                                    className="summary-value-input"
-                                                    value={firstItem.soLuongAnhChinhSua ?? 0}
-                                                    onChange={(e) => updateGioHangParam("soLuongAnhChinhSua", Number(e.target.value) || 0)}
-                                                    disabled={!hasItems}
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>SL ảnh 16x21</label>
-                                                <input
-                                                    type="number"
-                                                    className="summary-value-input"
-                                                    value={firstItem.soLuongAnh16x21 ?? 0}
-                                                    onChange={(e) => updateGioHangParam("soLuongAnh16x21", Number(e.target.value) || 0)}
-                                                    disabled={!hasItems}
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>SL ảnh 20x30</label>
-                                                <input
-                                                    type="number"
-                                                    className="summary-value-input"
-                                                    value={firstItem.soLuongAnh20x30 ?? 0}
-                                                    onChange={(e) => updateGioHangParam("soLuongAnh20x30", Number(e.target.value) || 0)}
-                                                    disabled={!hasItems}
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>SL ảnh 60x90</label>
-                                                <input
-                                                    type="number"
-                                                    className="summary-value-input"
-                                                    value={firstItem.soLuongAnh60x90 ?? 0}
-                                                    onChange={(e) => updateGioHangParam("soLuongAnh60x90", Number(e.target.value) || 0)}
-                                                    disabled={!hasItems}
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Trang điểm ngày ăn hỏi</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangDiemNgayAnHoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangDiemNgayAnHoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Trang điểm ngày cưới</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangDiemNgayCuoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangDiemNgayCuoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Trang phục bê lễ</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangPhucChoDoiBeLe ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangPhucChoDoiBeLe", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>TP cô dâu ngày ăn hỏi</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangPhucCoDauNgayAnHoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangPhucCoDauNgayAnHoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>TP chú rể ngày ăn hỏi</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangPhucChuReNgayAnHoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangPhucChuReNgayAnHoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Váy cưới ngày cưới (giá trị)</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangPhucVayCuoiNgayCuoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangPhucVayCuoiNgayCuoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Vest chú rể ngày cưới</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.trangPhucVestChuReNgayCuoi ?? ""}
-                                                    onChange={(e) => updateGioHangParam("trangPhucVestChuReNgayCuoi", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                            <div className="form-group-summary">
-                                                <label>Hoa cầm tay</label>
-                                                <input
-                                                    type="text"
-                                                    className="summary-value-input"
-                                                    value={firstItem.hoaCamTay ?? ""}
-                                                    onChange={(e) => updateGioHangParam("hoaCamTay", e.target.value)}
-                                                    disabled={!hasItems}
-                                                    placeholder="Không có"
-                                                />
-                                            </div>
-                                        </div>
-                                    </>
-                                );
-                            })()}
-                        </div>
-                    </div>
-
-                    {/* === DƯỚI CÙNG: THANH TOÁN === */}
-                    <div className="dialog-section payment" style={{ padding: '8px 15px', borderTop: '2px dashed #ccc' }}>
-                        <h4 style={{ fontSize: '0.85rem', margin: '0 0 8px 0', textTransform: 'uppercase' }}>Thông tin thanh toán</h4>
-                        <Stack
-                            direction={{ xs: 'column', md: 'row' }}
-                            divider={<Divider orientation="vertical" flexItem />}
-                            spacing={2}
-                        >
-
-                            <Stack
-                                direction="column"
-                                spacing={1}
-                                className="payment-col"
-                            >
-
-                                <div style={{ display: 'flex', gap: '5px' }}>
-
-                                    <NumericFormat
-                                        customInput={TextField}
-                                        label="Giảm giá"
-                                        value={giamGia}
-                                        onValueChange={(e) => setGiamGia(e.floatValue)}
-                                        thousandSeparator="."
-                                        decimalSeparator=","
-                                        decimalScale={2}
-                                        allowNegative={false}
-                                        fullWidth
-                                        variant="outlined"
-                                        size="small"
-                                        sx={{
-                                            '& .MuiInputBase-root': { fontSize: '0.8rem', height: '32px' },
-                                            '& .MuiFormLabel-root': { fontSize: '0.8rem', transform: 'translate(14px, 8px) scale(1)' },
-                                            '& .MuiInputLabel-shrink': { transform: 'translate(14px, -6px) scale(0.75) !important' }
-                                        }}
-                                    />
-
-                                    <select
-                                        value={loaiGiamGia}
-                                        onChange={(e) => setLoaiGiamGia(Number(e.target.value))}
-                                        style={{ borderRadius: '4px', border: '1px solid #ccc', textAlign: 'center', padding: '0 5px', width: '80px', backgroundColor: '#fff', fontSize: '0.8rem', height: '32px' }}
-                                    >
-                                        <option defaultChecked value={0}>VNĐ</option>
-                                        <option value={1}>%</option>
-                                    </select>
+                                                        return (
+                                                            <tr key={sp.maDichVu}>
+                                                                <td style={{ fontWeight: Number(sp.loaiDichVu) !== 1 ? 700 : 500 }}>
+                                                                    {sp.tenDichVu}
+                                                                    <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{sp.maDichVu}</div>
+                                                                </td>
+                                                                <td style={{ textAlign: 'center' }}>
+                                                                    <div className="hd-qty-box-mini">
+                                                                        <button className="hd-qty-btn-mini" onClick={() => handleDecreaseQuantity(sp.maDichVu)}>-</button>
+                                                                        <span className="hd-qty-val-mini">{sp.soLuong}</span>
+                                                                        <button className="hd-qty-btn-mini" onClick={() => handleSelectProduct(sp)}>+</button>
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ textAlign: 'right', color: '#64748b' }}>
+                                                                    {price.toLocaleString("vi-VN")} đ
+                                                                </td>
+                                                                <td style={{ textAlign: 'center' }}>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        placeholder="0"
+                                                                        value={sp.giamGiaDichVu !== undefined && sp.giamGiaDichVu !== null ? sp.giamGiaDichVu : ''}
+                                                                        onChange={(e) => handleDiscountItemChange(sp.maDichVu, e.target.value)}
+                                                                        style={{
+                                                                            width: '85px',
+                                                                            padding: '2px 6px',
+                                                                            borderRadius: '4px',
+                                                                            border: '1px solid #cbd5e1',
+                                                                            fontSize: '0.78rem',
+                                                                            textAlign: 'right'
+                                                                        }}
+                                                                    />
+                                                                </td>
+                                                                <td style={{ textAlign: 'right', fontWeight: 800, color: discountItem > 0 ? '#15803d' : '#0f172a' }}>
+                                                                    {total.toLocaleString("vi-VN")} đ
+                                                                    {discountItem > 0 && (
+                                                                        <div style={{ fontSize: '0.68rem', color: '#dc2626' }}>
+                                                                            (-{discountItem.toLocaleString("vi-VN")} đ)
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ textAlign: 'center' }}>
+                                                                    <button 
+                                                                        onClick={() => handleDeleteProduct(sp.maDichVu)}
+                                                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 800 }}
+                                                                        title="Xóa sản phẩm"
+                                                                    >
+                                                                        🗑️
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan={6} style={{ textAlign: 'center', color: '#94a3b8', padding: '24px' }}>
+                                                            Chưa chọn sản phẩm/gói dịch vụ nào
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
 
+                                {/* Thẻ: Quy Cách & Thông Số Chi Tiết */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>📋</span> Quy Cách & Thông Số Chi Tiết
+                                        </h3>
+                                    </div>
 
+                                    {/* Thông số Album & Ảnh in */}
+                                    <div className="hd-spec-section-title">🖼️ Số Lượng Ảnh & Khung Hình</div>
+                                    <div className="hd-spec-grid" style={{ marginBottom: '12px' }}>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">SL ảnh chỉnh sửa</label>
+                                            <input
+                                                type="number"
+                                                className="hd-input-text"
+                                                value={firstCartItem.soLuongAnhChinhSua ?? 0}
+                                                onChange={(e) => updateGioHangParam("soLuongAnhChinhSua", Number(e.target.value) || 0)}
+                                                disabled={gioHang.length === 0}
+                                            />
+                                        </div>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">SL ảnh 16x21</label>
+                                            <input
+                                                type="number"
+                                                className="hd-input-text"
+                                                value={firstCartItem.soLuongAnh16x21 ?? 0}
+                                                onChange={(e) => updateGioHangParam("soLuongAnh16x21", Number(e.target.value) || 0)}
+                                                disabled={gioHang.length === 0}
+                                            />
+                                        </div>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">SL ảnh 20x30</label>
+                                            <input
+                                                type="number"
+                                                className="hd-input-text"
+                                                value={firstCartItem.soLuongAnh20x30 ?? 0}
+                                                onChange={(e) => updateGioHangParam("soLuongAnh20x30", Number(e.target.value) || 0)}
+                                                disabled={gioHang.length === 0}
+                                            />
+                                        </div>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">SL ảnh 60x90</label>
+                                            <input
+                                                type="number"
+                                                className="hd-input-text"
+                                                value={firstCartItem.soLuongAnh60x90 ?? 0}
+                                                onChange={(e) => updateGioHangParam("soLuongAnh60x90", Number(e.target.value) || 0)}
+                                                disabled={gioHang.length === 0}
+                                            />
+                                        </div>
+                                    </div>
 
+                                    {/* Trang Điểm & Trang Phục */}
+                                    <div className="hd-spec-section-title">💄 Trang Điểm & Trang Phục</div>
+                                    <div className="hd-spec-grid">
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Trang điểm ngày ăn hỏi</label>
+                                            <input
+                                                type="text"
+                                                className="hd-input-text"
+                                                value={firstCartItem.trangDiemNgayAnHoi ?? ""}
+                                                onChange={(e) => updateGioHangParam("trangDiemNgayAnHoi", e.target.value)}
+                                                disabled={gioHang.length === 0}
+                                                placeholder="Không có"
+                                            />
+                                        </div>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Trang điểm ngày cưới</label>
+                                            <input
+                                                type="text"
+                                                className="hd-input-text"
+                                                value={firstCartItem.trangDiemNgayCuoi ?? ""}
+                                                onChange={(e) => updateGioHangParam("trangDiemNgayCuoi", e.target.value)}
+                                                disabled={gioHang.length === 0}
+                                                placeholder="Không có"
+                                            />
+                                        </div>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Trang phục bê lễ</label>
+                                            <input
+                                                type="text"
+                                                className="hd-input-text"
+                                                value={firstCartItem.trangPhucChoDoiBeLe ?? ""}
+                                                onChange={(e) => updateGioHangParam("trangPhucChoDoiBeLe", e.target.value)}
+                                                disabled={gioHang.length === 0}
+                                                placeholder="Không có"
+                                            />
+                                        </div>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">TP cô dâu ăn hỏi</label>
+                                            <input
+                                                type="text"
+                                                className="hd-input-text"
+                                                value={firstCartItem.trangPhucCoDauNgayAnHoi ?? ""}
+                                                onChange={(e) => updateGioHangParam("trangPhucCoDauNgayAnHoi", e.target.value)}
+                                                disabled={gioHang.length === 0}
+                                                placeholder="Không có"
+                                            />
+                                        </div>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">TP chú rể ăn hỏi</label>
+                                            <input
+                                                type="text"
+                                                className="hd-input-text"
+                                                value={firstCartItem.trangPhucChuReNgayAnHoi ?? ""}
+                                                onChange={(e) => updateGioHangParam("trangPhucChuReNgayAnHoi", e.target.value)}
+                                                disabled={gioHang.length === 0}
+                                                placeholder="Không có"
+                                            />
+                                        </div>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Váy cưới ngày cưới</label>
+                                            <input
+                                                type="text"
+                                                className="hd-input-text"
+                                                value={firstCartItem.trangPhucVayCuoiNgayCuoi ?? ""}
+                                                onChange={(e) => updateGioHangParam("trangPhucVayCuoiNgayCuoi", e.target.value)}
+                                                disabled={gioHang.length === 0}
+                                                placeholder="Không có"
+                                            />
+                                        </div>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Vest chú rể ngày cưới</label>
+                                            <input
+                                                type="text"
+                                                className="hd-input-text"
+                                                value={firstCartItem.trangPhucVestChuReNgayCuoi ?? ""}
+                                                onChange={(e) => updateGioHangParam("trangPhucVestChuReNgayCuoi", e.target.value)}
+                                                disabled={gioHang.length === 0}
+                                                placeholder="Không có"
+                                            />
+                                        </div>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Hoa cầm tay</label>
+                                            <input
+                                                type="text"
+                                                className="hd-input-text"
+                                                value={firstCartItem.hoaCamTay ?? ""}
+                                                onChange={(e) => updateGioHangParam("hoaCamTay", e.target.value)}
+                                                disabled={gioHang.length === 0}
+                                                placeholder="Không có"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
+                            {/* ===== CỘT 3 (1fr - CHIẾM 1/3): TÀI CHÍNH & THANH TOÁN ===== */}
+                            <div className="hd-bento-col">
+                                
+                                {/* Thẻ: Thông Tin Thanh Toán */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>💳</span> Thông Tin Thanh Toán
+                                        </h3>
+                                    </div>
 
-                            </Stack>
+                                    {/* Giảm giá tổng */}
+                                    <div className="hd-form-group">
+                                        <label className="hd-form-label">Giảm giá hợp đồng</label>
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                            <NumericFormat
+                                                customInput={TextField}
+                                                value={giamGia}
+                                                onValueChange={(e) => setGiamGia(e.floatValue || 0)}
+                                                thousandSeparator="."
+                                                decimalSeparator=","
+                                                decimalScale={2}
+                                                allowNegative={false}
+                                                fullWidth
+                                                size="small"
+                                                placeholder="0"
+                                                sx={{ '& .MuiInputBase-root': { height: 32, fontSize: '0.82rem' } }}
+                                            />
+                                            <select
+                                                value={loaiGiamGia}
+                                                onChange={(e) => setLoaiGiamGia(Number(e.target.value))}
+                                                style={{
+                                                    borderRadius: '6px',
+                                                    border: '1px solid #cbd5e1',
+                                                    textAlign: 'center',
+                                                    padding: '0 8px',
+                                                    width: '75px',
+                                                    backgroundColor: '#fff',
+                                                    fontSize: '0.82rem',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <option value={0}>VNĐ</option>
+                                                <option value={1}>%</option>
+                                            </select>
+                                        </div>
+                                    </div>
 
-                            <Stack
-                                direction="column"
-                                spacing={0.5}
-                                style={{ justifyContent: 'center', flex: 2 }}
-                            >
-                                <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '0.85rem', color: 'green', margin: '2px 0' }}>
-                                    Tổng tiền đơn hàng: <b>{gioHang.reduce((sum, item) => {
-                                        const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
-                                        return sum + (price * (item.soLuong || 0));
-                                    }, 0).toLocaleString("vi-VN") + " đ"} </b>
-                                </p>
+                                    {/* Bảng tổng kết tài chính */}
+                                    <div className="hd-pay-summary-box" style={{ marginTop: '12px' }}>
+                                        <div className="hd-pay-row">
+                                            <span style={{ color: '#64748b' }}>Tổng tiền dịch vụ:</span>
+                                            <b style={{ color: '#0f172a' }}>{tongGocDonHang.toLocaleString("vi-VN")} đ</b>
+                                        </div>
+                                        <div className="hd-pay-row" style={{ color: soTienTietKiem > 0 ? '#16a34a' : '#64748b' }}>
+                                            <span style={{ fontWeight: 600 }}>Số tiền tiết kiệm:</span>
+                                            <b>
+                                                {soTienTietKiem > 0 ? `-${soTienTietKiem.toLocaleString("vi-VN")} đ` : '0 đ'}
+                                                {tongGocDonHang > 0 && soTienTietKiem > 0 && (
+                                                    <span style={{ fontSize: '0.72rem', marginLeft: '6px', backgroundColor: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                                        -{((soTienTietKiem / tongGocDonHang) * 100).toFixed(0)}%
+                                                    </span>
+                                                )}
+                                            </b>
+                                        </div>
+                                        {tongGiamTungMon > 0 && (
+                                            <div className="hd-pay-row" style={{ color: '#dc2626', fontSize: '0.76rem', paddingLeft: '8px' }}>
+                                                <span>↳ Giảm từng món:</span>
+                                                <b>-{tongGiamTungMon.toLocaleString("vi-VN")} đ</b>
+                                            </div>
+                                        )}
+                                        {giamGia > 0 && (
+                                            <div className="hd-pay-row" style={{ color: '#dc2626', fontSize: '0.76rem', paddingLeft: '8px' }}>
+                                                <span>↳ Giảm giá HĐ:</span>
+                                                <b>-{loaiGiamGia === 1 ? `${giamGia}%` : `${giamGia.toLocaleString("vi-VN")} đ`}</b>
+                                            </div>
+                                        )}
+                                        <div className="hd-pay-row" style={{ borderTop: '1.5px dashed #cbd5e1', paddingTop: '8px', marginTop: '4px', color: '#15803d' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '0.92rem' }}>Tổng tiền sau giảm:</span>
+                                            <b style={{ fontSize: '1.15rem', fontWeight: 900 }}>{tongTien.toLocaleString("vi-VN")} đ</b>
+                                        </div>
+                                    </div>
 
-                                <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '0.85rem', color: 'green', margin: '2px 0' }}>
-                                    Tổng tiền sau giảm giá: <b>{tongTien.toLocaleString("vi-VN") + " đ"}</b>
-                                </p>
+                                    {/* Hướng dẫn thanh toán qua Dialog */}
+                                    <div style={{
+                                        marginTop: '14px',
+                                        padding: '10px 12px',
+                                        backgroundColor: '#f0fdf4',
+                                        border: '1px solid #bbf7d0',
+                                        borderRadius: '8px',
+                                        fontSize: '0.78rem',
+                                        color: '#166534',
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        gap: '8px',
+                                        lineHeight: 1.45
+                                    }}>
+                                        <span style={{ fontSize: '1rem' }}>💡</span>
+                                        <div>
+                                            Để thực hiện thanh toán (Chuyển khoản VietQR hoặc Tiền mặt), bấm nút <strong>"Tạo Hợp Đồng & Thanh Toán"</strong> ở thanh thao tác bên dưới.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-
-                                <p style={{ textAlign: 'left', fontWeight: 'inherit', fontSize: '0.85rem', color: 'red', margin: '2px 0' }}>
-                                    Tổng tiền còn lại: <b> {(tongTien - khachThanhToan).toLocaleString("vi-VN")} đ</b>
-                                </p>
-
-                            </Stack>
-
-
-                        </Stack>
-
+                        </div>
                     </div>
 
-                    <div className="dialog-actions payment">
-                        <Button
-                            onClick={onClose}
-                            variant="contained"
-                            color="error"
-                            sx={{
-                                whiteSpace: 'nowrap'
-                            }}
-                        >Thoát</Button>
-
-                        <Button
-                            onClick={() => onSaveHopDong()}
-                            variant="contained"
-                            sx={{
-                                whiteSpace: 'nowrap'
-                            }}
-                        >Tạo hợp đồng</Button>
+                    {/* 3. FIXED BOTTOM ACTION BAR (~48px) */}
+                    <div className="hd-compact-footer" style={{ justifyContent: 'flex-end' }}>
+                        <div className="hd-footer-actions-right">
+                            <Button
+                                onClick={onClose}
+                                variant="outlined"
+                                color="inherit"
+                                size="small"
+                                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '6px', height: 32 }}
+                            >
+                                Hủy / Thoát
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    resetForm();
+                                    toast.info("Đã xóa trắng thông tin đã nhập");
+                                }}
+                                variant="outlined"
+                                color="warning"
+                                size="small"
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    borderRadius: '6px',
+                                    height: 32,
+                                    color: '#d97706',
+                                    borderColor: '#fcd34d',
+                                    '&:hover': { borderColor: '#b45309', backgroundColor: '#fffbeb' }
+                                }}
+                            >
+                                Clear
+                            </Button>
+                            <Button
+                                onClick={() => onSaveHopDong(false)}
+                                variant="contained"
+                                size="small"
+                                sx={{
+                                    backgroundColor: '#d4af37',
+                                    color: '#0f172a',
+                                    fontWeight: 800,
+                                    textTransform: 'none',
+                                    borderRadius: '6px',
+                                    height: 32,
+                                    padding: '0 14px',
+                                    '&:hover': { backgroundColor: '#b8962e' }
+                                }}
+                            >
+                                Tạo Hợp Đồng
+                            </Button>
+                            <Button
+                                onClick={() => onSaveHopDong(true)}
+                                variant="contained"
+                                size="small"
+                                sx={{
+                                    backgroundColor: '#0284c7',
+                                    color: '#ffffff',
+                                    fontWeight: 800,
+                                    textTransform: 'none',
+                                    borderRadius: '6px',
+                                    height: 32,
+                                    padding: '0 14px',
+                                    '&:hover': { backgroundColor: '#0369a1' }
+                                }}
+                            >
+                                Tạo Hợp Đồng & Thanh Toán
+                            </Button>
+                        </div>
                     </div>
                 </div>
-            </div>
             )}
 
+            {/* SEPAY PAYMENT DIALOG */}
             <SePayDialog
                 open={openPaymentDialog}
-                onClose={() => setOpenPaymentDialog(false)}
+                onClose={() => {
+                    setOpenPaymentDialog(false);
+                    setIsSuccess(true);
+                }}
                 maHopDong={maHopDong}
-                defaultAmount={khachThanhToan || (tongTien - (khachThanhToan || 0))}
+                defaultAmount={tongTien}
                 onSuccess={(updatedData) => {
                     if (updatedData?.latestPayment?.amount) {
                         setKhachThanhToan((prev) => (prev || 0) + updatedData.latestPayment.amount);
+                    } else if (updatedData?.khachHangDaThanhToan) {
+                        setKhachThanhToan(updatedData.khachHangDaThanhToan);
                     }
                 }}
             />
-        </Dialog >
+        </Dialog>
     );
 }
 

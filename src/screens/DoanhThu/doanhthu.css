@@ -1,170 +1,297 @@
-/* ==== BÁO CÁO DOANH THU & KPI ==== */
+/* ==== BÁO CÁO KINH DOANH & TÀI CHÍNH LONG WEDDING ==== */
 
-/* Header của dashboard */
-.dashboard-header {
+.DoanhThu-container {
+    padding: 10px 14px 80px 14px;
+    background-color: transparent;
+    height: calc(100vh - 85px);
+    max-height: calc(100vh - 85px);
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    flex: 1 1 auto;
+    min-height: 0 !important;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #1e293b;
+    scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar for DoanhThu Container */
+.DoanhThu-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.DoanhThu-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 6px;
+}
+
+.DoanhThu-container::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 6px;
+    border: 2px solid #f1f5f9;
+}
+
+.DoanhThu-container::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* Header & Controls */
+.DoanhThu-top-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 25px;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 20px;
+    background: #ffffff;
+    padding: 16px 22px;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
 }
 
-.dashboard-header h2 {
-    color: var(--dark-blue);
-    font-size: 24px;
-}
-
-/* Bộ lọc thời gian */
-.time-filters {
-    display: flex;
-    background-color: var(--light-grey);
-    border-radius: 8px;
-    padding: 5px;
-}
-
-.filter-btn {
-    border: none;
-    background-color: transparent;
-    padding: 10px 20px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    color: #555;
-    transition: all 0.3s ease;
-}
-
-.filter-btn:hover {
-    background-color: #ddd;
-}
-
-.filter-btn.active {
-    background-color: var(--primary-blue);
-    color: var(--white-color);
-    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.3);
-}
-
-/* Thẻ thông tin tổng quan */
-.summary-cards {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 25px;
-    margin-bottom: 25px;
-}
-
-.card {
-    background-color: #fff;
-    border-radius: 10px;
-    padding: 25px;
+.DoanhThu-title-area {
     display: flex;
     align-items: center;
-    gap: 20px;
-    border: 1px solid var(--border-color);
+    gap: 14px;
 }
 
-.card-icon {
-    font-size: 24px;
-    padding: 18px;
-    border-radius: 50%;
+.DoanhThu-title-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #ffffff;
+    font-size: 1.35rem;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
 }
 
-.revenue-card .card-icon {
-    background-color: rgba(40, 167, 69, 0.1);
-    color: #28a745;
+.DoanhThu-heading {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.5px;
 }
 
-.expense-card .card-icon {
-    background-color: rgba(220, 53, 69, 0.1);
-    color: var(--red-accent);
+.DoanhThu-subheading {
+    font-size: 0.82rem;
+    color: #64748b;
+    margin: 2px 0 0 0;
 }
 
-.card h3 {
-    font-size: 14px;
-    color: #6c757d;
-    margin-bottom: 8px;
-    font-weight: 500;
+/* Filter controls bar */
+.DoanhThu-filter-panel {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
-.card p {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--dark-blue);
-}
 
-/* Bố cục chính cho biểu đồ và KPI */
-.main-dashboard-grid {
+
+/* 6 Core Financial Metric Cards */
+.metrics-grid-6 {
     display: grid;
-    grid-template-columns: 2fr 1fr; /* Biểu đồ chiếm 2 phần, KPI chiếm 1 phần */
-    gap: 25px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+    margin-bottom: 22px;
 }
 
-.chart-container, .kpi-container {
-    background-color: var(--white-color);
-    padding: 25px;
-    border-radius: 10px;
-    border: 1px solid var(--border-color);
+@media (max-width: 1500px) {
+    .metrics-grid-6 {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 
-.chart-container h3, .kpi-container h3 {
-    font-size: 18px;
-    color: var(--dark-blue);
+@media (max-width: 900px) {
+    .metrics-grid-6 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .DoanhThu-cycle-tabs {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .metrics-grid-6 {
+        grid-template-columns: 1fr;
+    }
+    .DoanhThu-cycle-tabs {
+        grid-template-columns: 1fr;
+    }
+    .DoanhThu-container {
+        padding: 10px 8px 50px 8px;
+    }
+}
+
+.metric-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 16px 16px 14px 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.metric-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.08);
+}
+
+.metric-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.metric-icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.metric-badge-growth {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 8px;
+    border-radius: 16px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.badge-growth-up {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.badge-growth-down {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.badge-growth-neutral {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.metric-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #64748b;
+    margin: 0 0 4px 0;
+}
+
+.metric-value {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 6px 0;
+    line-height: 1.2;
+}
+
+.metric-sub-detail {
+    font-size: 0.76rem;
+    color: #64748b;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 8px;
+    border-top: 1px dashed #e2e8f0;
+}
+
+/* Card Type Accents */
+.metric-contracts .metric-icon-box { background: #eff6ff; color: #2563eb; }
+.metric-contract-value .metric-icon-box { background: #f0fdf4; color: #16a34a; }
+.metric-collected .metric-icon-box { background: #ecfeff; color: #0891b2; }
+.metric-debt .metric-icon-box { background: #fff7ed; color: #ea580c; }
+.metric-expenses .metric-icon-box { background: #fef2f2; color: #dc2626; }
+.metric-profit .metric-icon-box { background: #f5f3ff; color: #7c3aed; }
+
+/* Dashboard Content Sections */
+.dashboard-section-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 22px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
     margin-bottom: 20px;
 }
 
-/* Bảng KPI */
-.kpi-table {
+.section-header-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 18px 0;
+}
+
+/* Multi-Cycle Comparison Table */
+.comparison-table-wrapper {
+    overflow-x: auto;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+}
+
+.comparison-table {
     width: 100%;
     border-collapse: collapse;
-}
-
-.kpi-table th, .kpi-table td {
-    padding: 15px 10px;
+    font-size: 0.86rem;
     text-align: left;
-    border-bottom: 1px solid var(--border-color);
 }
 
-.kpi-table thead th {
-    font-size: 14px;
-    color: var(--primary-blue);
-    background-color: var(--table-header-bg);
+.comparison-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    padding: 12px 16px;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
 }
 
-.kpi-table tbody tr:last-child td {
+.comparison-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+    vertical-align: middle;
+}
+
+.comparison-table tr:hover td {
+    background: #f8fafc;
+}
+
+.comparison-table tr:last-child td {
     border-bottom: none;
 }
 
-.kpi-table .rank {
-    font-weight: 700;
-    font-size: 16px;
-    text-align: center;
+/* Custom Scrollbar */
+.custom-scroll::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
 }
 
-.kpi-table .kpi-revenue {
-    font-weight: 500;
-}
-
-.kpi-table .fa-medal {
-    margin-right: 5px;
-}
-.gold { color: #ffd700; }
-.silver { color: #c0c0c0; }
-.bronze { color: #cd7f32; }
-
-
-/* Biểu tượng feedback */
-.feedback-icon {
-    position: fixed;
-    right: 20px;
-    bottom: 90px;
-    background-color: #e3f2fd;
-    color: var(--primary-blue);
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+.custom-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
 }

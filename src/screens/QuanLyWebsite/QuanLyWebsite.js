@@ -6,18 +6,18 @@ import otherService from '../../API/services/otherService';
 import { formatCurrency } from '../utils/formatCurrency.js';
 
 const SECTIONS = [
-  { id: 'banners', name: 'Slide Banner' },
-  { id: 'khai_truong', name: 'Deal Khai Trương' },
-  { id: 'services', name: 'Dịch vụ của tôi' },
-  { id: 'feedback', name: 'Feedback khách hàng' },
-  { id: 'bookings', name: 'Danh sách lịch tư vấn' },
-  { id: 'dresses', name: 'Bộ sưu tập váy cưới' },
-  { id: 'invitations', name: 'Mẫu thiệp cưới nổi bật' },
-  { id: 'makeup', name: 'Nghệ thuật trang điểm' },
-  { id: 'packages', name: 'Bảng giá & Gói chụp' },
-  { id: 'collections', name: 'Concept mẫu' },
-  { id: 'special_collections', name: 'Bộ sưu tập đặc biệt' },
-  { id: 'footer', name: 'Thông tin Footer' }
+  { id: 'banners', name: 'Slide Banner', icon: '🖼️' },
+  { id: 'khai_truong', name: 'Deal Khai Trương', icon: '🎟️' },
+  { id: 'services', name: 'Dịch vụ của tôi', icon: '💼' },
+  { id: 'feedback', name: 'Feedback khách hàng', icon: '⭐' },
+  { id: 'bookings', name: 'Danh sách lịch tư vấn', icon: '📅' },
+  { id: 'dresses', name: 'Bộ sưu tập váy cưới', icon: '👗' },
+  { id: 'invitations', name: 'Mẫu thiệp cưới nổi bật', icon: '💌' },
+  { id: 'makeup', name: 'Nghệ thuật trang điểm', icon: '💄' },
+  { id: 'packages', name: 'Bảng giá & Gói chụp', icon: '💰' },
+  { id: 'collections', name: 'Concept mẫu', icon: '🎨' },
+  { id: 'special_collections', name: 'Bộ sưu tập đặc biệt', icon: '✨' },
+  { id: 'footer', name: 'Thông tin Footer', icon: '📌' }
 ];
 
 const QuanLyWebsite = () => {
@@ -593,7 +593,7 @@ const QuanLyWebsite = () => {
         toast.error(res?.message || "Lỗi khi cập nhật");
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Lỗi khi cập nhật");
+      toast.error("Lỗi khi cập nhật: " + (error.message || error.response?.data?.message || "Đã có lỗi xảy ra"));
     } finally {
       setLoading(false);
       closeEdit();
@@ -1098,26 +1098,49 @@ const QuanLyWebsite = () => {
 
   return (
     <div className="quanly-website-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2 style={{ margin: 0 }}>Quản Lý Giao Diện Website</h2>
+      {/* ===== PAGE HEADER ===== */}
+      <div className="website-page-header">
+        <div className="website-header-title-wrap">
+          <div className="website-header-icon">
+            🌐
+          </div>
+          <div>
+            <h2>QUẢN LÝ GIAO DIỆN WEBSITE</h2>
+            <p>Tùy chỉnh nội dung, banner, bảng giá và giao diện hiển thị trên trang chủ Long Wedding</p>
+          </div>
+        </div>
       </div>
 
+      {/* ===== GLOBAL SETTINGS PANEL ===== */}
       <div className="global-settings-panel">
         <div className="global-settings-header">
-          <h3>Cài đặt trạng thái Website</h3>
+          <h3>
+            <span>⚙️ Cài đặt trạng thái Website</span>
+          </h3>
           <button 
             className="save-settings-btn" 
             onClick={handleSaveGlobalSettings} 
             disabled={isSavingSettings}
           >
-            {isSavingSettings ? 'Đang lưu...' : 'Lưu cài đặt'}
+            <span>💾 {isSavingSettings ? 'Đang lưu...' : 'Lưu cài đặt'}</span>
           </button>
         </div>
+        
         <div className="global-settings-content">
           <div className="setting-row">
             <div className="setting-label-col">
-              <span className="setting-title">Công bố Website</span>
-              <span className="setting-desc">Cho phép khách hàng truy cập website. Nếu tắt, website sẽ hiển thị màn hình "Đang chuẩn bị lên sóng".</span>
+              <div className="setting-title-wrap">
+                <span className="setting-title">Trạng thái công bố Website</span>
+                <span className={`status-badge-live ${globalSettings.isPublished ? 'online' : 'offline'}`}>
+                  <span className="pulse-dot"></span>
+                  {globalSettings.isPublished ? 'ĐANG HOẠT ĐỘNG (PUBLIC)' : 'TẠM ẨN / BẢO TRÌ'}
+                </span>
+              </div>
+              <span className="setting-desc">
+                {globalSettings.isPublished 
+                  ? "Khách hàng có thể truy cập website bình thường. Tắt công tắc để chuyển website sang chế độ bảo trì/chuẩn bị lên sóng." 
+                  : "Website đang tạm ẩn. Khách hàng truy cập sẽ nhìn thấy màn hình 'Đang chuẩn bị lên sóng'."}
+              </span>
             </div>
             <div className="setting-action-col">
               <label className="switch">
@@ -1134,8 +1157,8 @@ const QuanLyWebsite = () => {
           {!globalSettings.isPublished && (
             <div className="setting-row time-picker-row">
               <div className="setting-label-col">
-                <span className="setting-title">Hẹn thời gian công bố (Không bắt buộc)</span>
-                <span className="setting-desc">Website sẽ đếm ngược và tự động bật lại vào thời gian này.</span>
+                <span className="setting-title">⏰ Hẹn giờ tự động mở lại Website (Không bắt buộc)</span>
+                <span className="setting-desc">Website sẽ đếm ngược và tự động công bố lại vào thời gian này.</span>
               </div>
               <div className="setting-action-col">
                 <input 
@@ -1150,30 +1173,45 @@ const QuanLyWebsite = () => {
         </div>
       </div>
       
-      <div className="website-tabs">
-        {SECTIONS.map(sec => (
-          <button 
-            key={sec.id} 
-            className={`tab-btn ${activeTab === sec.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(sec.id)}
-          >
-            {sec.name}
-          </button>
-        ))}
+      {/* ===== TABS NAVIGATION ===== */}
+      <div className="website-tabs-container">
+        <div className="website-tabs">
+          {SECTIONS.map(sec => (
+            <button 
+              key={sec.id} 
+              className={`tab-btn ${activeTab === sec.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(sec.id)}
+            >
+              <span className="tab-icon">{sec.icon}</span>
+              <span>{sec.name}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* ===== CONTENT PANEL ===== */}
       <div className="website-content-panel">
         <div className="panel-header">
-          <h3>Nội dung: {activeTab === 'khai_truong' ? (khaiTruongSubTab === 'deals' ? 'Deal Khai Trương' : (khaiTruongSubTab === 'vouchers' ? 'Voucher Ưu Đãi' : 'Khách hàng Săn Voucher')) : SECTIONS.find(s => s.id === activeTab)?.name}</h3>
+          <div className="panel-header-title-wrap">
+            <h3>
+              {activeTab === 'khai_truong' 
+                ? (khaiTruongSubTab === 'deals' ? '🎟️ Deal Khai Trương' : (khaiTruongSubTab === 'vouchers' ? '🎁 Voucher Ưu Đãi' : '👥 Khách hàng Săn Voucher')) 
+                : `${SECTIONS.find(s => s.id === activeTab)?.icon || '📁'} ${SECTIONS.find(s => s.id === activeTab)?.name}`}
+            </h3>
+            <span className="panel-count-badge">
+              {getFilteredData().length} mục
+            </span>
+          </div>
+
           <div style={{ display: 'flex', gap: '10px' }}>
             {section === 'packages' && (
               <button className="sync-btn" onClick={openSyncDialog}>
-                Đồng bộ từ Quản lý dịch vụ
+                <span>☁️ Đồng bộ từ Quản lý dịch vụ</span>
               </button>
             )}
             {section !== 'bookings' && section !== 'voucher_claims' && section !== 'special_collections' && (
               <button className="add-btn" onClick={openAdd}>
-                {section === 'khai_truong' ? '+ Thêm Deal Khai Trương' : (section === 'vouchers' ? '+ Thêm Voucher Mới' : '+ Thêm Mục Mới')}
+                <span>+ {section === 'khai_truong' ? 'Thêm Deal Khai Trương' : (section === 'vouchers' ? 'Thêm Voucher Mới' : 'Thêm Mục Mới')}</span>
               </button>
             )}
           </div>
@@ -1225,7 +1263,12 @@ const QuanLyWebsite = () => {
           </div>
         )}
 
-        {loading ? <p>Đang tải...</p> : (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
+            <div className="spinner" style={{ margin: '0 auto 12px auto' }}></div>
+            <div>Đang tải dữ liệu giao diện...</div>
+          </div>
+        ) : (
           <div className="items-list">
             {getFilteredData().map((item, index) => (
               <div 
@@ -1237,29 +1280,36 @@ const QuanLyWebsite = () => {
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragEnd={handleDragEnd}
               >
-                {item.image && <img src={item.image} alt={item.name || item.title} className="item-thumb" />}
-                {item.img && <img src={item.img} alt={item.title} className="item-thumb" />}
-                {item.cover && <img src={item.cover} alt={item.title} className="item-thumb" />}
-                {item.coverImage && <img src={item.coverImage} alt={item.title} className="item-thumb" />}
+                <div className="item-thumb-wrapper">
+                  {item.image || item.img || item.cover || item.coverImage ? (
+                    <img 
+                      src={item.image || item.img || item.cover || item.coverImage} 
+                      alt={item.name || item.title} 
+                      className="item-thumb" 
+                    />
+                  ) : (
+                    <div className="item-thumb-placeholder">
+                      {SECTIONS.find(s => s.id === activeTab)?.icon || '🖼️'}
+                    </div>
+                  )}
+                </div>
                 
                 <div className="item-info">
                   <h4>
                     {section === 'footer' ? item.email : (section === 'voucher_claims' ? item.name : (item.name || item.title))}
                     {section === 'collections' && item.showOnHome && (
-                      <span style={{backgroundColor: '#28a745', color: '#fff', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', marginLeft: '8px', fontWeight: 'normal', verticalAlign: 'middle'}}>Hiện trang chủ</span>
+                      <span style={{backgroundColor: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold'}}>Hiện trang chủ</span>
                     )}
                     {section === 'bookings' && (
                       <span style={{
-                        backgroundColor: item.status === 'da_lien_he' ? '#28a745' : '#dc3545',
-                        color: '#fff',
+                        backgroundColor: item.status === 'da_lien_he' ? '#dcfce7' : '#fee2e2',
+                        color: item.status === 'da_lien_he' ? '#15803d' : '#b91c1c',
                         padding: '2px 8px',
                         borderRadius: '12px',
                         fontSize: '11px',
-                        marginLeft: '8px',
-                        fontWeight: 'normal',
-                        verticalAlign: 'middle'
+                        fontWeight: 'bold'
                       }}>
-                        {item.status === 'da_lien_he' ? 'Đã tư vấn' : 'Chưa tư vấn'}
+                        {item.status === 'da_lien_he' ? '✓ Đã tư vấn' : '⏳ Chưa tư vấn'}
                       </span>
                     )}
                   </h4>
@@ -1274,10 +1324,10 @@ const QuanLyWebsite = () => {
                             : (item.category || item.desc || item.price)))}
                     </p>
                   )}
-                  {(section === 'collections' || section === 'special_collections') && item.coupleName && <p className="item-desc" style={{marginTop: '4px', fontSize: '12px', color: '#666'}}>{item.coupleName}</p>}
+                  {(section === 'collections' || section === 'special_collections') && item.coupleName && <p className="item-desc" style={{marginTop: '4px', fontSize: '12px', color: '#666'}}>👰🤵 {item.coupleName}</p>}
                   {section === 'khai_truong' && (
                     <div style={{ marginTop: '6px' }}>
-                      <p className="item-desc" style={{ fontSize: '13px', color: '#e5a93c', fontWeight: 'bold', margin: '0 0 4px 0' }}>
+                      <p className="item-desc" style={{ fontSize: '13px', color: '#059669', fontWeight: 'bold', margin: '0 0 4px 0' }}>
                         💰 {item.price} <span style={{ color: '#999', fontSize: '11px', fontWeight: 'normal', textDecoration: 'line-through' }}>{item.originalPrice}</span> | 🏷️ {item.discount}
                       </p>
                       {Array.isArray(item.gifts) && item.gifts.length > 0 && (
@@ -1299,7 +1349,7 @@ const QuanLyWebsite = () => {
                       </p>
                       <p className="item-desc" style={{ fontSize: '12px', color: '#666', margin: '0 0 6px 0' }}>{item.desc}</p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ flex: 1, height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ flex: 1, height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
                           <div style={{ 
                             height: '100%', 
                             width: `${Math.min(100, ((item.claimedCount || 0) / (item.quantity || 1)) * 100)}%`, 
@@ -1323,36 +1373,40 @@ const QuanLyWebsite = () => {
                         👤 Khách hàng: <strong>{item.name}</strong> | 📞 SĐT: <strong>{item.phone}</strong>
                       </p>
                       <p className="item-desc" style={{ fontSize: '12px', color: '#666', margin: 0 }}>
-                        📍 Địa chỉ: {item.address || 'Chưa nhập'} | 🕒 Ngày quay: {item.claimedAt ? new Date(item.claimedAt).toLocaleString('vi-VN') : 'Mới đây'} (IP: {item.ip || '---'})
+                        📍 Địa chỉ: {item.address || 'Chưa nhập'} | 🕒 Ngày quay: {item.claimedAt ? new Date(item.claimedAt).toLocaleString('vi-VN') : 'Mới đây'}
                       </p>
                     </div>
                   )}
-                  {section === 'footer' && <p className="item-desc">{item.address} - {item.phone}</p>}
+                  {section === 'footer' && <p className="item-desc">📍 {item.address} | 📞 {item.phone}</p>}
                 </div>
 
                 <div className="item-actions" onClick={(e) => section === 'bookings' && e.stopPropagation()}>
                   {section === 'bookings' ? (
-                    <button className="edit-btn" onClick={() => openEdit(item)}>Xem chi tiết</button>
+                    <button className="edit-btn" onClick={() => openEdit(item)}>
+                      <span>👁️ Xem chi tiết</span>
+                    </button>
                   ) : (
-                    section !== 'voucher_claims' && section !== 'special_collections' && <button className="edit-btn" onClick={() => openEdit(item)}>Sửa</button>
+                    section !== 'voucher_claims' && section !== 'special_collections' && (
+                      <button className="edit-btn" onClick={() => openEdit(item)}>
+                        <span>✏️ Sửa</span>
+                      </button>
+                    )
                   )}
                   <button className="del-btn" onClick={() => handleDelete(item._id || item.id)}>
-                    {section === 'special_collections' ? 'Hủy công bố' : 'Xoá'}
+                    <span>🗑️ {section === 'special_collections' ? 'Hủy công bố' : 'Xoá'}</span>
                   </button>
                 </div>
               </div>
             ))}
+
             {getFilteredData().length === 0 && (
-              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                <p className="empty-msg" style={{ marginBottom: '15px' }}>Chưa có dữ liệu nào trong chuyên mục này.</p>
-                {section === 'khai_truong' && (
-                  <button className="add-btn" onClick={openAdd} style={{ margin: '0 auto', display: 'inline-block' }}>
-                    🎁 + Thêm Deal Khai Trương Đầu Tiên
-                  </button>
-                )}
-                {section === 'vouchers' && (
-                  <button className="add-btn" onClick={openAdd} style={{ margin: '0 auto', display: 'inline-block' }}>
-                    🎫 + Thêm Voucher Ưu Đãi Đầu Tiên
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '50px 20px', background: '#f8fafc', borderRadius: '12px', border: '1.5px dashed #cbd5e1' }}>
+                <div style={{ fontSize: '36px', marginBottom: '10px' }}>📂</div>
+                <h4 style={{ margin: '0 0 6px 0', color: '#1e293b' }}>Chưa có dữ liệu nào trong chuyên mục này</h4>
+                <p className="empty-msg" style={{ margin: '0 0 16px 0', padding: 0 }}>Bắt đầu bằng cách thêm mục mới để hiển thị lên website.</p>
+                {section !== 'bookings' && section !== 'voucher_claims' && section !== 'special_collections' && (
+                  <button className="add-btn" onClick={openAdd} style={{ margin: '0 auto' }}>
+                    <span>+ Thêm Mục Đầu Tiên</span>
                   </button>
                 )}
               </div>
@@ -1361,38 +1415,62 @@ const QuanLyWebsite = () => {
         )}
       </div>
 
+      {/* ===== EDIT / ADD MODAL ===== */}
       {isEditing && (
         <div className="modal-overlay">
-        <div className={`modal-content ${section === 'services' ? 'wide-modal' : ''}`}>
-            <h3>{section === 'bookings' ? 'Chi tiết lịch tư vấn' : (editItem?.id?.toString().length > 10 ? 'Thêm mới' : 'Chỉnh sửa')}</h3>
+          <div className={`modal-content ${section === 'services' ? 'wide-modal' : ''}`}>
+            <div className="modal-header-styled">
+              <h3>{section === 'bookings' ? 'Chi tiết lịch tư vấn' : (editItem?.id?.toString().length > 10 ? 'Thêm mục mới' : 'Chỉnh sửa mục')}</h3>
+              <button 
+                type="button" 
+                onClick={closeEdit}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+              >
+                ✕
+              </button>
+            </div>
+            
             <form onSubmit={submitForm} className="website-form">
               {renderFormFields()}
               <div className="form-actions">
-                <button type="button" className="cancel-btn" onClick={closeEdit}>Hủy</button>
-                <button type="submit" className="save-btn" disabled={loading}>Lưu</button>
+                <button type="button" className="cancel-btn" onClick={closeEdit}>Hủy bỏ</button>
+                <button type="submit" className="save-btn" disabled={loading}>
+                  {loading ? 'Đang lưu...' : 'Lưu thông tin'}
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* ===== SYNC MODAL ===== */}
       {isSyncing && (
         <div className="modal-overlay">
           <div className="sync-modal-content">
-            <h3>Đồng bộ dịch vụ sang Website</h3>
-            <p style={{ fontSize: '0.85em', color: '#666', marginBottom: '15px', textAlign: 'left' }}>
-              Chọn các dịch vụ từ Quản lý dịch vụ để thêm vào danh sách báo giá của website.
+            <div className="modal-header-styled">
+              <h3>☁️ Đồng bộ dịch vụ sang Website</h3>
+              <button 
+                type="button" 
+                onClick={() => setIsSyncing(false)}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '15px', textAlign: 'left', margin: 0 }}>
+              Chọn các dịch vụ từ Quản lý kho / dịch vụ để đưa lên bảng giá trên website.
             </p>
             
             {syncLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 0' }}>
                 <div className="spinner"></div>
-                <span style={{ marginTop: '10px', fontSize: '0.9em', color: '#666' }}>Đang tải danh sách dịch vụ...</span>
+                <span style={{ marginTop: '10px', fontSize: '13px', color: '#64748b' }}>Đang tải danh sách dịch vụ...</span>
               </div>
             ) : (
               <>
-                <div className="sync-all-bar">
-                  <label className="sync-all-checkbox-label">
+                <div className="sync-all-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', margin: '12px 0 6px 0' }}>
+                  <label className="sync-all-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>
                     <input 
                       type="checkbox" 
                       checked={servicesList.length > 0 && selectedServiceIds.length === servicesList.length}
@@ -1414,7 +1492,7 @@ const QuanLyWebsite = () => {
                         <input 
                           type="checkbox" 
                           checked={isSelected}
-                          onChange={() => {}} // handled by onClick of parent
+                          onChange={() => {}}
                         />
                         <div className="service-sync-info">
                           <span className="service-sync-name">{service.tenDichVu}</span>
@@ -1432,14 +1510,14 @@ const QuanLyWebsite = () => {
                 </div>
                 
                 <div className="form-actions">
-                  <button type="button" className="cancel-btn" onClick={() => setIsSyncing(false)}>Hủy</button>
+                  <button type="button" className="cancel-btn" onClick={() => setIsSyncing(false)}>Hủy bỏ</button>
                   <button 
                     type="button" 
                     className="save-btn" 
                     onClick={handlePerformSync} 
                     disabled={selectedServiceIds.length === 0 || loading}
                   >
-                    {loading ? 'Đang đồng bộ...' : `Đồng bộ (${selectedServiceIds.length})`}
+                    {loading ? 'Đang đồng bộ...' : `Xác nhận đồng bộ (${selectedServiceIds.length})`}
                   </button>
                 </div>
               </>

@@ -64,6 +64,18 @@ export const ENDPOINTS = {
   },
   THI_DUA: {
     STATS: "/api/thi-dua/stats",
+    STORE_TARGET: "/api/thi-dua/store-target",
+    UPDATE_STORE_TARGET: "/api/thi-dua/update-store-target",
     UPDATE_TARGETS: "/api/thi-dua/update-targets"
+  },
+  BAO_CAO: {
+    KINH_DOANH: "/api/bao-cao/kinh-doanh",
+    TONG_QUAN: "/api/bao-cao/tong-quan"
+  },
+  DON_VI_NHAN_TIEN: {
+    LIST: "/donViNhanTien/findAll",
+    CREATE: "/donViNhanTien/create",
+    UPDATE: "/donViNhanTien/update",
+    REMOVE: "/donViNhanTien/remove"
   }
 };

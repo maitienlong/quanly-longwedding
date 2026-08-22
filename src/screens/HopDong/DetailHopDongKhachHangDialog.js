@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment, useCallback, useMemo } from "react";
 import "./ThemHopDongDialog.css";
+import "./DetailHopDongModern.css";
 import AppSearchInput from "../../components/AppSearchInput";
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -38,6 +39,7 @@ import {
 import MobileAccordion from '../../components/MobileAccordion';
 import LocAnhMayTinhDialog from './LocAnhMayTinhDialog';
 import { downloadPhoto } from '../../utils/downloadHelper';
+import { getContractPrintConfig } from '../../utils/printConfigHelper';
 import SePayDialog from './SePayDialog';
 // getDichVuChinhLabel is now retrieved dynamically from useContractTypes hook
 
@@ -199,20 +201,48 @@ function DetailHopDongKhachHangDialog(props) {
         onClose(value);
     };
 
-    useEffect(() => {
-        console.log(data)
-        showLoading("Đang tải các dịch vụ.");
+    const removeVietnameseTones = (str) => {
+        if (!str) return "";
+        return str
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/đ/g, "d")
+            .replace(/Đ/g, "D")
+            .toLowerCase()
+            .trim();
+    };
+
+    const loadDichVu = useCallback(() => {
         otherService.findDichVu()
             .then((response) => {
-                setListDichVu(response.data.dichVu);
-                hideLoading();
+                const list = response?.data?.dichVu || 
+                             response?.data?.data?.dichVu || 
+                             response?.dichVu || 
+                             (Array.isArray(response?.data) ? response.data : []) || 
+                             (Array.isArray(response) ? response : []) || 
+                             [];
+                setListDichVu(Array.isArray(list) ? list : []);
             })
             .catch((error) => {
                 console.error('Error fetching data:', error);
-                toast.error("Lỗi khi tải dữ liệu dịch vụ.");
-                hideLoading();
             });
-    }, [showLoading, hideLoading]);
+    }, []);
+
+    useEffect(() => {
+        loadDichVu();
+    }, [loadDichVu]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (searchRef.current && !searchRef.current.contains(event.target)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     const formatTimestampToDateInput = (val) => {
         if (!val) return "";
@@ -250,9 +280,10 @@ function DetailHopDongKhachHangDialog(props) {
 
     useEffect(() => {
         if (open && data && data.maHopDong) {
+            loadDichVu();
             otherService.LIST_HOPDONG({})
                 .then(response => {
-                    setListHopDong(response.data.hopDong || []);
+                    setListHopDong(response.data?.hopDong || response.data || []);
                 })
                 .catch(error => {
                     console.error("Lỗi khi tải danh sách hợp đồng để kiểm tra trùng lịch chụp:", error);
@@ -417,11 +448,24 @@ function DetailHopDongKhachHangDialog(props) {
 
     const searchRef = useRef(null);
 
-    const suggestions = listDichVu.filter(p =>
-        searchTerm.trim() &&
-        (p.tenDichVu?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.maDichVu?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const suggestions = useMemo(() => {
+        const term = searchTerm?.trim();
+        if (!term) return [];
+        const cleanTerm = term.toLowerCase();
+        const cleanTermNoTone = removeVietnameseTones(term);
+
+        return (listDichVu || []).filter(p => {
+            const name = (p.tenDichVu || '').toLowerCase();
+            const code = (p.maDichVu || '').toLowerCase();
+            const nameNoTone = removeVietnameseTones(p.tenDichVu);
+            const codeNoTone = removeVietnameseTones(p.maDichVu);
+
+            return name.includes(cleanTerm) || 
+                   code.includes(cleanTerm) ||
+                   nameNoTone.includes(cleanTermNoTone) ||
+                   codeNoTone.includes(cleanTermNoTone);
+        });
+    }, [listDichVu, searchTerm]);
 
     const handleSelectProduct = (product) => {
         const productId = product.dichVu || product._id;
@@ -1148,17 +1192,17 @@ function DetailHopDongKhachHangDialog(props) {
             <body>
                 <div class="header-sec" style="align-items: center;">
                     <div class="company-logo-sec">
-                        <img src="${window.location.origin}${logoVang}" alt="LONG WEDDING" style="height: 50px; object-fit: contain;" />
+                        <img src="${window.location.origin}${logoVang}" alt="${getContractPrintConfig().studioName}" style="height: 50px; object-fit: contain;" />
                     </div>
                     <div class="company-info" style="text-align: right;">
-                        <div>Website: <strong>longwedding.vn</strong></div>
-                        <div>Hotline: <strong>0868.66.3637</strong></div>
-                        <div>Địa chỉ: <strong>Số 129 đường 1/5, xóm Tân Hồng, xã Nghĩa Đàn, tỉnh Nghệ An</strong></div>
+                        <div>Website: <strong>${getContractPrintConfig().studioWebsite}</strong></div>
+                        <div>Hotline: <strong>${getContractPrintConfig().studioHotline}</strong></div>
+                        <div>Địa chỉ: <strong>${getContractPrintConfig().studioAddress}</strong></div>
                     </div>
                 </div>
                 
                 <div class="contract-title-sec">
-                    <div class="title">HỢP ĐỒNG DỊCH VỤ</div>
+                    <div class="title">${getContractPrintConfig().contractTitle}</div>
                     <div class="date-line">Mã số HĐ: <strong>${maHopDong}</strong> - Ngày lập: ${ngayHDFormatted}</div>
                 </div>
 
@@ -1289,24 +1333,18 @@ function DetailHopDongKhachHangDialog(props) {
 
                 <div class="signatures">
                     <div class="sig-box">
-                        <div class="sig-title">ĐẠI DIỆN KHÁCH HÀNG (BÊN A)</div>
+                        <div class="sig-title">${getContractPrintConfig().clientSignTitle}</div>
                         <div class="sig-name">${nameKH1 || ''}</div>
                     </div>
                     <div class="sig-box">
-                        <div class="sig-title">ĐẠI DIỆN CỬA HÀNG (BÊN B)</div>
-                        <div class="sig-name">LONG WEDDING</div>
+                        <div class="sig-title">${getContractPrintConfig().studioSignTitle}</div>
+                        <div class="sig-name">${getContractPrintConfig().studioName}</div>
                     </div>
                 </div>
 
                 <div class="terms">
                     <div class="terms-title">Điều khoản chung & Cam kết dịch vụ:</div>
-                    <p>1. Bên A cam kết thanh toán đầy đủ các khoản chi phí theo tiến độ đã thoả thuận trong hợp đồng.</p>
-                    <p>2. Bên B cam kết thực hiện đúng, đầy đủ các dịch vụ chất lượng đã ký kết với khách hàng.</p>
-                    <p>3. Mọi thay đổi về lịch trình hoặc dịch vụ cần được thông báo trước ít nhất 3 ngày.</p>
-                    <p>4. Trang phục không được để rượu vang đổ lên váy, nếu bị sẽ phải mua luôn váy.</p>
-                    <p>5. Tiền cọc không được hoàn trả bất kỳ hình thức nào.</p>
-                    <p>6. Hợp đồng được đồng bộ hóa trên đám mây, Quý khách có thể tra cứu trên website longwedding.vn.</p>
-                    <p>7. Mọi thắc mắc xin quý khách liên hệ về số hotline: 0868 66 3637</p>
+                    ${getContractPrintConfig().terms.map((term, i) => `<p>${i + 1}. ${term}</p>`).join('')}
                 </div>
             </body>
             </html>
@@ -1320,176 +1358,186 @@ function DetailHopDongKhachHangDialog(props) {
 
     return (
         <Fragment>
-            <Dialog onClose={handleClose} open={open}
+            <Dialog 
+                onClose={handleClose} 
+                open={open}
                 fullWidth={true}
                 maxWidth="xl"
                 PaperProps={{
+                    className: "hd-modern-dialog-root",
                     sx: {
-                        width: '100%',
-                        maxWidth: '99vw',
-                        m: { xs: 0, sm: 0.5 },
-                        height: { xs: '100%', sm: '98vh' },
-                        maxHeight: '100vh',
-                        borderRadius: { xs: 0, sm: 2 }
+                        width: '100% !important',
+                        maxWidth: '100vw !important',
+                        m: '0 !important',
+                        height: '100% !important',
+                        maxHeight: '100vh !important',
+                        borderRadius: '0 !important',
+                        p: '0 !important'
                     }
                 }}
             >
-                <div className="dialog-overlay">
-                    <div className="mobile-dark-theme dialog large">
+                <div className="hd-modern-wrapper">
+                    {/* ===== 1. ULTRA-COMPACT EXECUTIVE HEADER ===== */}
+                    <div className="hd-compact-header">
+                        {/* Left: Icon, Title & Meta (Mã HĐ & Loại HĐ) */}
+                        <div className="hd-header-left-group">
+                            <div className="hd-header-icon-mini">
+                                <FontAwesomeIcon icon={faFileContract} />
+                            </div>
+                            <div className="hd-header-title-text">
+                                <h2>
+                                    CHI TIẾT HĐ: 
+                                    <span className="hd-header-contract-code" style={{ marginLeft: 6 }}>{maHopDong}</span>
+                                </h2>
+                            </div>
+                            <span className="hd-chip-pill hd-chip-service">
+                                💎 {getDichVuChinhLabel(dichVuChinh)}
+                            </span>
+                        </div>
 
-                        <button className="close-btn" onClick={handleClose}>×</button>
-                        <h3 className="dialog-title">CHI TIẾT HỢP ĐỒNG: <span style={{ color: '#d4af37' }}>{maHopDong}</span></h3>
+                        {/* Center: Slim Inline Stepper (Tiến Trình) */}
+                        <div className="hd-inline-stepper">
+                            {[
+                                { number: 1, label: "Tạo HĐ" },
+                                { number: 2, label: "Chụp hình" },
+                                { number: 3, label: "Hậu kỳ" },
+                                { number: 4, label: "In ảnh" },
+                                { number: 5, label: "Hoàn thành" }
+                            ].map((step, idx, arr) => {
+                                const isCompleted = step.number < giaiDoan;
+                                const isActive = step.number === giaiDoan;
 
-                        <div className="dialog-progress">
-                            <div className="stepper-wrapper">
-                                {[
-                                    { number: 1, label: "Tạo hợp đồng", icon: faFileContract },
-                                    { number: 2, label: "Chụp hình", icon: faCamera },
-                                    { number: 3, label: "Hậu kỳ", icon: faWandMagicSparkles },
-                                    { number: 4, label: "In ảnh", icon: faPrint },
-                                    { number: 5, label: "Hoàn thành", icon: faCircleCheck }
-                                ].map((step, idx, arr) => {
-                                    const isCompleted = step.number < giaiDoan;
-                                    const isActive = step.number === giaiDoan;
-                                    const isPending = step.number > giaiDoan;
-
-                                    return (
-                                        <div key={step.number} className="step-container">
-                                            <div
-                                                className={`step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${isPending ? 'pending' : ''}`}
-                                                onClick={() => handleStepClick(step.number)}
-                                            >
-                                                <div className="step-icon-wrap">
-                                                    <FontAwesomeIcon icon={step.icon} />
-                                                    {isCompleted && <span className="step-badge-check">✓</span>}
-                                                </div>
-                                                <span className="step-label">{step.label}</span>
+                                return (
+                                    <Fragment key={step.number}>
+                                        <div
+                                            className={`hd-step-node-mini ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                                            onClick={() => handleStepClick(step.number)}
+                                            title={`Click chuyển giai đoạn: ${step.label}`}
+                                        >
+                                            <div className="hd-step-circle-mini">
+                                                {isCompleted ? "✓" : step.number}
                                             </div>
-                                            {idx < arr.length - 1 && (
-                                                <div className={`step-line ${step.number < giaiDoan ? 'filled' : ''}`}></div>
+                                            <span className="hd-step-label-mini">{step.label}</span>
+                                        </div>
+                                        {idx < arr.length - 1 && (
+                                            <div className={`hd-step-line-mini ${step.number < giaiDoan ? 'filled' : ''}`}></div>
+                                        )}
+                                    </Fragment>
+                                );
+                            })}
+                        </div>
+
+                        {/* Right: Close button only */}
+                        <div className="hd-header-right-group">
+                            <button className="hd-close-btn-mini" onClick={handleClose} title="Đóng cửa sổ">
+                                ×
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ===== 2. MAIN DASHBOARD CONTENT (ALL IN 1 SCREEN - NO TABS) ===== */}
+                    <div className="hd-dashboard-content">
+                        <div className="hd-bento-grid">
+                            
+                            {/* ================= COLUMN 1: KHÁCH HÀNG & LỊCH TRÌNH ================= */}
+                            <div className="hd-bento-col">
+                                {/* Card 1: Khách Hàng */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>👰🤵</span> Khách Hàng
+                                        </h3>
+                                    </div>
+
+                                    {/* KH 1 (Cô Dâu / Chính) */}
+                                    <div className="hd-customer-box">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span className="hd-customer-tag bride">👰 KH 1 (Cô dâu / Đại diện)</span>
+                                            {(phoneKH1 || facebookKH1) && (
+                                                <span 
+                                                    style={{ fontSize: '0.68rem', color: '#2563eb', cursor: 'pointer', fontWeight: 600 }}
+                                                    onClick={() => {
+                                                        const targetUser = phoneKH1 || facebookKH1;
+                                                        const link = getClientLoginUrl(targetUser);
+                                                        navigator.clipboard.writeText(link);
+                                                        toast.success("Đã sao chép link đăng nhập KH 1!");
+                                                    }}
+                                                >
+                                                    🔗 Copy link KH 1
+                                                </span>
                                             )}
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                        <div className="dialog-content">
-                            <div className="right-column">
-                                <div className="dialog-section-khachhang">
-                                    <MobileAccordion title="Thông tin khách hàng 1" className="dialog-section-khachhang-item">
-                                        <div className="floating-label">
-                                            <input name="phoneKH1" value={phoneKH1} disabled />
-                                            <label>Phone khách hàng 1</label>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '6px' }}>
+                                            <input className="hd-input-text" value={phoneKH1 || "SĐT"} disabled placeholder="SĐT KH 1" />
+                                            <input className="hd-input-text" value={nameKH1 || "Tên KH 1"} disabled style={{ fontWeight: 700, color: '#0f172a' }} />
                                         </div>
+                                        <input className="hd-input-text" value={addressKH1 || "Chưa có địa chỉ"} disabled placeholder="Địa chỉ KH 1" />
+                                        <input
+                                            className="hd-input-text"
+                                            value={facebookKH1 || "Link / ID Facebook 1"}
+                                            readOnly
+                                            placeholder="Link/ID FB 1"
+                                            style={facebookKH1 ? { cursor: 'pointer', color: '#0284c7', textDecoration: 'underline', backgroundColor: '#f0f9ff' } : {}}
+                                            onClick={() => {
+                                                if (facebookKH1) {
+                                                    const url = facebookKH1.startsWith('http') ? facebookKH1 : `https://facebook.com/${facebookKH1}`;
+                                                    window.open(url, '_blank');
+                                                }
+                                            }}
+                                        />
+                                    </div>
 
-                                        <div className="floating-label">
-                                            <input name="tenKhachHang" value={nameKH1} disabled />
-                                            <label>Tên khách hàng</label>
+                                    {/* KH 2 (Chú Rể) */}
+                                    <div className="hd-customer-box">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span className="hd-customer-tag groom">🤵 KH 2 (Chú rể / Phối hợp)</span>
+                                            {(phoneKH2 || facebookKH2) && (
+                                                <span 
+                                                    style={{ fontSize: '0.68rem', color: '#2563eb', cursor: 'pointer', fontWeight: 600 }}
+                                                    onClick={() => {
+                                                        const targetUser = phoneKH2 || facebookKH2;
+                                                        const link = getClientLoginUrl(targetUser);
+                                                        navigator.clipboard.writeText(link);
+                                                        toast.success("Đã sao chép link đăng nhập KH 2!");
+                                                    }}
+                                                >
+                                                    🔗 Copy link KH 2
+                                                </span>
+                                            )}
                                         </div>
-
-                                        <div className="floating-label">
-                                            <input name="diaChiCodau" value={addressKH1} disabled />
-                                            <label>Địa chỉ</label>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '6px' }}>
+                                            <input className="hd-input-text" value={phoneKH2 || "SĐT"} disabled placeholder="SĐT KH 2" />
+                                            <input className="hd-input-text" value={nameKH2 || "Tên KH 2"} disabled style={{ fontWeight: 700, color: '#0f172a' }} />
                                         </div>
-
-                                        <div className="floating-label">
-                                            <input
-                                                name="facebookKH1"
-                                                value={facebookKH1}
-                                                readOnly
-                                                style={facebookKH1 ? { cursor: 'pointer', color: '#1976d2', textDecoration: 'underline', backgroundColor: '#f5f5f5' } : { backgroundColor: '#f5f5f5' }}
-                                                onClick={() => {
-                                                    if (facebookKH1) {
-                                                        const url = facebookKH1.startsWith('http') ? facebookKH1 : `https://facebook.com/${facebookKH1}`;
-                                                        window.open(url, '_blank');
-                                                    }
-                                                }}
-                                            />
-                                            <label>Link / ID Facebook 1</label>
-                                        </div>
-                                        {(phoneKH1 || facebookKH1) && (
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                onClick={() => {
-                                                    const targetUser = phoneKH1 || facebookKH1;
-                                                    const link = getClientLoginUrl(targetUser);
-                                                    navigator.clipboard.writeText(link);
-                                                    toast.success("Đã sao chép link đăng nhập KH 1!");
-                                                }}
-                                                style={{ textTransform: 'none', fontSize: '0.73rem', color: '#2563eb', borderColor: '#bfdbfe', marginTop: '6px', width: '100%', borderRadius: '6px' }}
-                                            >
-                                                🔗 Copy link đăng nhập KH 1
-                                            </Button>
-                                        )}
-                                    </MobileAccordion>
-
-                                    <MobileAccordion title="Thông tin khách hàng 2" className="dialog-section-khachhang-item" defaultExpanded={false}>
-                                        <div className="floating-label">
-                                            <input name="phoneKH2" value={phoneKH2} disabled />
-                                            <label>Phone khách hàng 2</label>
-                                        </div>
-
-                                        <div className="floating-label">
-                                            <input name="tenKhachHang" value={nameKH2} disabled />
-                                            <label>Tên khách hàng 2</label>
-                                        </div>
-
-                                        <div className="floating-label">
-                                            <input name="diaChiCodau" value={addressKH2} disabled />
-                                            <label>Địa chỉ khách hàng 2</label>
-                                        </div>
-
-                                        <div className="floating-label">
-                                            <input
-                                                name="facebookKH2"
-                                                value={facebookKH2}
-                                                readOnly
-                                                style={facebookKH2 ? { cursor: 'pointer', color: '#1976d2', textDecoration: 'underline', backgroundColor: '#f5f5f5' } : { backgroundColor: '#f5f5f5' }}
-                                                onClick={() => {
-                                                    if (facebookKH2) {
-                                                        const url = facebookKH2.startsWith('http') ? facebookKH2 : `https://facebook.com/${facebookKH2}`;
-                                                        window.open(url, '_blank');
-                                                    }
-                                                }}
-                                            />
-                                            <label>Link / ID Facebook 2</label>
-                                        </div>
-                                        {(phoneKH2 || facebookKH2) && (
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                onClick={() => {
-                                                    const targetUser = phoneKH2 || facebookKH2;
-                                                    const link = getClientLoginUrl(targetUser);
-                                                    navigator.clipboard.writeText(link);
-                                                    toast.success("Đã sao chép link đăng nhập KH 2!");
-                                                }}
-                                                style={{ textTransform: 'none', fontSize: '0.73rem', color: '#2563eb', borderColor: '#bfdbfe', marginTop: '6px', width: '100%', borderRadius: '6px' }}
-                                            >
-                                                🔗 Copy link đăng nhập KH 2
-                                            </Button>
-                                        )}
-                                    </MobileAccordion>
-
+                                        <input className="hd-input-text" value={addressKH2 || "Chưa có địa chỉ"} disabled placeholder="Địa chỉ KH 2" />
+                                        <input
+                                            className="hd-input-text"
+                                            value={facebookKH2 || "Link / ID Facebook 2"}
+                                            readOnly
+                                            placeholder="Link/ID FB 2"
+                                            style={facebookKH2 ? { cursor: 'pointer', color: '#0284c7', textDecoration: 'underline', backgroundColor: '#f0f9ff' } : {}}
+                                            onClick={() => {
+                                                if (facebookKH2) {
+                                                    const url = facebookKH2.startsWith('http') ? facebookKH2 : `https://facebook.com/${facebookKH2}`;
+                                                    window.open(url, '_blank');
+                                                }
+                                            }}
+                                        />
+                                    </div>
                                 </div>
 
+                                {/* Card 2: Phân Công & Nhân Sự */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>👔</span> Phân Công Đội Ngũ
+                                        </h3>
+                                    </div>
 
-
-                                <MobileAccordion title="Thông tin hợp đồng" className="dialog-section">
-                                    <div className="two-col-grid">
-                                        <div className="floating-label">
-                                            <input name="maHopDong" value={maHopDong} disabled />
-                                            <label>Mã hợp đồng</label>
-                                        </div>
-
-                                        <div className="floating-label">
-                                            <input type="text" name="dichVuChinh" value={getDichVuChinhLabel(dichVuChinh)} disabled />
-                                            <label>Dịch vụ chính</label>
-                                        </div>
-
-                                        <div className="floating-label">
-                                            <select name="nhanVienSale" value={nhanVienSale} onChange={(e) => setNhanVienSale(e.target.value)}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Sale</label>
+                                            <select className="hd-select-control" name="nhanVienSale" value={nhanVienSale} onChange={(e) => setNhanVienSale(e.target.value)}>
                                                 <option value="0">Chưa phân công</option>
                                                 {(() => {
                                                     const staff = listStaff.filter(s => s.positon === 'Nhân viên Sale');
@@ -1502,11 +1550,11 @@ function DetailHopDongKhachHangDialog(props) {
                                                     ));
                                                 })()}
                                             </select>
-                                            <label>Nhân viên sale</label>
                                         </div>
 
-                                        <div className="floating-label">
-                                            <select name="thoChupHinh" value={thoChupHinh} onChange={(e) => setThoChupHinh(e.target.value)}>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Thợ chụp</label>
+                                            <select className="hd-select-control" name="thoChupHinh" value={thoChupHinh} onChange={(e) => setThoChupHinh(e.target.value)}>
                                                 <option value="">Chưa phân công</option>
                                                 {(() => {
                                                     const staff = listStaff.filter(s => s.positon === 'Thợ chụp hình');
@@ -1519,11 +1567,11 @@ function DetailHopDongKhachHangDialog(props) {
                                                     ));
                                                 })()}
                                             </select>
-                                            <label>Thợ chụp hình</label>
                                         </div>
 
-                                        <div className="floating-label">
-                                            <select name="thoMakeUp" value={thoMakeUp} onChange={(e) => setThoMakeUp(e.target.value)}>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Makeup</label>
+                                            <select className="hd-select-control" name="thoMakeUp" value={thoMakeUp} onChange={(e) => setThoMakeUp(e.target.value)}>
                                                 <option value="">Chưa phân công</option>
                                                 {(() => {
                                                     const staff = listStaff.filter(s => s.positon === 'Thợ trang điểm');
@@ -1536,20 +1584,11 @@ function DetailHopDongKhachHangDialog(props) {
                                                     ));
                                                 })()}
                                             </select>
-                                            <label>Thợ Make-up</label>
                                         </div>
 
-                                        <div className="floating-label">
-                                            <select name="chotLich" value={chotLich} onChange={(e) => setChotLich(e.target.value)}>
-                                                <option value="Chưa gọi điện">Chưa gọi điện</option>
-                                                <option value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</option>
-                                                <option value="Đã chốt lịch">Đã chốt lịch</option>
-                                            </select>
-                                            <label>Chốt lịch</label>
-                                        </div>
-
-                                        <div className="floating-label">
-                                            <select name="thoChinhAnh" value={thoChinhAnh} onChange={(e) => setThoChinhAnh(e.target.value)}>
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Chỉnh ảnh</label>
+                                            <select className="hd-select-control" name="thoChinhAnh" value={thoChinhAnh} onChange={(e) => setThoChinhAnh(e.target.value)}>
                                                 <option value="">Chưa phân công</option>
                                                 {(() => {
                                                     const staff = listStaff.filter(s => s.positon === 'Thợ chỉnh ảnh');
@@ -1562,14 +1601,39 @@ function DetailHopDongKhachHangDialog(props) {
                                                     ));
                                                 })()}
                                             </select>
-                                            <label>Thợ chỉnh ảnh</label>
                                         </div>
                                     </div>
-                                </MobileAccordion>
 
-                                <MobileAccordion title="Thông tin chung & Lịch trình" className="dialog-section" style={{ marginTop: '20px' }}>
-                                    <div className="two-col-grid">
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                    <div className="hd-form-group" style={{ marginTop: '6px' }}>
+                                        <label className="hd-form-label">Trạng thái chốt lịch</label>
+                                        <select 
+                                            className="hd-select-control" 
+                                            name="chotLich" 
+                                            value={chotLich} 
+                                            onChange={(e) => setChotLich(e.target.value)}
+                                            style={{ 
+                                                fontWeight: 700, 
+                                                backgroundColor: chotLich === 'Đã chốt lịch' ? '#dcfce7' : chotLich === 'Đã gọi điện xác nhận' ? '#fef3c7' : '#ffffff',
+                                                color: chotLich === 'Đã chốt lịch' ? '#15803d' : chotLich === 'Đã gọi điện xác nhận' ? '#b45309' : '#475569'
+                                            }}
+                                        >
+                                            <option value="Chưa gọi điện">Chưa gọi điện</option>
+                                            <option value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</option>
+                                            <option value="Đã chốt lịch">Đã chốt lịch</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Card 3: Lịch Trình & Phong Thủy */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>📅</span> Lịch Trình & Âm Lịch
+                                        </h3>
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div>
                                             <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
                                                 <DateTimePicker
                                                     label="Ngày chụp ảnh"
@@ -1582,522 +1646,91 @@ function DetailHopDongKhachHangDialog(props) {
                                                             if (conflict) {
                                                                 const conflictTime = new Date(conflict.cacNgay.ngayChup);
                                                                 const timeStr = `${String(conflictTime.getHours()).padStart(2, '0')}:${String(conflictTime.getMinutes()).padStart(2, '0')} ngày ${conflictTime.getDate()}/${conflictTime.getMonth() + 1}/${conflictTime.getFullYear()}`;
-                                                                toast.warning(`Cảnh báo: Trùng hoặc quá gần lịch chụp với HĐ ${conflict.maHopDong} (${conflict.khachHang1?.tenKhachHang || ''}) vào lúc ${timeStr} (khoảng cách dưới 3 tiếng).`);
+                                                                toast.warning(`Cảnh báo: Trùng/gần lịch chụp HĐ ${conflict.maHopDong} lúc ${timeStr} (< 3 tiếng).`);
                                                             }
                                                         }
                                                     }}
-                                                    slotProps={{
-                                                        textField: {
-                                                            fullWidth: true,
-                                                            required: true,
-                                                            size: 'small',
-                                                        }
-                                                    }}
+                                                    slotProps={{ textField: { fullWidth: true, size: 'small', inputProps: { style: { fontSize: '0.8rem', padding: '6px 10px' } } } }}
                                                     format="DD/MM/YYYY HH:mm"
                                                 />
                                             </LocalizationProvider>
                                             {ngayChup && (
-                                                <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                    Âm lịch: {formatLunarDateFull(ngayChup)}
-                                                </div>
-                                            )}
-
-                                            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
-                                                <DateTimePicker
-                                                    label="Ngày ăn hỏi"
-                                                    value={ngayAnHoi ? dayjs(ngayAnHoi) : null}
-                                                    onChange={(newValue) => setNgayAnHoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
-                                                    slotProps={{
-                                                        textField: {
-                                                            fullWidth: true,
-                                                            required: true,
-                                                            size: 'small',
-                                                        }
-                                                    }}
-                                                    format="DD/MM/YYYY HH:mm"
-                                                />
-                                            </LocalizationProvider>
-                                            {ngayAnHoi && (
-                                                <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                    Âm lịch: {formatLunarDateFull(ngayAnHoi)}
-                                                </div>
-                                            )}
-
-                                            <div className="floating-label" style={{ marginTop: '5px' }}>
-                                                <input type="date" name="ngayChinhAnh" value={ngayChinhAnh} onChange={(e) => setNgayChinhAnh(e.target.value)} />
-                                                <label>Ngày bắt đầu hậu kỳ</label>
-                                            </div>
-                                            {ngayChinhAnh && (
-                                                <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                    Âm lịch: {formatLunarDateFull(ngayChinhAnh)}
+                                                <div style={{ fontSize: '0.7rem', color: '#d97706', marginTop: '2px', fontWeight: '600' }}>
+                                                    🏮 Âm lịch: {formatLunarDateFull(ngayChup)}
                                                 </div>
                                             )}
                                         </div>
 
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
-                                                <DateTimePicker
-                                                    label="Ngày cưới"
-                                                    value={ngayCuoi ? dayjs(ngayCuoi) : null}
-                                                    onChange={(newValue) => setNgayCuoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
-                                                    slotProps={{
-                                                        textField: {
-                                                            fullWidth: true,
-                                                            required: true,
-                                                            size: 'small',
-                                                        }
-                                                    }}
-                                                    format="DD/MM/YYYY HH:mm"
-                                                />
-                                            </LocalizationProvider>
-                                            {ngayCuoi && (
-                                                <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                    Âm lịch: {formatLunarDateFull(ngayCuoi)}
-                                                </div>
-                                            )}
-
-                                            <div className="floating-label" style={{ marginTop: '0px' }}>
-                                                <input type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} />
-                                                <label>Địa điểm chụp</label>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                            <div>
+                                                <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+                                                    <DateTimePicker
+                                                        label="Ngày ăn hỏi"
+                                                        value={ngayAnHoi ? dayjs(ngayAnHoi) : null}
+                                                        onChange={(newValue) => setNgayAnHoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
+                                                        slotProps={{ textField: { fullWidth: true, size: 'small', inputProps: { style: { fontSize: '0.8rem', padding: '6px 10px' } } } }}
+                                                        format="DD/MM/YYYY HH:mm"
+                                                    />
+                                                </LocalizationProvider>
+                                                {ngayAnHoi && (
+                                                    <div style={{ fontSize: '0.68rem', color: '#d97706', marginTop: '2px', fontWeight: '600' }}>
+                                                        🏮 {formatLunarDateFull(ngayAnHoi)}
+                                                    </div>
+                                                )}
                                             </div>
 
-                                            <div className="floating-label" style={{ marginTop: '5px' }}>
-                                                <input type="date" name="ngayTraAnh" value={ngayTraAnh} onChange={(e) => setNgayTraAnh(e.target.value)} />
-                                                <label>Ngày trả ảnh</label>
+                                            <div>
+                                                <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+                                                    <DateTimePicker
+                                                        label="Ngày cưới"
+                                                        value={ngayCuoi ? dayjs(ngayCuoi) : null}
+                                                        onChange={(newValue) => setNgayCuoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
+                                                        slotProps={{ textField: { fullWidth: true, size: 'small', inputProps: { style: { fontSize: '0.8rem', padding: '6px 10px' } } } }}
+                                                        format="DD/MM/YYYY HH:mm"
+                                                    />
+                                                </LocalizationProvider>
+                                                {ngayCuoi && (
+                                                    <div style={{ fontSize: '0.68rem', color: '#d97706', marginTop: '2px', fontWeight: '600' }}>
+                                                        🏮 {formatLunarDateFull(ngayCuoi)}
+                                                    </div>
+                                                )}
                                             </div>
-                                            {ngayTraAnh && (
-                                                <div style={{ fontSize: '0.78rem', color: '#e67e22', marginTop: '-10px', marginLeft: '4px', fontWeight: '500', marginBottom: '10px' }}>
-                                                    Âm lịch: {formatLunarDateFull(ngayTraAnh)}
-                                                </div>
-                                            )}
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                            <div className="hd-form-group">
+                                                <label className="hd-form-label">Ngày bắt đầu hậu kỳ</label>
+                                                <input className="hd-input-text" type="date" name="ngayChinhAnh" value={ngayChinhAnh} onChange={(e) => setNgayChinhAnh(e.target.value)} />
+                                            </div>
+                                            <div className="hd-form-group">
+                                                <label className="hd-form-label">Ngày trả ảnh</label>
+                                                <input className="hd-input-text" type="date" name="ngayTraAnh" value={ngayTraAnh} onChange={(e) => setNgayTraAnh(e.target.value)} />
+                                            </div>
+                                        </div>
+
+                                        <div className="hd-form-group">
+                                            <label className="hd-form-label">Địa điểm chụp ảnh</label>
+                                            <input className="hd-input-text" type="text" name="diaDiemChup" value={diaDiemChup} onChange={(e) => setDiaDiemChup(e.target.value)} placeholder="Ví dụ: Phim trường, Ngoại cảnh..." />
                                         </div>
                                     </div>
-                                </MobileAccordion>
-
-                                    <MobileAccordion title="THÔNG TIN ALBUM & ĐỒNG BỘ ẢNH" className="dialog-section" style={{ marginTop: '20px' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 15px', backgroundColor: '#fcfcfc', border: '1px solid #e0e0e0', borderRadius: '4px' }}>
-
-                                            {/* Ô nhập đường dẫn & nút Đồng bộ trực tiếp */}
-                                            <Box p={2} border="1px solid #e2e8f0" borderRadius="10px" bgcolor="#ffffff">
-                                                <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#1e293b', marginBottom: '12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    🔗 Đường dẫn Drive & Đồng bộ hình ảnh (Hỗ trợ cả khi HĐ Hoàn thành)
-                                                </Typography>
-                                                <Box display="flex" flexDirection="column" gap={1.5}>
-                                                    <Box display="flex" gap={1} alignItems="center">
-                                                        <TextField
-                                                            label="Đường dẫn ảnh gốc (Google Drive / Photos)"
-                                                            variant="outlined"
-                                                            fullWidth
-                                                            size="small"
-                                                            value={linkAnhGoc}
-                                                            onChange={(e) => setLinkAnhGoc(e.target.value)}
-                                                            placeholder="https://drive.google.com/drive/folders/..."
-                                                            inputProps={{ style: { fontSize: '0.82rem' } }}
-                                                        />
-                                                        <Button
-                                                            variant="contained"
-                                                            color="primary"
-                                                            size="small"
-                                                            disabled={isSyncingAlbum || !linkAnhGoc}
-                                                            onClick={() => handleSyncAlbum(linkAnhGoc, 'goc')}
-                                                            style={{ whiteSpace: 'nowrap', textTransform: 'none', fontWeight: 600, minWidth: '130px' }}
-                                                        >
-                                                            {isSyncingAlbum ? "Đang đồng bộ..." : "Đồng bộ ảnh gốc"}
-                                                        </Button>
-                                                    </Box>
-
-                                                    <Box display="flex" gap={1} alignItems="center">
-                                                        <TextField
-                                                            label="Đường dẫn ảnh chỉnh sửa (Google Drive / Photos)"
-                                                            variant="outlined"
-                                                            fullWidth
-                                                            size="small"
-                                                            value={linkAnhChinhSua}
-                                                            onChange={(e) => setLinkAnhChinhSua(e.target.value)}
-                                                            placeholder="https://drive.google.com/drive/folders/..."
-                                                            inputProps={{ style: { fontSize: '0.82rem' } }}
-                                                        />
-                                                        <Button
-                                                            variant="contained"
-                                                            color="secondary"
-                                                            size="small"
-                                                            disabled={isSyncingAlbumChinhSua || !linkAnhChinhSua}
-                                                            onClick={() => handleSyncAlbum(linkAnhChinhSua, 'chinhSua')}
-                                                            style={{ whiteSpace: 'nowrap', textTransform: 'none', fontWeight: 600, minWidth: '130px' }}
-                                                        >
-                                                            {isSyncingAlbumChinhSua ? "Đang đồng bộ..." : "Đồng bộ ảnh C.Sửa"}
-                                                        </Button>
-                                                    </Box>
-                                                </Box>
-                                            </Box>
-
-
-                                            {albumData && (
-                                                <Box mt={3} p={2.5} borderRadius="12px" border="1px solid #e2e8f0" bgcolor="#f8fafc" boxShadow="0 2px 8px rgba(0,0,0,0.03)">
-                                                    {/* Title & Actions */}
-                                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} pb={1.5} borderBottom="1px solid #e2e8f0" flexWrap="wrap" gap={1}>
-                                                        <Box display="flex" alignItems="center" gap={1}>
-                                                            <span style={{ fontSize: '1.1rem' }}>📷</span>
-                                                            <Typography variant="subtitle1" style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem' }}>
-                                                                Album Khách Hàng Chọn Ảnh
-                                                            </Typography>
-                                                        </Box>
-                                                        <Box display="flex" alignItems="center" gap={1}>
-                                                            <Button
-                                                                variant="contained"
-                                                                color="primary"
-                                                                size="small"
-                                                                startIcon={<span>🖼️</span>}
-                                                                style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '5px 12px', borderRadius: '6px', backgroundColor: '#2563eb' }}
-                                                                onClick={() => setOpenAlbumDetailDialog(true)}
-                                                            >
-                                                                Xem danh sách ảnh dạng lưới
-                                                            </Button>
-                                                            <Button
-                                                                variant="outlined"
-                                                                color="secondary"
-                                                                size="small"
-                                                                startIcon={<span>💻</span>}
-                                                                style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px', borderColor: '#7c3aed', color: '#7c3aed' }}
-                                                                onClick={() => setOpenLocAnhDialog(true)}
-                                                            >
-                                                                Lọc ảnh trên máy tính
-                                                            </Button>
-                                                        </Box>
-                                                    </Box>
-
-                                                    {/* Info Grid */}
-                                                    <Box display="grid" gridTemplateColumns="repeat(auto-fit, minmax(130px, 1fr))" gap={1.5} mb={2.5}>
-                                                        {/* Box 1: Stats */}
-                                                        <Box p={1.5} bgcolor="#ffffff" border="1px solid #e2e8f0" borderRadius="8px" display="flex" flexDirection="column" gap={0.5}>
-                                                            <Typography variant="caption" style={{ color: '#64748b', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.5px' }}>ẢNH GỐC & TIM</Typography>
-                                                            <Box display="flex" alignItems="baseline" gap={1}>
-                                                                <Typography variant="subtitle1" style={{ fontWeight: 700, color: '#0f172a' }}>
-                                                                    {albumData.danhSachAnh?.length || 0}
-                                                                </Typography>
-                                                                <Typography variant="caption" style={{ color: '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                                                                    ❤️ {albumData.danhSachAnh?.filter(a => a.isHearted).length || 0}
-                                                                </Typography>
-                                                            </Box>
-                                                        </Box>
-
-                                                        {/* Box 2: Photos edited */}
-                                                        <Box p={1.5} bgcolor="#ffffff" border="1px solid #e2e8f0" borderRadius="8px" display="flex" flexDirection="column" gap={0.5}>
-                                                            <Typography variant="caption" style={{ color: '#64748b', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.5px' }}>ẢNH CHỈNH SỬA</Typography>
-                                                            <Typography variant="subtitle1" style={{ fontWeight: 700, color: '#0f172a' }}>
-                                                                {albumData.danhSachAnhChinhSua?.length || 0}
-                                                            </Typography>
-                                                        </Box>
-
-                                                        {/* Box 3: Sync stats (Original) */}
-                                                        <Box
-                                                            p={1.5}
-                                                            bgcolor="#ffffff"
-                                                            border="1px solid #e2e8f0"
-                                                            borderRadius="8px"
-                                                            display="flex"
-                                                            flexDirection="column"
-                                                            gap={0.5}
-                                                            onClick={() => {
-                                                                if (linkAnhGoc) {
-                                                                    window.open(linkAnhGoc, '_blank');
-                                                                } else {
-                                                                    toast.warning("Hợp đồng chưa có đường dẫn ảnh gốc.");
-                                                                }
-                                                            }}
-                                                            style={{ cursor: 'pointer' }}
-                                                        >
-                                                            <Typography variant="caption" style={{ color: '#64748b', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.5px' }}>ĐỒNG BỘ ẢNH GỐC</Typography>
-                                                            <Box mt={0.5}>
-                                                                <span style={{
-                                                                    display: 'inline-block',
-                                                                    padding: '2px 8px',
-                                                                    borderRadius: '20px',
-                                                                    fontSize: '0.7rem',
-                                                                    fontWeight: 700,
-                                                                    backgroundColor: albumData.trangThai === 'Hoàn thành' ? '#d1fae5' : '#fef3c7',
-                                                                    color: albumData.trangThai === 'Hoàn thành' ? '#065f46' : '#92400e'
-                                                                }}>
-                                                                    {albumData.trangThai}
-                                                                </span>
-                                                            </Box>
-                                                        </Box>
-
-                                                        {/* Box 4: Sync stats (Edited) */}
-                                                        <Box
-                                                            p={1.5}
-                                                            bgcolor="#ffffff"
-                                                            border="1px solid #e2e8f0"
-                                                            borderRadius="8px"
-                                                            display="flex"
-                                                            flexDirection="column"
-                                                            gap={0.5}
-                                                            onClick={() => {
-                                                                if (linkAnhChinhSua) {
-                                                                    window.open(linkAnhChinhSua, '_blank');
-                                                                } else {
-                                                                    toast.warning("Hợp đồng chưa có đường dẫn ảnh chỉnh sửa.");
-                                                                }
-                                                            }}
-                                                            style={{ cursor: 'pointer' }}
-                                                        >
-                                                            <Typography variant="caption" style={{ color: '#64748b', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.5px' }}>ĐỒNG BỘ ẢNH C.SỬA</Typography>
-                                                            <Box mt={0.5}>
-                                                                <span style={{
-                                                                    display: 'inline-block',
-                                                                    padding: '2px 8px',
-                                                                    borderRadius: '20px',
-                                                                    fontSize: '0.7rem',
-                                                                    fontWeight: 700,
-                                                                    backgroundColor: albumData.trangThaiChinhSua === 'Hoàn thành' ? '#d1fae5' : '#fee2e2',
-                                                                    color: albumData.trangThaiChinhSua === 'Hoàn thành' ? '#065f46' : '#991b1b'
-                                                                }}>
-                                                                    {albumData.trangThaiChinhSua || 'Chưa đồng bộ'}
-                                                                </span>
-                                                            </Box>
-                                                        </Box>
-                                                    </Box>
-
-                                                    {/* Sub-section Settings */}
-                                                    <Box p={2} border="1px solid #e2e8f0" borderRadius="10px" bgcolor="#ffffff" textAlign="left">
-                                                        <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#0f172a', marginBottom: '14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', textAlign: 'left' }}>
-                                                            ⚙️ Cài đặt chọn ảnh cho khách hàng
-                                                        </Typography>
-
-                                                        <Box display="flex" flexDirection="column" gap={1.5} textAlign="left">
-                                                            {/* Setting 0: Customer Quick Login Link & Shared Album Link Box */}
-                                                            {(() => {
-                                                                const customerUser = phoneKH1 || facebookKH1 || phoneKH2 || facebookKH2 || "";
-                                                                const loginUrl = getClientLoginUrl(customerUser);
-                                                                const shareCode = albumData?.shareLink;
-                                                                const sharedWebUrl = getSharedAlbumUrl(shareCode);
-
-                                                                return (
-                                                                    <Box display="flex" flexDirection="column" gap={1.5} mb={1}>
-                                                                        {/* Link 1: Login & Photo Selection Link */}
-                                                                        <Box p={1.5} bgcolor="#f8fafc" borderRadius="8px" display="flex" flexDirection="column" gap={1} style={{ border: '1px solid #e2e8f0' }}>
-                                                                            <Box display="flex" justifyContent="space-between" alignItems="center">
-                                                                                <Typography variant="body2" style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.82rem', textAlign: 'left' }}>
-                                                                                    🔑 Link đăng nhập khách hàng (Điền sẵn tài khoản)
-                                                                                </Typography>
-                                                                                {customerUser && (
-                                                                                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                                                                                        Tài khoản: <strong>{customerUser}</strong>
-                                                                                    </span>
-                                                                                )}
-                                                                            </Box>
-                                                                            <Box display="flex" alignItems="center" gap={1}>
-                                                                                <TextField
-                                                                                    size="small"
-                                                                                    fullWidth
-                                                                                    readOnly
-                                                                                    value={customerUser ? loginUrl : "Chưa có SĐT/FB khách hàng để tạo link"}
-                                                                                    inputProps={{ style: { fontSize: '0.78rem', color: customerUser ? '#2563eb' : '#94a3b8', backgroundColor: '#ffffff' } }}
-                                                                                    variant="outlined"
-                                                                                    style={{ flex: 1 }}
-                                                                                />
-                                                                                <Button
-                                                                                    variant="contained"
-                                                                                    size="small"
-                                                                                    disabled={!customerUser}
-                                                                                    onClick={() => {
-                                                                                        navigator.clipboard.writeText(loginUrl);
-                                                                                        toast.success("Đã sao chép link đăng nhập khách hàng!");
-                                                                                    }}
-                                                                                    style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '6px 14px', backgroundColor: '#2563eb', color: '#ffffff', borderRadius: '6px', whiteSpace: 'nowrap' }}
-                                                                                >
-                                                                                    📋 Sao chép
-                                                                                </Button>
-                                                                                <Button
-                                                                                    variant="outlined"
-                                                                                    size="small"
-                                                                                    disabled={!customerUser}
-                                                                                    onClick={() => {
-                                                                                        window.open(loginUrl, '_blank');
-                                                                                    }}
-                                                                                    style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '5px 14px', borderColor: '#2563eb', color: '#2563eb', borderRadius: '6px', whiteSpace: 'nowrap' }}
-                                                                                >
-                                                                                    🌐 Mở link
-                                                                                </Button>
-                                                                            </Box>
-                                                                        </Box>
-
-                                                                        {/* Link 2: Shared Edited Album Web Link */}
-                                                                        <Box p={1.5} bgcolor="#f0fdf4" borderRadius="8px" display="flex" flexDirection="column" gap={1} style={{ border: '1px solid #bbf7d0' }}>
-                                                                            <Box display="flex" justifyContent="space-between" alignItems="center">
-                                                                                <Typography variant="body2" style={{ fontWeight: 700, color: '#166534', fontSize: '0.82rem', textAlign: 'left' }}>
-                                                                                    ✨ Link chia sẻ Album ảnh chỉnh sửa trên Web
-                                                                                </Typography>
-                                                                                {shareCode && (
-                                                                                    <span style={{ fontSize: '0.72rem', color: '#15803d' }}>
-                                                                                        Mã chia sẻ: <strong>{shareCode}</strong>
-                                                                                    </span>
-                                                                                )}
-                                                                            </Box>
-                                                                            <Box display="flex" alignItems="center" gap={1}>
-                                                                                <TextField
-                                                                                    size="small"
-                                                                                    fullWidth
-                                                                                    readOnly
-                                                                                    value={shareCode ? sharedWebUrl : (albumData ? "Đang khởi tạo mã chia sẻ..." : "Cần đồng bộ album để lấy link chia sẻ")}
-                                                                                    inputProps={{ style: { fontSize: '0.78rem', color: shareCode ? '#16a34a' : '#94a3b8', backgroundColor: '#ffffff' } }}
-                                                                                    variant="outlined"
-                                                                                    style={{ flex: 1 }}
-                                                                                />
-                                                                                <Button
-                                                                                    variant="contained"
-                                                                                    size="small"
-                                                                                    disabled={!shareCode}
-                                                                                    onClick={() => {
-                                                                                        navigator.clipboard.writeText(sharedWebUrl);
-                                                                                        toast.success("Đã sao chép link chia sẻ album ảnh chỉnh sửa!");
-                                                                                    }}
-                                                                                    style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '6px 14px', backgroundColor: '#16a34a', color: '#ffffff', borderRadius: '6px', whiteSpace: 'nowrap' }}
-                                                                                >
-                                                                                    📋 Sao chép
-                                                                                </Button>
-                                                                                <Button
-                                                                                    variant="outlined"
-                                                                                    size="small"
-                                                                                    disabled={!shareCode}
-                                                                                    onClick={() => {
-                                                                                        window.open(sharedWebUrl, '_blank');
-                                                                                    }}
-                                                                                    style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', padding: '5px 14px', borderColor: '#16a34a', color: '#16a34a', borderRadius: '6px', whiteSpace: 'nowrap' }}
-                                                                                >
-                                                                                    🌐 Mở link
-                                                                                </Button>
-                                                                            </Box>
-                                                                        </Box>
-                                                                    </Box>
-                                                                );
-                                                            })()}
-
-                                                            {/* Setting 1: Limit Photo limit */}
-                                                            <Box display="flex" alignItems="center" justifyContent="space-between" pb={1.5} borderBottom="1px solid #f1f5f9">
-                                                                <Box textAlign="left">
-                                                                    <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem', textAlign: 'left' }}>Giới hạn số lượng ảnh</Typography>
-                                                                    <Typography variant="caption" style={{ color: '#64748b', fontSize: '0.72rem', display: 'block', textAlign: 'left' }}>Yêu cầu khách hàng chọn tối đa số ảnh quy định</Typography>
-                                                                </Box>
-                                                                <Box display="flex" alignItems="center" gap={1.5}>
-                                                                    {coGioiHanAnh && (
-                                                                        <TextField
-                                                                            label="Số lượng ảnh"
-                                                                            type="number"
-                                                                            size="small"
-                                                                            value={soLuongAnhGioiHan}
-                                                                            onChange={(e) => setSoLuongAnhGioiHan(e.target.value)}
-                                                                            InputProps={{ inputProps: { min: 1 } }}
-                                                                            style={{ width: '110px' }}
-                                                                            variant="outlined"
-                                                                        />
-                                                                    )}
-                                                                    <Switch
-                                                                        checked={coGioiHanAnh}
-                                                                        onChange={(e) => setCoGioiHanAnh(e.target.checked)}
-                                                                        color="primary"
-                                                                        size="small"
-                                                                    />
-                                                                </Box>
-                                                            </Box>
-
-                                                            {/* Setting 2: Lock Album */}
-                                                            <Box display="flex" alignItems="center" justifyContent="space-between" pb={1.5} borderBottom="1px solid #f1f5f9">
-                                                                <Box textAlign="left">
-                                                                    <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem', textAlign: 'left' }}>Khóa album</Typography>
-                                                                    <Typography variant="caption" style={{ color: '#64748b', fontSize: '0.72rem', display: 'block', textAlign: 'left' }}>Đánh dấu khách hàng đã hoàn thành việc chọn ảnh</Typography>
-                                                                </Box>
-                                                                <Switch
-                                                                    checked={khachHangXacNhan}
-                                                                    onChange={(e) => setKhachHangXacNhan(e.target.checked)}
-                                                                    color="success"
-                                                                    size="small"
-                                                                />
-                                                            </Box>
-
-                                                            {/* Setting 3: Special Collection */}
-                                                            <Box display="flex" alignItems="center" justifyContent="space-between">
-                                                                <Box textAlign="left">
-                                                                    <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem', textAlign: 'left' }}>Bộ sưu tập đặc biệt</Typography>
-                                                                    <Typography variant="caption" style={{ color: '#64748b', fontSize: '0.72rem', display: 'block', textAlign: 'left' }}>Hiển thị hình ảnh album này lên trang chủ & trang bộ sưu tập</Typography>
-                                                                </Box>
-                                                                <Switch
-                                                                    checked={isSpecialCollection}
-                                                                    onChange={(e) => {
-                                                                        const checked = e.target.checked;
-                                                                        if (checked && !linkAnhChinhSua) {
-                                                                            toast.warning("Hợp đồng chưa có đường dẫn ảnh chỉnh sửa. Vui lòng bổ sung trước.");
-                                                                            return;
-                                                                        }
-                                                                        setIsSpecialCollection(checked);
-                                                                    }}
-                                                                    color="info"
-                                                                    size="small"
-                                                                />
-                                                            </Box>
-
-                                                            {/* Setting 4: Theme / Concept */}
-                                                            <Box display="flex" flexDirection="column" gap={1} mt={1.5} pt={1.5} borderTop="1px solid #f1f5f9" textAlign="left">
-                                                                <Typography variant="body2" style={{ fontWeight: 600, color: '#334155', fontSize: '0.82rem', textAlign: 'left' }}>Chủ đề / Concept của Album</Typography>
-                                                                <TextField
-                                                                    placeholder="Ví dụ: Concept Studio nhẹ nhàng, Concept Cổ phục Hàn Quốc, ..."
-                                                                    fullWidth
-                                                                    size="small"
-                                                                    variant="outlined"
-                                                                    value={chuDe}
-                                                                    onChange={(e) => setChuDe(e.target.value)}
-                                                                    inputProps={{ style: { fontSize: '0.82rem' } }}
-                                                                />
-                                                            </Box>
-                                                        </Box>
-
-                                                        {/* Action Save Buttons */}
-                                                        <Box display="flex" justifyContent="flex-end" mt={2.5}>
-                                                            <Button
-                                                                variant="contained"
-                                                                size="small"
-                                                                color="primary"
-                                                                onClick={handleSaveAlbumSettings}
-                                                                style={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8rem', padding: '6px 16px', borderRadius: '6px', backgroundColor: '#b78752' }}
-                                                            >
-                                                                Lưu cài đặt
-                                                            </Button>
-                                                        </Box>
-                                                    </Box>
-                                                </Box>
-                                            )}
-                                            {danhSachAnhIn && danhSachAnhIn.length > 0 && (
-                                                <div style={{ marginTop: '4px' }}>
-                                                    <strong style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: '#666' }}>Danh sách ảnh in:</strong>
-                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                                                        <thead>
-                                                            <tr style={{ borderBottom: '1px solid #ddd', textAlign: 'left', color: '#666' }}>
-                                                                <th style={{ padding: '6px 0' }}>Kích thước</th>
-                                                                <th style={{ padding: '6px 0', textAlign: 'right' }}>Số lượng</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {danhSachAnhIn.map((item, index) => (
-                                                                <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
-                                                                    <td style={{ padding: '6px 0', color: '#333' }}>{item.kichThuoc}</td>
-                                                                    <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 'bold', color: '#333' }}>{item.soLuong}</td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </MobileAccordion>
+                                </div>
                             </div>
 
-                            <div className="left-column">
-                                <MobileAccordion title="Sản phẩm & Dịch vụ" className="dialog-section-sanpham">
+                            {/* ================= COLUMN 2: SẢN PHẨM & QUY CÁCH ================= */}
+                            <div className="hd-bento-col">
+                                {/* Card 4: Sản Phẩm & Gói Dịch Vụ */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>💎</span> Sản Phẩm & Dịch Vụ Trong Hợp Đồng
+                                        </h3>
+                                    </div>
 
-                                    <div className="product-search-container" ref={searchRef}>
+                                    {/* Search product autocomplete */}
+                                    <div className="product-search-container" ref={searchRef} style={{ position: 'relative', marginBottom: '8px' }}>
                                         <AppSearchInput
                                             value={searchTerm}
-                                            placeholder="Tìm tên hoặc mã sản phẩm"
+                                            placeholder="Tìm thêm dịch vụ hoặc sản phẩm..."
                                             width="100%"
                                             autoComplete="off"
                                             onFocus={() => setShowSuggestions(true)}
@@ -2113,24 +1746,24 @@ function DetailHopDongKhachHangDialog(props) {
                                                 {suggestions.map(p => (
                                                     <li key={p.maDichVu} onClick={() => handleSelectProduct(p)}>
                                                         <span className="p-name">{p.tenDichVu} <small style={{ color: '#888', marginLeft: '5px' }}>({p.maDichVu})</small></span>
-                                                        <span className="p-price">{p.giaChoThueDichVu.toLocaleString("vi-VN")}đ</span>
+                                                        <span className="p-price">{p.giaChoThueDichVu?.toLocaleString("vi-VN")} đ</span>
                                                     </li>
                                                 ))}
                                             </ul>
                                         )}
                                     </div>
 
-                                    {/* ===== TABLE ===== */}
-                                    <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch', maxHeight: '250px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px', marginBottom: '15px' }}>
-                                        <table className="product-table">
+                                    {/* Table */}
+                                    <div className="hd-table-wrap">
+                                        <table className="hd-table-compact">
                                             <thead>
                                                 <tr>
-                                                    <th>Tên SP</th>
-                                                    <th style={{ textAlign: "center" }}>Số lượng</th>
+                                                    <th>Tên Gói / SP</th>
+                                                    <th style={{ textAlign: "center", width: '100px' }}>SL</th>
                                                     <th>Đơn giá</th>
-                                                    <th style={{ width: '130px' }}>Giảm giá (đ)</th>
+                                                    <th style={{ width: '105px' }}>Giảm (đ)</th>
                                                     <th>Thành tiền</th>
-                                                    <th>Hành động</th>
+                                                    <th style={{ textAlign: "center", width: '50px' }}>Xóa</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -2140,12 +1773,11 @@ function DetailHopDongKhachHangDialog(props) {
                                                         const price = item.donGia || item.giaChoThueDichVu || 0;
                                                         const discountItem = parseFloat(item.giamGiaDichVu || 0);
                                                         const total = Math.max(0, (price * (item.soLuong || 0)) - discountItem);
-                                                        const loaiDichVuVal = item.loaiDichVu ?? item.dichVu?.loaiDichVu;
 
                                                         const daThanhToan = getDaThanhToan();
                                                         const isOnlyItem = Array.isArray(gioHang) && gioHang.length <= 1;
 
-                                                        const cartAfterDecrease = item.soLuong > 1 
+                                                        const cartAfterDecrease = item.soLuong > 1
                                                             ? gioHang.map((sp, idx) => idx === index ? { ...sp, soLuong: sp.soLuong - 1 } : sp)
                                                             : gioHang.filter((_, idx) => idx !== index);
                                                         const canDecrease = (!isOnlyItem || item.soLuong > 1) && (daThanhToan <= 0 || calculateTotalWithCart(cartAfterDecrease) >= daThanhToan);
@@ -2153,74 +1785,266 @@ function DetailHopDongKhachHangDialog(props) {
                                                         const cartAfterDelete = gioHang.filter((_, idx) => idx !== index);
                                                         const canDelete = !isOnlyItem && (daThanhToan <= 0 || calculateTotalWithCart(cartAfterDelete) >= daThanhToan);
 
-                                                        const decreaseTitle = isOnlyItem && item.soLuong <= 1 
-                                                            ? "Không thể xóa sản phẩm cuối cùng trong hợp đồng" 
-                                                            : (!canDecrease ? "Không thể giảm vì đơn giá lớn hơn số tiền còn lại chưa thanh toán" : "");
-
-                                                        const deleteTitle = isOnlyItem 
-                                                            ? "Không thể xóa sản phẩm cuối cùng trong hợp đồng" 
-                                                            : (!canDelete ? "Không thể xóa vì giá trị sản phẩm lớn hơn số tiền còn lại chưa thanh toán" : "");
-
                                                         return (
-                                                            <Fragment key={productId || index}>
-                                                                <tr style={{ backgroundColor: Number(loaiDichVuVal) !== 1 ? '#f5f8fc' : 'transparent' }}>
-                                                                    <td style={{ fontWeight: Number(loaiDichVuVal) !== 1 ? '600' : 'normal' }}>{item.tenDichVuSnapshot || item.tenDichVu}</td>
-                                                                    <td style={{ textAlign: "center" }}>
+                                                            <tr key={productId || index}>
+                                                                <td style={{ fontWeight: 600, color: '#0f172a' }}>
+                                                                    {item.tenDichVuSnapshot || item.tenDichVu}
+                                                                </td>
+                                                                <td style={{ textAlign: "center" }}>
+                                                                    <div className="hd-qty-box-mini">
                                                                         <button
-                                                                            className="btn-qty"
+                                                                            className="hd-qty-btn-mini"
                                                                             onClick={() => handleDecreaseQuantity(productId, index)}
-                                                                            title={decreaseTitle}
-                                                                            style={{ opacity: !canDecrease ? 0.6 : 1 }}
+                                                                            disabled={!canDecrease}
+                                                                            style={{ opacity: !canDecrease ? 0.3 : 1 }}
                                                                         >
                                                                             -
                                                                         </button>
-                                                                        <span style={{ margin: "0 10px" }}>{item.soLuong}</span>
-                                                                        <button className="btn-qty" onClick={() => handleSelectProduct(item)}>+</button>
-                                                                    </td>
-                                                                    <td>{price.toLocaleString("vi-VN")}đ</td>
-                                                                    <td>
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            placeholder="0"
-                                                                            value={item.giamGiaDichVu !== undefined && item.giamGiaDichVu !== null ? item.giamGiaDichVu : ''}
-                                                                            onChange={(e) => handleDiscountItemChange(productId, e.target.value)}
-                                                                            style={{
-                                                                                width: '100px',
-                                                                                padding: '4px 8px',
-                                                                                borderRadius: '6px',
-                                                                                border: '1px solid #cbd5e1',
-                                                                                fontSize: '0.85rem'
-                                                                            }}
-                                                                        />
-                                                                    </td>
-                                                                    <td style={{ fontWeight: 'bold', color: discountItem > 0 ? '#059669' : 'inherit' }}>
-                                                                        {total.toLocaleString("vi-VN")}đ
-                                                                        {discountItem > 0 && (
-                                                                            <div style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: '500' }}>
-                                                                                (Giảm: -{discountItem.toLocaleString("vi-VN")}đ)
-                                                                            </div>
-                                                                        )}
-                                                                    </td>
-                                                                    <td style={{ textAlign: "center" }}>
-                                                                        <Button
-                                                                            size="small"
-                                                                            color="error"
-                                                                            onClick={() => handleDeleteProduct(productId, index)}
-                                                                            title={deleteTitle}
-                                                                            style={{ opacity: !canDelete ? 0.6 : 1 }}
-                                                                        >
-                                                                            Xóa
-                                                                        </Button>
-                                                                    </td>
-                                                                </tr>
-                                                            </Fragment>
+                                                                        <span className="hd-qty-val-mini">{item.soLuong}</span>
+                                                                        <button className="hd-qty-btn-mini" onClick={() => handleSelectProduct(item)}>+</button>
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ fontWeight: 600 }}>{price.toLocaleString("vi-VN")} đ</td>
+                                                                <td>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        placeholder="0"
+                                                                        className="hd-input-text"
+                                                                        value={item.giamGiaDichVu !== undefined && item.giamGiaDichVu !== null ? item.giamGiaDichVu : ''}
+                                                                        onChange={(e) => handleDiscountItemChange(productId, e.target.value)}
+                                                                        style={{ padding: '4px 6px', fontSize: '0.76rem' }}
+                                                                    />
+                                                                </td>
+                                                                <td style={{ fontWeight: 700, color: '#0284c7' }}>
+                                                                    {total.toLocaleString("vi-VN")} đ
+                                                                    {discountItem > 0 && (
+                                                                        <div style={{ fontSize: '0.68rem', color: '#dc2626', fontWeight: 600 }}>
+                                                                            (-{discountItem.toLocaleString("vi-VN")} đ)
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ textAlign: "center" }}>
+                                                                    <button
+                                                                        onClick={() => handleDeleteProduct(productId, index)}
+                                                                        disabled={!canDelete}
+                                                                        style={{ border: 'none', background: 'transparent', color: canDelete ? '#dc2626' : '#cbd5e1', cursor: canDelete ? 'pointer' : 'not-allowed', fontSize: '0.8rem' }}
+                                                                        title="Xóa dịch vụ"
+                                                                    >
+                                                                        🗑️
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
                                                         );
                                                     })
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan={6} style={{ textAlign: "center", color: "#999" }}>
-                                                            Chưa sử dụng dịch vụ
+                                                        <td colSpan={6} style={{ textAlign: "center", color: "#94a3b8", padding: '20px' }}>
+                                                            Chưa có dịch vụ nào trong hợp đồng.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* Card 5: Quy Cách Sản Phẩm Đính Kèm */}
+                                {(() => {
+                                    const hasItems = Array.isArray(gioHang) && gioHang.length > 0;
+                                    const firstItem = hasItems ? gioHang[0] : {};
+
+                                    return (
+                                        <div className="hd-card">
+                                            <div className="hd-card-head">
+                                                <h3 className="hd-card-title">
+                                                    <span>📦</span> Quy Cách Chi Tiết Đính Kèm Hợp Đồng
+                                                </h3>
+                                            </div>
+
+                                            {/* Section 1: Ảnh In */}
+                                            <div className="hd-spec-section-title">
+                                                <span>🖼️</span> Ảnh Phóng & Để Bàn
+                                            </div>
+                                            <div className="hd-spec-grid">
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">SL ảnh chỉnh sửa</label>
+                                                    <input
+                                                        type="number"
+                                                        className="hd-input-text"
+                                                        value={firstItem.soLuongAnhChinhSua ?? 0}
+                                                        onChange={(e) => updateGioHangParam("soLuongAnhChinhSua", Number(e.target.value) || 0)}
+                                                        disabled={!hasItems}
+                                                    />
+                                                </div>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">Ảnh 16x21</label>
+                                                    <input
+                                                        type="number"
+                                                        className="hd-input-text"
+                                                        value={firstItem.soLuongAnh16x21 ?? 0}
+                                                        onChange={(e) => updateGioHangParam("soLuongAnh16x21", Number(e.target.value) || 0)}
+                                                        disabled={!hasItems}
+                                                    />
+                                                </div>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">Ảnh 20x30</label>
+                                                    <input
+                                                        type="number"
+                                                        className="hd-input-text"
+                                                        value={firstItem.soLuongAnh20x30 ?? 0}
+                                                        onChange={(e) => updateGioHangParam("soLuongAnh20x30", Number(e.target.value) || 0)}
+                                                        disabled={!hasItems}
+                                                    />
+                                                </div>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">Ảnh 60x90</label>
+                                                    <input
+                                                        type="number"
+                                                        className="hd-input-text"
+                                                        value={firstItem.soLuongAnh60x90 ?? 0}
+                                                        onChange={(e) => updateGioHangParam("soLuongAnh60x90", Number(e.target.value) || 0)}
+                                                        disabled={!hasItems}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Section 2: Makeup */}
+                                            <div className="hd-spec-section-title" style={{ marginTop: '8px' }}>
+                                                <span>💄</span> Trang Điểm & Làm Đẹp
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">Trang điểm ăn hỏi</label>
+                                                    <input
+                                                        type="text"
+                                                        className="hd-input-text"
+                                                        value={firstItem.trangDiemNgayAnHoi ?? ""}
+                                                        onChange={(e) => updateGioHangParam("trangDiemNgayAnHoi", e.target.value)}
+                                                        disabled={!hasItems}
+                                                        placeholder="Không có"
+                                                    />
+                                                </div>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">Trang điểm ngày cưới</label>
+                                                    <input
+                                                        type="text"
+                                                        className="hd-input-text"
+                                                        value={firstItem.trangDiemNgayCuoi ?? ""}
+                                                        onChange={(e) => updateGioHangParam("trangDiemNgayCuoi", e.target.value)}
+                                                        disabled={!hasItems}
+                                                        placeholder="Không có"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Section 3: Costumes */}
+                                            <div className="hd-spec-section-title" style={{ marginTop: '8px' }}>
+                                                <span>👗</span> Trang Phục & Phụ Kiện
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">Trang phục bê lễ</label>
+                                                    <input
+                                                        type="text"
+                                                        className="hd-input-text"
+                                                        value={firstItem.trangPhucChoDoiBeLe ?? ""}
+                                                        onChange={(e) => updateGioHangParam("trangPhucChoDoiBeLe", e.target.value)}
+                                                        disabled={!hasItems}
+                                                        placeholder="Không có"
+                                                    />
+                                                </div>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">TP cô dâu ăn hỏi</label>
+                                                    <input
+                                                        type="text"
+                                                        className="hd-input-text"
+                                                        value={firstItem.trangPhucCoDauNgayAnHoi ?? ""}
+                                                        onChange={(e) => updateGioHangParam("trangPhucCoDauNgayAnHoi", e.target.value)}
+                                                        disabled={!hasItems}
+                                                        placeholder="Không có"
+                                                    />
+                                                </div>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">TP chú rể ăn hỏi</label>
+                                                    <input
+                                                        type="text"
+                                                        className="hd-input-text"
+                                                        value={firstItem.trangPhucChuReNgayAnHoi ?? ""}
+                                                        onChange={(e) => updateGioHangParam("trangPhucChuReNgayAnHoi", e.target.value)}
+                                                        disabled={!hasItems}
+                                                        placeholder="Không có"
+                                                    />
+                                                </div>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">Váy cưới ngày cưới</label>
+                                                    <input
+                                                        type="text"
+                                                        className="hd-input-text"
+                                                        value={firstItem.trangPhucVayCuoiNgayCuoi ?? ""}
+                                                        onChange={(e) => updateGioHangParam("trangPhucVayCuoiNgayCuoi", e.target.value)}
+                                                        disabled={!hasItems}
+                                                        placeholder="Không có"
+                                                    />
+                                                </div>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">Vest chú rể ngày cưới</label>
+                                                    <input
+                                                        type="text"
+                                                        className="hd-input-text"
+                                                        value={firstItem.trangPhucVestChuReNgayCuoi ?? ""}
+                                                        onChange={(e) => updateGioHangParam("trangPhucVestChuReNgayCuoi", e.target.value)}
+                                                        disabled={!hasItems}
+                                                        placeholder="Không có"
+                                                    />
+                                                </div>
+                                                <div className="hd-form-group">
+                                                    <label className="hd-form-label">Hoa cầm tay</label>
+                                                    <input
+                                                        type="text"
+                                                        className="hd-input-text"
+                                                        value={firstItem.hoaCamTay ?? ""}
+                                                        onChange={(e) => updateGioHangParam("hoaCamTay", e.target.value)}
+                                                        disabled={!hasItems}
+                                                        placeholder="Không có"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Card 6: Thanh Toán */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>💳</span> Thanh Toán
+                                        </h3>
+                                    </div>
+
+                                    {/* History list */}
+                                    <div style={{ maxHeight: '110px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px', marginBottom: '8px' }}>
+                                        <table className="hd-table-compact" style={{ fontSize: '0.74rem' }}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Ngày</th>
+                                                    <th>Số tiền</th>
+                                                    <th>Hình thức</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {data?.thanhToan?.cacLuotThanhToan && data.thanhToan.cacLuotThanhToan.length > 0 ? (
+                                                    data.thanhToan.cacLuotThanhToan.map((p, idx) => (
+                                                        <tr key={idx}>
+                                                            <td style={{ whiteSpace: 'nowrap' }}>{formatDate(p.date)}</td>
+                                                            <td style={{ fontWeight: 700, color: '#16a34a' }}>{p.amount?.toLocaleString("vi-VN")} đ</td>
+                                                            <td>{p.method}</td>
+                                                        </tr>
+                                                    ))
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan={3} style={{ textAlign: "center", color: "#94a3b8", padding: '8px' }}>
+                                                            Chưa có giao dịch.
                                                         </td>
                                                     </tr>
                                                 )}
@@ -2228,307 +2052,576 @@ function DetailHopDongKhachHangDialog(props) {
                                         </table>
                                     </div>
 
-                                    {(() => {
-                                        const hasItems = Array.isArray(gioHang) && gioHang.length > 0;
-                                        const firstItem = hasItems ? gioHang[0] : {};
+                                    {/* Financial Breakdown */}
+                                    <div className="hd-pay-summary-box">
+                                        <div className="hd-pay-row">
+                                            <span>Tổng đơn:</span>
+                                            <b>
+                                                {gioHang.reduce((sum, item) => {
+                                                    const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
+                                                    return sum + (price * (item.soLuong || 0));
+                                                }, 0).toLocaleString("vi-VN")} đ
+                                            </b>
+                                        </div>
 
-                                        return (
-                                            <>
-                                                <div className="package-parameters-title" style={{ marginTop: '25px' }}>Tổng hợp dịch vụ trong hợp đồng</div>
-                                                <div className="summary-parameters-grid">
-                                                    <div className="form-group-summary">
-                                                        <label>SL ảnh chỉnh sửa</label>
-                                                        <input
-                                                            type="number"
-                                                            className="summary-value-input"
-                                                            value={firstItem.soLuongAnhChinhSua ?? 0}
-                                                            onChange={(e) => updateGioHangParam("soLuongAnhChinhSua", Number(e.target.value) || 0)}
-                                                            disabled={!hasItems}
-                                                        />
+                                        <div className="hd-pay-row">
+                                            <span>Sau giảm giá:</span>
+                                            <b>{tongTien.toLocaleString("vi-VN")} đ</b>
+                                        </div>
+
+                                        <div className="hd-pay-row" style={{ color: '#16a34a' }}>
+                                            <span>Đã thanh toán:</span>
+                                            <b>{((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0)).toLocaleString("vi-VN")} đ</b>
+                                        </div>
+
+                                        {/* Progress */}
+                                        {(() => {
+                                            const paid = (data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0);
+                                            const percent = data?.thanhToan?.phanTramDaThanhToan !== undefined
+                                                ? Number(data.thanhToan.phanTramDaThanhToan)
+                                                : (tongTien > 0 ? Math.min(100, Math.round((paid / tongTien) * 100 * 10) / 10) : (paid > 0 ? 100 : 0));
+
+                                            return (
+                                                <div style={{ margin: '2px 0' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', fontWeight: 700 }}>
+                                                        <span style={{ color: '#64748b' }}>Tiến độ thu:</span>
+                                                        <span style={{ color: percent >= 100 ? '#16a34a' : '#d97706' }}>{percent}%</span>
                                                     </div>
-                                                    <div className="form-group-summary">
-                                                        <label>SL ảnh 16x21</label>
-                                                        <input
-                                                            type="number"
-                                                            className="summary-value-input"
-                                                            value={firstItem.soLuongAnh16x21 ?? 0}
-                                                            onChange={(e) => updateGioHangParam("soLuongAnh16x21", Number(e.target.value) || 0)}
-                                                            disabled={!hasItems}
-                                                        />
-                                                    </div>
-                                                    <div className="form-group-summary">
-                                                        <label>SL ảnh 20x30</label>
-                                                        <input
-                                                            type="number"
-                                                            className="summary-value-input"
-                                                            value={firstItem.soLuongAnh20x30 ?? 0}
-                                                            onChange={(e) => updateGioHangParam("soLuongAnh20x30", Number(e.target.value) || 0)}
-                                                            disabled={!hasItems}
-                                                        />
-                                                    </div>
-                                                    <div className="form-group-summary">
-                                                        <label>SL ảnh 60x90</label>
-                                                        <input
-                                                            type="number"
-                                                            className="summary-value-input"
-                                                            value={firstItem.soLuongAnh60x90 ?? 0}
-                                                            onChange={(e) => updateGioHangParam("soLuongAnh60x90", Number(e.target.value) || 0)}
-                                                            disabled={!hasItems}
-                                                        />
-                                                    </div>
-                                                    <div className="form-group-summary">
-                                                        <label>Trang điểm ngày ăn hỏi</label>
-                                                        <input
-                                                            type="text"
-                                                            className="summary-value-input"
-                                                            value={firstItem.trangDiemNgayAnHoi ?? ""}
-                                                            onChange={(e) => updateGioHangParam("trangDiemNgayAnHoi", e.target.value)}
-                                                            disabled={!hasItems}
-                                                            placeholder="Không có"
-                                                        />
-                                                    </div>
-                                                    <div className="form-group-summary">
-                                                        <label>Trang điểm ngày cưới</label>
-                                                        <input
-                                                            type="text"
-                                                            className="summary-value-input"
-                                                            value={firstItem.trangDiemNgayCuoi ?? ""}
-                                                            onChange={(e) => updateGioHangParam("trangDiemNgayCuoi", e.target.value)}
-                                                            disabled={!hasItems}
-                                                            placeholder="Không có"
-                                                        />
-                                                    </div>
-                                                    <div className="form-group-summary">
-                                                        <label>Trang phục bê lễ</label>
-                                                        <input
-                                                            type="text"
-                                                            className="summary-value-input"
-                                                            value={firstItem.trangPhucChoDoiBeLe ?? ""}
-                                                            onChange={(e) => updateGioHangParam("trangPhucChoDoiBeLe", e.target.value)}
-                                                            disabled={!hasItems}
-                                                            placeholder="Không có"
-                                                        />
-                                                    </div>
-                                                    <div className="form-group-summary">
-                                                        <label>TP cô dâu ngày ăn hỏi</label>
-                                                        <input
-                                                            type="text"
-                                                            className="summary-value-input"
-                                                            value={firstItem.trangPhucCoDauNgayAnHoi ?? ""}
-                                                            onChange={(e) => updateGioHangParam("trangPhucCoDauNgayAnHoi", e.target.value)}
-                                                            disabled={!hasItems}
-                                                            placeholder="Không có"
-                                                        />
-                                                    </div>
-                                                    <div className="form-group-summary">
-                                                        <label>TP chú rể ngày ăn hỏi</label>
-                                                        <input
-                                                            type="text"
-                                                            className="summary-value-input"
-                                                            value={firstItem.trangPhucChuReNgayAnHoi ?? ""}
-                                                            onChange={(e) => updateGioHangParam("trangPhucChuReNgayAnHoi", e.target.value)}
-                                                            disabled={!hasItems}
-                                                            placeholder="Không có"
-                                                        />
-                                                    </div>
-                                                    <div className="form-group-summary">
-                                                        <label>Váy cưới ngày cưới (giá trị)</label>
-                                                        <input
-                                                            type="text"
-                                                            className="summary-value-input"
-                                                            value={firstItem.trangPhucVayCuoiNgayCuoi ?? ""}
-                                                            onChange={(e) => updateGioHangParam("trangPhucVayCuoiNgayCuoi", e.target.value)}
-                                                            disabled={!hasItems}
-                                                            placeholder="Không có"
-                                                        />
-                                                    </div>
-                                                    <div className="form-group-summary">
-                                                        <label>Vest chú rể ngày cưới</label>
-                                                        <input
-                                                            type="text"
-                                                            className="summary-value-input"
-                                                            value={firstItem.trangPhucVestChuReNgayCuoi ?? ""}
-                                                            onChange={(e) => updateGioHangParam("trangPhucVestChuReNgayCuoi", e.target.value)}
-                                                            disabled={!hasItems}
-                                                            placeholder="Không có"
-                                                        />
-                                                    </div>
-                                                    <div className="form-group-summary">
-                                                        <label>Hoa cầm tay</label>
-                                                        <input
-                                                            type="text"
-                                                            className="summary-value-input"
-                                                            value={firstItem.hoaCamTay ?? ""}
-                                                            onChange={(e) => updateGioHangParam("hoaCamTay", e.target.value)}
-                                                            disabled={!hasItems}
-                                                            placeholder="Không có"
+                                                    <div className="hd-pay-progress">
+                                                        <div 
+                                                            className="hd-pay-progress-bar" 
+                                                            style={{ 
+                                                                width: `${percent}%`, 
+                                                                background: percent >= 100 ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #fbbf24, #d97706)' 
+                                                            }} 
                                                         />
                                                     </div>
                                                 </div>
-                                            </>
-                                        );
-                                    })()}
-                                </MobileAccordion>
-                            </div>
-                        </div>
+                                            );
+                                        })()}
 
-                        {/* === DƯỚI CÙNG: THANH TOÁN === */}
-                        <MobileAccordion title="Thông tin thanh toán" className="dialog-section payment">
-                            <div className="payment-summary-flex">
-                                <div className="payment-history-col">
-                                    <p style={{ textAlign: 'left', fontWeight: '700', fontSize: '0.82rem', color: '#16a34a', margin: '0 0 6px 0' }}>
-                                        Lịch sử thanh toán
-                                    </p>
-                                    <div style={{ maxHeight: '130px', overflowY: 'auto' }}>
-                                        {data?.thanhToan?.cacLuotThanhToan && data.thanhToan.cacLuotThanhToan.length > 0 ? (
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
-                                                <thead>
-                                                    <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#475569' }}>
-                                                        <th style={{ padding: '4px 6px' }}>Ngày</th>
-                                                        <th style={{ padding: '4px 6px' }}>Số tiền</th>
-                                                        <th style={{ padding: '4px 6px' }}>Hình thức</th>
-                                                        <th style={{ padding: '4px 6px' }}>Ghi chú</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {data.thanhToan.cacLuotThanhToan.map((payment, index) => (
-                                                        <tr key={index} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                            <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{formatDate(payment.date)}</td>
-                                                            <td style={{ padding: '4px 6px', fontWeight: '600', color: '#0f172a' }}>{payment.amount?.toLocaleString("vi-VN")}đ</td>
-                                                            <td style={{ padding: '4px 6px' }}>{payment.method}</td>
-                                                            <td style={{ padding: '4px 6px', color: '#64748b', fontStyle: 'italic' }}>{payment.noiDung || '-'}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        ) : (
-                                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'left', margin: '4px 0' }}>Chưa có lượt thanh toán nào.</p>
+                                        <div className="hd-pay-row" style={{ borderTop: '1px dashed #fecaca', paddingTop: '4px', marginTop: '2px' }}>
+                                            <span style={{ fontWeight: 800, color: '#dc2626' }}>Còn lại:</span>
+                                            <b style={{ fontSize: '1rem', color: '#dc2626' }}>
+                                                {Math.max(0, tongTien - ((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0))).toLocaleString("vi-VN")} đ
+                                            </b>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ================= COLUMN 3: FULL ALBUM & GOOGLE DRIVE ================= */}
+                            <div className="hd-bento-col">
+                                {/* Thẻ 1: Đường dẫn Drive & Đồng bộ hình ảnh */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>🔗</span> Đường dẫn Drive & Đồng bộ hình ảnh (Hỗ trợ cả khi HĐ Hoàn thành)
+                                        </h3>
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        {/* Field 1: Ảnh gốc */}
+                                        <div className="hd-form-group" style={{ marginBottom: 0 }}>
+                                            <label className="hd-form-label">Đường dẫn ảnh gốc (Google Drive / Photos)</label>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                <input
+                                                    className="hd-input-text"
+                                                    value={linkAnhGoc}
+                                                    onChange={(e) => setLinkAnhGoc(e.target.value)}
+                                                    placeholder="https://drive.google.com/drive/folders/..."
+                                                    style={{ flex: 1 }}
+                                                />
+                                                <Button
+                                                    variant="contained"
+                                                    disabled={isSyncingAlbum || !linkAnhGoc}
+                                                    onClick={() => handleSyncAlbum(linkAnhGoc, 'goc')}
+                                                    sx={{
+                                                        backgroundColor: '#1976d2',
+                                                        whiteSpace: 'nowrap',
+                                                        textTransform: 'none',
+                                                        fontWeight: 700,
+                                                        fontSize: '0.78rem',
+                                                        height: '34px',
+                                                        borderRadius: '6px',
+                                                        px: 1.5,
+                                                        '&:hover': { backgroundColor: '#1565c0' }
+                                                    }}
+                                                >
+                                                    {isSyncingAlbum ? "Đang đồng bộ..." : "Đồng bộ ảnh gốc"}
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {/* Field 2: Ảnh chỉnh sửa */}
+                                        <div className="hd-form-group" style={{ marginBottom: 0 }}>
+                                            <label className="hd-form-label">Đường dẫn ảnh chỉnh sửa (Google Drive / Photos)</label>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                <input
+                                                    className="hd-input-text"
+                                                    value={linkAnhChinhSua}
+                                                    onChange={(e) => setLinkAnhChinhSua(e.target.value)}
+                                                    placeholder="https://drive.google.com/drive/folders/..."
+                                                    style={{ flex: 1 }}
+                                                />
+                                                <Button
+                                                    variant="contained"
+                                                    disabled={isSyncingAlbumChinhSua || !linkAnhChinhSua}
+                                                    onClick={() => handleSyncAlbum(linkAnhChinhSua, 'chinhSua')}
+                                                    sx={{
+                                                        backgroundColor: '#7b1fa2',
+                                                        whiteSpace: 'nowrap',
+                                                        textTransform: 'none',
+                                                        fontWeight: 700,
+                                                        fontSize: '0.78rem',
+                                                        height: '34px',
+                                                        borderRadius: '6px',
+                                                        px: 1.5,
+                                                        '&:hover': { backgroundColor: '#6a1b9a' }
+                                                    }}
+                                                >
+                                                    {isSyncingAlbumChinhSua ? "Đang đồng bộ..." : "Đồng bộ ảnh C.Sửa"}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Thẻ 2: Album Khách Hàng Chọn Ảnh */}
+                                <div className="hd-card">
+                                    <div className="hd-card-head">
+                                        <h3 className="hd-card-title">
+                                            <span>📷</span> Album Khách Hàng Chọn Ảnh
+                                        </h3>
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                            <Button
+                                                variant="contained"
+                                                size="small"
+                                                onClick={() => setOpenAlbumDetailDialog(true)}
+                                                sx={{
+                                                    backgroundColor: '#1976d2',
+                                                    textTransform: 'none',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.74rem',
+                                                    padding: '3px 10px',
+                                                    minHeight: '28px',
+                                                    borderRadius: '6px',
+                                                    '&:hover': { backgroundColor: '#1565c0' }
+                                                }}
+                                            >
+                                                🖼️ Xem Ảnh
+                                            </Button>
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                onClick={() => setOpenLocAnhDialog(true)}
+                                                sx={{
+                                                    color: '#7b1fa2',
+                                                    borderColor: '#7b1fa2',
+                                                    textTransform: 'none',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.74rem',
+                                                    padding: '3px 10px',
+                                                    minHeight: '28px',
+                                                    borderRadius: '6px',
+                                                    '&:hover': { borderColor: '#6a1b9a', backgroundColor: 'rgba(123, 31, 162, 0.04)' }
+                                                }}
+                                            >
+                                                💻 Lọc Ảnh
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {/* 4 Thẻ KPI Stats */}
+                                    <div className="hd-album-stat-grid">
+                                        <div className="hd-album-stat-box">
+                                            <div className="hd-album-stat-title">ẢNH GỐC & TIM</div>
+                                            <div className="hd-album-stat-val">
+                                                {albumData?.danhSachAnh?.length || 0}
+                                                <span style={{ color: '#ef4444', marginLeft: '6px', fontSize: '0.95rem' }}>
+                                                    ❤️ {albumData?.danhSachAnh?.filter(a => a.isHearted).length || 0}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="hd-album-stat-box">
+                                            <div className="hd-album-stat-title">ẢNH CHỈNH SỬA</div>
+                                            <div className="hd-album-stat-val">
+                                                {albumData?.danhSachAnhChinhSua?.length || 0}
+                                            </div>
+                                        </div>
+
+                                        <div className="hd-album-stat-box">
+                                            <div className="hd-album-stat-title">ĐỒNG BỘ ẢNH GỐC</div>
+                                            <div style={{ marginTop: '2px' }}>
+                                                <span className={`hd-album-stat-badge ${albumData?.trangThai === 'Hoàn thành' ? 'success' : 'pending'}`}>
+                                                    {albumData?.trangThai || 'Chưa đồng bộ'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="hd-album-stat-box">
+                                            <div className="hd-album-stat-title">ĐỒNG BỘ ẢNH C.SỬA</div>
+                                            <div style={{ marginTop: '2px' }}>
+                                                {(() => {
+                                                    const isCompleted = albumData?.trangThaiChinhSua === 'Hoàn thành' || (albumData?.danhSachAnhChinhSua?.length > 0);
+                                                    return (
+                                                        <span className={`hd-album-stat-badge ${isCompleted ? 'success' : 'pending'}`}>
+                                                            {albumData?.trangThaiChinhSua || (albumData?.danhSachAnhChinhSua?.length > 0 ? 'Hoàn thành' : 'Chưa đồng bộ')}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Cài đặt chọn ảnh cho khách hàng */}
+                                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', background: '#fafbfc' }}>
+                                        <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1e293b', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span>⚙️</span> Cài đặt chọn ảnh cho khách hàng
+                                        </div>
+
+                                        {/* Links Group */}
+                                        {(() => {
+                                            const customerUser = phoneKH1 || facebookKH1 || phoneKH2 || facebookKH2 || "";
+                                            const loginUrl = getClientLoginUrl(customerUser);
+                                            const shareCode = albumData?.shareLink;
+                                            const sharedWebUrl = getSharedAlbumUrl(shareCode);
+
+                                            return (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+                                                    {/* Link 1: Đăng nhập */}
+                                                    <div className="hd-album-link-card client">
+                                                        <div className="hd-album-link-head">
+                                                            <span style={{ color: '#1e293b' }}>🔑 Link đăng nhập khách hàng (Điền sẵn tài khoản)</span>
+                                                            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                                                                Tài khoản: <b style={{ color: '#0f172a' }}>{customerUser || "Chưa có"}</b>
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                            <input
+                                                                className="hd-input-text"
+                                                                readOnly
+                                                                value={customerUser ? loginUrl : "Chưa có SĐT/FB để tạo link"}
+                                                                style={{ fontSize: '0.76rem', background: '#ffffff' }}
+                                                            />
+                                                            <Button
+                                                                variant="contained"
+                                                                size="small"
+                                                                disabled={!customerUser}
+                                                                title="Sao chép link đăng nhập"
+                                                                onClick={() => {
+                                                                    navigator.clipboard.writeText(loginUrl);
+                                                                    toast.success("Đã sao chép link đăng nhập!");
+                                                                }}
+                                                                sx={{
+                                                                    backgroundColor: '#1976d2',
+                                                                    minWidth: '36px',
+                                                                    width: '36px',
+                                                                    height: '32px',
+                                                                    p: 0,
+                                                                    borderRadius: '6px',
+                                                                    fontSize: '0.9rem',
+                                                                    '&:hover': { backgroundColor: '#1565c0' }
+                                                                }}
+                                                            >
+                                                                📋
+                                                            </Button>
+                                                            <Button
+                                                                variant="outlined"
+                                                                size="small"
+                                                                disabled={!customerUser}
+                                                                title="Mở link đăng nhập"
+                                                                onClick={() => window.open(loginUrl, '_blank')}
+                                                                sx={{
+                                                                    borderColor: '#1976d2',
+                                                                    color: '#1976d2',
+                                                                    minWidth: '36px',
+                                                                    width: '36px',
+                                                                    height: '32px',
+                                                                    p: 0,
+                                                                    borderRadius: '6px',
+                                                                    fontSize: '0.9rem',
+                                                                    '&:hover': { borderColor: '#1565c0', backgroundColor: 'rgba(25, 118, 210, 0.04)' }
+                                                                }}
+                                                            >
+                                                                🌐
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Link 2: Chia sẻ Album Web */}
+                                                    <div className="hd-album-link-card shared">
+                                                        <div className="hd-album-link-head">
+                                                            <span style={{ color: '#166534' }}>✨ Link chia sẻ Album ảnh chỉnh sửa trên Web</span>
+                                                            <span style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 600 }}>
+                                                                Mã chia sẻ: <b style={{ color: '#166534' }}>{shareCode || "Chưa tạo"}</b>
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                            <input
+                                                                className="hd-input-text"
+                                                                readOnly
+                                                                value={shareCode ? sharedWebUrl : "Cần đồng bộ để tạo mã chia sẻ"}
+                                                                style={{ fontSize: '0.76rem', background: '#ffffff', color: '#166534' }}
+                                                            />
+                                                            <Button
+                                                                variant="contained"
+                                                                size="small"
+                                                                color="success"
+                                                                disabled={!shareCode}
+                                                                title="Sao chép link album chia sẻ"
+                                                                onClick={() => {
+                                                                    navigator.clipboard.writeText(sharedWebUrl);
+                                                                    toast.success("Đã sao chép link album chia sẻ!");
+                                                                }}
+                                                                sx={{
+                                                                    minWidth: '36px',
+                                                                    width: '36px',
+                                                                    height: '32px',
+                                                                    p: 0,
+                                                                    borderRadius: '6px',
+                                                                    fontSize: '0.9rem'
+                                                                }}
+                                                            >
+                                                                📋
+                                                            </Button>
+                                                            <Button
+                                                                variant="outlined"
+                                                                size="small"
+                                                                color="success"
+                                                                disabled={!shareCode}
+                                                                title="Mở link album chia sẻ"
+                                                                onClick={() => window.open(sharedWebUrl, '_blank')}
+                                                                sx={{
+                                                                    minWidth: '36px',
+                                                                    width: '36px',
+                                                                    height: '32px',
+                                                                    p: 0,
+                                                                    borderRadius: '6px',
+                                                                    fontSize: '0.9rem'
+                                                                }}
+                                                            >
+                                                                🌐
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Switches Section */}
+                                        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px' }}>
+                                            {/* Switch 1: Giới hạn số lượng ảnh */}
+                                            <div className="hd-album-switch-row">
+                                                <div className="hd-album-switch-info">
+                                                    <span className="hd-album-switch-title">Giới hạn số lượng ảnh</span>
+                                                    <span className="hd-album-switch-desc">Yêu cầu khách hàng chọn tối đa số ảnh quy định</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    {coGioiHanAnh && (
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            className="hd-input-text"
+                                                            value={soLuongAnhGioiHan}
+                                                            onChange={(e) => setSoLuongAnhGioiHan(e.target.value)}
+                                                            style={{ width: '70px', padding: '4px 6px', fontSize: '0.78rem' }}
+                                                        />
+                                                    )}
+                                                    <Switch checked={coGioiHanAnh} onChange={(e) => setCoGioiHanAnh(e.target.checked)} size="small" />
+                                                </div>
+                                            </div>
+
+                                            {/* Switch 2: Khóa album */}
+                                            <div className="hd-album-switch-row">
+                                                <div className="hd-album-switch-info">
+                                                    <span className="hd-album-switch-title">Khóa album</span>
+                                                    <span className="hd-album-switch-desc">Đánh dấu khách hàng đã hoàn thành việc chọn ảnh</span>
+                                                </div>
+                                                <Switch checked={khachHangXacNhan} onChange={(e) => setKhachHangXacNhan(e.target.checked)} color="success" size="small" />
+                                            </div>
+
+                                            {/* Switch 3: Bộ sưu tập đặc biệt */}
+                                            <div className="hd-album-switch-row">
+                                                <div className="hd-album-switch-info">
+                                                    <span className="hd-album-switch-title">Bộ sưu tập đặc biệt</span>
+                                                    <span className="hd-album-switch-desc">Hiển thị hình ảnh album này lên trang chủ & trang bộ sưu tập</span>
+                                                </div>
+                                                <Switch checked={isSpecialCollection} onChange={(e) => setIsSpecialCollection(e.target.checked)} color="info" size="small" />
+                                            </div>
+                                        </div>
+
+                                        {/* Input Concept / Chủ đề */}
+                                        <div className="hd-form-group" style={{ marginBottom: '12px' }}>
+                                            <label className="hd-form-label">Chủ đề / Concept của Album</label>
+                                            <input
+                                                className="hd-input-text"
+                                                value={chuDe}
+                                                onChange={(e) => setChuDe(e.target.value)}
+                                                placeholder="Ví dụ: Concept Studio nhẹ nhàng, Concept Cổ phục Hàn Quốc, ..."
+                                                style={{ background: '#ffffff' }}
+                                            />
+                                        </div>
+
+                                        {/* Save Button */}
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                            <Button
+                                                variant="contained"
+                                                onClick={handleSaveAlbumSettings}
+                                                sx={{
+                                                    backgroundColor: '#b8962e',
+                                                    color: '#ffffff',
+                                                    fontWeight: 800,
+                                                    fontSize: '0.82rem',
+                                                    textTransform: 'none',
+                                                    borderRadius: '6px',
+                                                    px: 2.5,
+                                                    py: 0.8,
+                                                    boxShadow: '0 2px 8px rgba(184, 150, 46, 0.3)',
+                                                    '&:hover': { backgroundColor: '#a17e20' }
+                                                }}
+                                            >
+                                                Lưu cài đặt
+                                            </Button>
+                                        </div>
+
+                                        {/* Print Photo List (if any) */}
+                                        {danhSachAnhIn && danhSachAnhIn.length > 0 && (
+                                            <div style={{ marginTop: '14px', borderTop: '1px dashed #e2e8f0', paddingTop: '10px' }}>
+                                                <label className="hd-form-label" style={{ marginBottom: '6px' }}>🖨️ Danh sách ảnh in đã chọn:</label>
+                                                <div className="hd-table-wrap" style={{ maxHeight: '140px', marginBottom: 0 }}>
+                                                    <table className="hd-table-compact">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>STT</th>
+                                                                <th>Kích thước</th>
+                                                                <th style={{ textAlign: "right" }}>Số lượng</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {danhSachAnhIn.map((item, idx) => (
+                                                                <tr key={idx}>
+                                                                    <td>{idx + 1}</td>
+                                                                    <td style={{ fontWeight: 600 }}>{item.kichThuoc}</td>
+                                                                    <td style={{ textAlign: "right", fontWeight: 700, color: '#0284c7' }}>{item.soLuong}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
-
-                                <div className="payment-totals-card">
-                                    <div className="payment-total-row">
-                                        <span>Tổng đơn:</span>
-                                        <b>{gioHang.reduce((sum, item) => {
-                                            const price = parseFloat(item.donGia?.toString().replace(/[^0-9.-]+/g, "") || 0);
-                                            return sum + (price * (item.soLuong || 0));
-                                        }, 0).toLocaleString("vi-VN")} đ</b>
-                                    </div>
-                                    <div className="payment-total-row">
-                                        <span>Sau giảm:</span>
-                                        <b>{tongTien.toLocaleString("vi-VN")} đ</b>
-                                    </div>
-                                    <div className="payment-total-row" style={{ color: '#16a34a' }}>
-                                        <span>Đã thanh toán:</span>
-                                        <b>{((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0)).toLocaleString("vi-VN")} đ</b>
-                                    </div>
-                                    <div className="payment-total-row remaining" style={{ color: '#dc2626', fontWeight: 800, borderTop: '1px dashed #cbd5e1', paddingTop: '4px', marginTop: '2px' }}>
-                                        <span>Còn lại:</span>
-                                        <b>{Math.max(0, tongTien - ((data?.thanhToan?.khachHangDaThanhToan || 0) + (Number(khachThanhToanTruoc) || 0))).toLocaleString("vi-VN")} đ</b>
-                                    </div>
-                                </div>
-                            </div>
-                        </MobileAccordion>
-
-                        <div className="dialog-actions" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                            <Button
-                                onClick={() => {
-                                    setDeleteConfirmInput("");
-                                    setOpenDeleteDialog(true);
-                                }}
-                                variant="outlined"
-                                color="error"
-                                size="small"
-                                sx={{
-                                    whiteSpace: 'nowrap',
-                                    fontSize: '0.72rem',
-                                    padding: '3px 8px',
-                                    minHeight: '32px'
-                                }}
-                            >Xóa HĐ</Button>
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                <Button
-                                    onClick={handleClose}
-                                    variant="contained"
-                                    color="error"
-                                    size="small"
-                                    sx={{
-                                        whiteSpace: 'nowrap',
-                                        fontSize: '0.72rem',
-                                        padding: '3px 8px',
-                                        minHeight: '32px'
-                                    }}
-                                >Thoát</Button>
-
-                                <Button
-                                    onClick={() => setOpenPaymentDialog(true)}
-                                    variant="contained"
-                                    color="warning"
-                                    size="small"
-                                    startIcon={<FontAwesomeIcon icon={faCreditCard} style={{ fontSize: '0.7rem' }} />}
-                                    sx={{
-                                        whiteSpace: 'nowrap',
-                                        fontSize: '0.72rem',
-                                        padding: '3px 8px',
-                                        fontWeight: 700,
-                                        minHeight: '32px'
-                                    }}
-                                >Thanh toán</Button>
-
-                                <Button
-                                    onClick={handlePrintHopDong}
-                                    variant="contained"
-                                    color="success"
-                                    size="small"
-                                    startIcon={<FontAwesomeIcon icon={faPrint} style={{ fontSize: '0.7rem' }} />}
-                                    sx={{
-                                        whiteSpace: 'nowrap',
-                                        fontSize: '0.72rem',
-                                        padding: '3px 8px',
-                                        minHeight: '32px'
-                                    }}
-                                >In HĐ</Button>
-
-                                {(linkAnhGoc || linkAnhChinhSua || albumData || isLoadingAlbum) && (
-                                    <Button
-                                        variant="contained"
-                                        color="info"
-                                        size="small"
-                                        disabled={isLoadingAlbum}
-                                        onClick={() => setOpenAlbumDetailDialog(true)}
-                                        sx={{
-                                            whiteSpace: 'nowrap',
-                                            fontSize: '0.72rem',
-                                            padding: '3px 8px',
-                                            minHeight: '32px'
-                                        }}
-                                    >
-                                        {isLoadingAlbum ? "Đang tải..." : "Xem ảnh"}
-                                    </Button>
-                                )}
-
-                                <Button
-                                    onClick={() => onUpdateHopDong()}
-                                    variant="contained"
-                                    size="small"
-                                    sx={{
-                                        whiteSpace: 'nowrap',
-                                        fontSize: '0.74rem',
-                                        padding: '4px 10px',
-                                        fontWeight: 700,
-                                        minHeight: '32px'
-                                    }}
-                                >Cập nhật HĐ</Button>
                             </div>
                         </div>
                     </div>
+
+                    {/* ===== 3. COMPACT FIXED BOTTOM ACTION BAR ===== */}
+                    <div className="hd-compact-footer">
+                        <Button
+                            onClick={() => {
+                                setDeleteConfirmInput("");
+                                setOpenDeleteDialog(true);
+                            }}
+                            variant="outlined"
+                            color="error"
+                            size="small"
+                            sx={{
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                fontSize: '0.78rem',
+                                borderRadius: '6px',
+                                px: 1.5,
+                                height: '32px'
+                            }}
+                        >
+                            🗑️ Xóa Hợp Đồng
+                        </Button>
+
+                        <div className="hd-footer-actions-right">
+                            <Button
+                                onClick={handleClose}
+                                variant="outlined"
+                                color="inherit"
+                                size="small"
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    fontSize: '0.78rem',
+                                    borderRadius: '6px',
+                                    px: 1.5,
+                                    height: '32px'
+                                }}
+                            >
+                                Thoát
+                            </Button>
+
+                            <Button
+                                onClick={handlePrintHopDong}
+                                variant="contained"
+                                color="success"
+                                size="small"
+                                startIcon={<FontAwesomeIcon icon={faPrint} style={{ fontSize: '0.7rem' }} />}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    fontSize: '0.78rem',
+                                    borderRadius: '6px',
+                                    px: 1.5,
+                                    height: '32px'
+                                }}
+                            >
+                                In Hợp Đồng
+                            </Button>
+
+                            <Button
+                                onClick={() => setOpenPaymentDialog(true)}
+                                variant="contained"
+                                color="warning"
+                                size="small"
+                                startIcon={<FontAwesomeIcon icon={faCreditCard} style={{ fontSize: '0.7rem' }} />}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    fontSize: '0.78rem',
+                                    borderRadius: '6px',
+                                    px: 1.5,
+                                    height: '32px'
+                                }}
+                            >
+                                Thanh Toán
+                            </Button>
+
+                            <Button
+                                onClick={() => onUpdateHopDong()}
+                                variant="contained"
+                                size="small"
+                                sx={{
+                                    background: 'linear-gradient(135deg, #d4af37 0%, #b8962e 100%)',
+                                    color: '#ffffff',
+                                    fontWeight: 800,
+                                    fontSize: '0.82rem',
+                                    textTransform: 'none',
+                                    borderRadius: '6px',
+                                    px: 2.5,
+                                    height: '32px',
+                                    boxShadow: '0 2px 10px rgba(212, 175, 55, 0.4)',
+                                    '&:hover': { background: '#a17e20' }
+                                }}
+                            >
+                                💾 Lưu & Cập Nhật HĐ
+                            </Button>
+                        </div>
+                    </div>
                 </div>
+            </Dialog>
 
                 {/* Dialog nhập liệu thông tin tiến trình */}
                 <Dialog open={openProgressInput} onClose={() => setOpenProgressInput(false)} maxWidth="sm" fullWidth>
-                    <div style={{ padding: '24px', fontFamily: 'sans-serif' }}>
-                        <h3 style={{ margin: '0 0 16px 0', color: '#1976d2', borderBottom: '1px solid #eee', paddingBottom: '8px', fontWeight: 'bold' }}>
+                    <div style={{ padding: '24px', fontFamily: "'Inter', 'Plus Jakarta Sans', -apple-system, Roboto, sans-serif" }}>
+                        <h3 style={{ margin: '0 0 16px 0', color: '#1976d2', borderBottom: '1px solid #eee', paddingBottom: '8px', fontWeight: 700 }}>
                             Cập nhật tiến trình: {targetStep === 2 ? "Chụp hình" : targetStep === 3 ? "Hậu kỳ" : "In ảnh"}
                         </h3>
 
@@ -2689,7 +2782,7 @@ function DetailHopDongKhachHangDialog(props) {
                 <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)} maxWidth="sm" fullWidth>
                     <div style={{ padding: '24px', textAlign: 'center' }}>
                         <h2 style={{ color: '#d32f2f', marginBottom: '16px' }}>Xác nhận xóa hợp đồng</h2>
-                        
+
                         {(() => {
                             const daThanhToanVal = Number(data?.thanhToan?.khachHangDaThanhToan) || 0;
                             const cacLuotVal = data?.thanhToan?.cacLuotThanhToan || [];
@@ -2788,8 +2881,6 @@ function DetailHopDongKhachHangDialog(props) {
                     }}
                 />
 
-            </Dialog >
-
 
 
             {/* Dialog Xem Chi Tiết Ảnh Khách Chọn */}
@@ -2838,8 +2929,8 @@ function DetailHopDongKhachHangDialog(props) {
                                     ? 'Đang đồng bộ danh sách ảnh từ Google Drive, vui lòng chờ giây lát...'
                                     : 'Chưa có dữ liệu ảnh nào trong album này.'}
                             </Typography>
-                            <Button 
-                                variant="contained" 
+                            <Button
+                                variant="contained"
                                 color="primary"
                                 disabled={isSyncingAlbum || isSyncingAlbumChinhSua}
                                 onClick={() => handleSyncAlbum(linkAnhGoc || linkAnhChinhSua, linkAnhChinhSua ? 'chinhSua' : 'goc')}
@@ -2851,11 +2942,11 @@ function DetailHopDongKhachHangDialog(props) {
                     {albumData && albumDetailTab === 0 && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px', padding: '10px 0' }}>
                             {albumData.danhSachAnh?.map((item) => (
-                                <Card 
-                                    key={item.idDrive} 
-                                    sx={{ 
-                                        borderRadius: '14px', 
-                                        overflow: 'hidden', 
+                                <Card
+                                    key={item.idDrive}
+                                    sx={{
+                                        borderRadius: '14px',
+                                        overflow: 'hidden',
                                         boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
                                         border: item.isHearted ? '2px solid #ef4444' : '1px solid #e2e8f0',
                                         transition: 'transform 0.2s ease, box-shadow 0.2s ease',
@@ -2894,14 +2985,14 @@ function DetailHopDongKhachHangDialog(props) {
                                             src={`${item.urlNen}`}
                                             alt={item.tenFile}
                                             loading="lazy"
-                                            style={{ 
+                                            style={{
                                                 position: 'absolute',
                                                 top: 0,
                                                 left: 0,
-                                                width: '100%', 
-                                                height: '100%', 
+                                                width: '100%',
+                                                height: '100%',
                                                 objectFit: 'cover',
-                                                display: 'block' 
+                                                display: 'block'
                                             }}
                                         />
                                         {item.isHearted && (
@@ -2934,11 +3025,11 @@ function DetailHopDongKhachHangDialog(props) {
                     {albumData && albumDetailTab === 1 && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', padding: '10px 0' }}>
                             {albumData.danhSachAnh?.filter(a => a.isHearted || (a.comments && a.comments.length > 0)).map((anh, index) => (
-                                <Card 
-                                    key={index} 
-                                    sx={{ 
-                                        borderRadius: '14px', 
-                                        overflow: 'hidden', 
+                                <Card
+                                    key={index}
+                                    sx={{
+                                        borderRadius: '14px',
+                                        overflow: 'hidden',
                                         boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
                                         border: '1px solid #e2e8f0',
                                         display: 'flex',
@@ -2979,14 +3070,14 @@ function DetailHopDongKhachHangDialog(props) {
                                             src={`${anh.urlNen}`}
                                             alt={anh.tenFile}
                                             loading="lazy"
-                                            style={{ 
+                                            style={{
                                                 position: 'absolute',
                                                 top: 0,
                                                 left: 0,
-                                                width: '100%', 
-                                                height: '100%', 
+                                                width: '100%',
+                                                height: '100%',
                                                 objectFit: 'cover',
-                                                display: 'block' 
+                                                display: 'block'
                                             }}
                                         />
                                         {anh.isHearted && (
@@ -3032,11 +3123,11 @@ function DetailHopDongKhachHangDialog(props) {
                     {albumData && albumDetailTab === 2 && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', padding: '10px 0' }}>
                             {albumData.danhSachAnhChinhSua?.map((anh, index) => (
-                                <Card 
-                                    key={index} 
-                                    sx={{ 
-                                        borderRadius: '14px', 
-                                        overflow: 'hidden', 
+                                <Card
+                                    key={index}
+                                    sx={{
+                                        borderRadius: '14px',
+                                        overflow: 'hidden',
                                         boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
                                         border: '1px solid #e2e8f0',
                                         display: 'flex',
@@ -3077,14 +3168,14 @@ function DetailHopDongKhachHangDialog(props) {
                                             src={`${anh.urlNen}`}
                                             alt={anh.tenFile}
                                             loading="lazy"
-                                            style={{ 
+                                            style={{
                                                 position: 'absolute',
                                                 top: 0,
                                                 left: 0,
-                                                width: '100%', 
-                                                height: '100%', 
+                                                width: '100%',
+                                                height: '100%',
                                                 objectFit: 'cover',
-                                                display: 'block' 
+                                                display: 'block'
                                             }}
                                         />
                                         {anh.isHearted && (

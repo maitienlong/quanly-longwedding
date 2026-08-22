@@ -1,47 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
 import { toast } from 'sonner';
 import './quanlykhachhang.css';
+import logoDefault from '../../assets/logo/logo-vang.png';
 
 // Material UI components
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import TextField from '@mui/material/TextField';
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import useMediaQuery from '@mui/material/useMediaQuery';
+import {
+    Button,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Box,
+    Stack,
+    Paper,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    MenuItem,
+    Select,
+    FormControl,
+    InputLabel,
+    Typography,
+    Grid,
+    Chip,
+    Avatar,
+    IconButton,
+    Tooltip,
+    InputAdornment,
+    ToggleButton,
+    ToggleButtonGroup,
+    useMediaQuery
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import Card from '@mui/material/Card';
-import Typography from '@mui/material/Typography';
-import Grid from '@mui/material/Grid';
-import Chip from '@mui/material/Chip';
-
-import logoDefault from '../../assets/logo/logo-vang.png';
-import Avatar from '@mui/material/Avatar';
-import IconButton from '@mui/material/IconButton';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 
 function QuanLyKhachHang() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { showLoading, hideLoading } = useLoading();
+    
     const [customers, setCustomers] = useState([]);
     const [keyword, setKeyword] = useState('');
+    const [contractFilter, setContractFilter] = useState('all'); // 'all' | 'has_contract' | 'no_contract'
+    const [genderFilter, setGenderFilter] = useState('all'); // 'all' | 'Nam' | 'Nữ'
+    const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
 
     // Dialog state
     const [openAddDialog, setOpenAddDialog] = useState(false);
@@ -58,8 +66,6 @@ function QuanLyKhachHang() {
     const [diaChi, setDiaChi] = useState('');
     const [ngayCapCCCD, setNgayCapCCCD] = useState('');
     const [facebookId, setFacebookId] = useState('');
-
-    const commonHeight = 56;
 
     const handleAvatarChange = (e) => {
         const file = e.target.files[0];
@@ -78,7 +84,7 @@ function QuanLyKhachHang() {
 
     const loadData = () => {
         showLoading("Đang tải danh sách khách hàng...");
-        otherService.findKhachHang({ keyword })
+        otherService.findKhachHang({ keyword: '' })
             .then(res => {
                 if (res.data && res.data.status === 'success') {
                     setCustomers(res.data.data || []);
@@ -100,15 +106,56 @@ function QuanLyKhachHang() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleSearch = () => {
-        loadData();
-    };
+    // Filtered customer list
+    const filteredCustomers = useMemo(() => {
+        return customers.filter(cust => {
+            // Search keyword
+            if (keyword.trim()) {
+                const kw = keyword.toLowerCase();
+                const matchName = cust.tenKhachHang?.toLowerCase().includes(kw);
+                const matchPhone = cust.soDienThoai?.includes(kw);
+                const matchAddress = cust.diaChi?.toLowerCase().includes(kw);
+                const matchFB = cust.facebookId?.toLowerCase().includes(kw);
+                if (!matchName && !matchPhone && !matchAddress && !matchFB) return false;
+            }
 
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            loadData();
-        }
-    };
+            // Contract filter
+            if (contractFilter === 'has_contract' && (!cust.soHopDong || cust.soHopDong <= 0)) {
+                return false;
+            }
+            if (contractFilter === 'no_contract' && cust.soHopDong > 0) {
+                return false;
+            }
+
+            // Gender filter
+            if (genderFilter !== 'all' && cust.gioiTinh !== genderFilter) {
+                return false;
+            }
+
+            return true;
+        });
+    }, [customers, keyword, contractFilter, genderFilter]);
+
+    // Statistics Calculations
+    const totalCustomers = customers.length;
+    const customersWithContract = useMemo(() => {
+        return customers.filter(c => c.soHopDong > 0).length;
+    }, [customers]);
+    const potentialCustomers = useMemo(() => {
+        return customers.filter(c => !c.soHopDong || c.soHopDong <= 0).length;
+    }, [customers]);
+    const birthdayThisMonth = useMemo(() => {
+        const currentMonth = new Date().getMonth() + 1;
+        return customers.filter(c => {
+            if (!c.ngaySinhNhat) return false;
+            const parts = c.ngaySinhNhat.split(/[-/]/);
+            if (parts.length >= 2) {
+                const month = parseInt(parts[1], 10);
+                return month === currentMonth;
+            }
+            return false;
+        }).length;
+    }, [customers]);
 
     const resetForm = () => {
         setSelectedCustomerId('');
@@ -269,11 +316,9 @@ function QuanLyKhachHang() {
              otherService.getFacebookInfo({ url: fullUrl })
                  .then(res => {
                      if (res.data) {
-                         // Convert username to UID if available
                          if (res.data.uid) {
                              setFacebookId(res.data.uid);
                          }
-                         // Only overwrite if the name field is currently empty
                          if (res.data.name && (!tenKhachHang || tenKhachHang.trim() === '')) {
                              setTenKhachHang(res.data.name);
                          }
@@ -284,250 +329,393 @@ function QuanLyKhachHang() {
     };
 
     return (
-        <div className="quanlykhachhang-container" style={{ padding: isMobile ? '10px' : '20px', height: isMobile ? 'calc(100vh - 145px)' : 'auto', display: isMobile ? 'flex' : 'block', flexDirection: 'column' }}>
-            {/* HEADER & FILTERS */}
-            <div className="quanlykhachhang-header">
-                <h2 style={{ color: '#0d1b3f', marginBottom: isMobile ? '12px' : '0' }}>QUẢN LÝ KHÁCH HÀNG</h2>
-                <Stack 
-                    spacing={2} 
-                    direction={isMobile ? 'column' : 'row'} 
-                    sx={{ width: '100%', mb: 2 }}
-                >
-                    <div style={{ display: 'flex', gap: '10px', width: isMobile ? '100%' : 'auto', flex: 1, order: isMobile ? 1 : 3 }}>
-                        <TextField
-                            label="Tìm kiếm khách hàng..."
-                            variant="outlined"
-                            size={isMobile ? "small" : "medium"}
-                            value={keyword}
-                            onChange={(e) => setKeyword(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            style={{ flexGrow: 1 }}
-                            InputProps={{
-                                sx: { height: isMobile ? 42 : commonHeight }
-                            }}
-                        />
-                        <Button
-                            variant="outlined"
-                            color="primary"
-                            onClick={handleSearch}
-                            style={{ height: isMobile ? 42 : commonHeight }}
-                        >
-                            Tìm
-                        </Button>
+        <div className="customer-page-container">
+            {/* 1. HEADER TITLE & ACTIONS */}
+            <div className="customer-header">
+                <div className="customer-title-wrap">
+                    <div className="customer-badge-top">
+                        <i className="fa-solid fa-users"></i> LONG WEDDING CRM & CUSTOMER DIRECTORY
                     </div>
+                    <h2>
+                        <i className="fa-solid fa-address-book" style={{ color: '#2563eb' }}></i> QUẢN LÝ KHÁCH HÀNG STUDIO
+                    </h2>
+                    <p className="customer-subtitle">
+                        Lưu trữ hồ sơ, quản lý thông tin liên hệ, ngày sinh nhật, mạng xã hội và lịch sử hợp đồng của khách hàng
+                    </p>
+                </div>
 
-                    {!isMobile && (
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={() => {
-                                resetForm();
-                                setOpenAddDialog(true);
-                            }}
-                            startIcon={<i className="fa-solid fa-user-plus"></i>}
-                            style={{ height: commonHeight, whiteSpace: 'nowrap', order: 4 }}
-                        >
-                            Thêm Khách Hàng
-                        </Button>
-                    )}
-                </Stack>
-                {isMobile && (
-                    <div 
-                        style={{ 
-                            width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#1976d2', 
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                            color: 'white', fontSize: '24px', opacity: 0.8,
-                            boxShadow: '0 4px 8px rgba(0,0,0,0.2)', position: 'fixed', bottom: '90px', right: '20px', zIndex: 1000, cursor: 'pointer'
-                        }}
+                <div className="customer-header-actions">
+                    <Button
+                        variant="contained"
+                        className="btn-add-customer"
                         onClick={() => {
                             resetForm();
                             setOpenAddDialog(true);
                         }}
+                        startIcon={<i className="fa-solid fa-user-plus"></i>}
                     >
-                        <i className="fa-solid fa-user-plus"></i>
-                    </div>
-                )}
+                        Thêm Khách Hàng
+                    </Button>
+                </div>
             </div>
 
-            {/* CUSTOMERS TABLE */}
-            {isMobile ? (
-                <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
-                    <Stack spacing={2}>
-                    {customers.length === 0 ? (
-                        <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
-                            Không tìm thấy thông tin khách hàng nào.
+            {/* 2. STATS OVERVIEW CARDS */}
+            <div className="customer-stats-grid">
+                <div className="customer-stat-card glass-panel">
+                    <div className="stat-info">
+                        <span className="stat-label">Tổng khách hàng</span>
+                        <h3 style={{ color: '#2563eb' }}>{totalCustomers} <span className="stat-unit">hồ sơ</span></h3>
+                        <span className="stat-sub">Đã lưu trữ trong hệ thống CRM</span>
+                    </div>
+                    <div className="stat-icon icon-blue">
+                        <i className="fa-solid fa-users-gear"></i>
+                    </div>
+                </div>
+
+                <div className="customer-stat-card glass-panel">
+                    <div className="stat-info">
+                        <span className="stat-label">Đã ký hợp đồng</span>
+                        <h3 style={{ color: '#059669' }}>{customersWithContract} <span className="stat-unit">khách</span></h3>
+                        <span className="stat-sub">Khách hàng chính thức của studio</span>
+                    </div>
+                    <div className="stat-icon icon-emerald">
+                        <i className="fa-solid fa-file-signature"></i>
+                    </div>
+                </div>
+
+                <div className="customer-stat-card glass-panel">
+                    <div className="stat-info">
+                        <span className="stat-label">Khách hàng tiềm năng</span>
+                        <h3 style={{ color: '#d97706' }}>{potentialCustomers} <span className="stat-unit">khách</span></h3>
+                        <span className="stat-sub">Chưa tạo hợp đồng chính thức</span>
+                    </div>
+                    <div className="stat-icon icon-amber">
+                        <i className="fa-solid fa-user-clock"></i>
+                    </div>
+                </div>
+
+                <div className="customer-stat-card glass-panel">
+                    <div className="stat-info">
+                        <span className="stat-label">Sinh nhật tháng này</span>
+                        <h3 style={{ color: '#e11d48' }}>{birthdayThisMonth} <span className="stat-unit">khách</span></h3>
+                        <span className="stat-sub">Sẵn sàng gửi quà & ưu đãi</span>
+                    </div>
+                    <div className="stat-icon icon-rose">
+                        <i className="fa-solid fa-cake-candles"></i>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. TOOLBAR & FILTERS */}
+            <div className="customer-toolbar glass-panel">
+                <div className="toolbar-left">
+                    <TextField
+                        size="small"
+                        placeholder="Tìm kiếm theo Tên, SĐT, Địa chỉ, Facebook..."
+                        value={keyword}
+                        onChange={(e) => setKeyword(e.target.value)}
+                        className="search-input"
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <i className="fa-solid fa-magnifying-glass" style={{ color: '#94a3b8' }}></i>
+                                </InputAdornment>
+                            ),
+                            endAdornment: keyword && (
+                                <InputAdornment position="end">
+                                    <IconButton size="small" onClick={() => setKeyword('')}>
+                                        <i className="fa-solid fa-xmark" style={{ fontSize: '0.85rem' }}></i>
+                                    </IconButton>
+                                </InputAdornment>
+                            )
+                        }}
+                    />
+
+                    <FormControl size="small" sx={{ minWidth: 170 }}>
+                        <InputLabel>Tình trạng hợp đồng</InputLabel>
+                        <Select
+                            value={contractFilter}
+                            label="Tình trạng hợp đồng"
+                            onChange={(e) => setContractFilter(e.target.value)}
+                        >
+                            <MenuItem value="all">Tất cả khách hàng</MenuItem>
+                            <MenuItem value="has_contract">💍 Đã có hợp đồng</MenuItem>
+                            <MenuItem value="no_contract">🌟 Chưa có hợp đồng</MenuItem>
+                        </Select>
+                    </FormControl>
+
+                    <FormControl size="small" sx={{ minWidth: 140 }}>
+                        <InputLabel>Giới tính</InputLabel>
+                        <Select
+                            value={genderFilter}
+                            label="Giới tính"
+                            onChange={(e) => setGenderFilter(e.target.value)}
+                        >
+                            <MenuItem value="all">Tất cả giới tính</MenuItem>
+                            <MenuItem value="Nam">👨 Nam</MenuItem>
+                            <MenuItem value="Nữ">👩 Nữ</MenuItem>
+                        </Select>
+                    </FormControl>
+                </div>
+
+                <div className="toolbar-right">
+                    <ToggleButtonGroup
+                        size="small"
+                        value={viewMode}
+                        exclusive
+                        onChange={(e, next) => next && setViewMode(next)}
+                        sx={{ bgcolor: '#f8fafc' }}
+                    >
+                        <ToggleButton value="table" title="Dạng bảng chi tiết">
+                            <i className="fa-solid fa-table-list"></i>
+                        </ToggleButton>
+                        <ToggleButton value="cards" title="Dạng thẻ hồ sơ">
+                            <i className="fa-solid fa-id-card"></i>
+                        </ToggleButton>
+                    </ToggleButtonGroup>
+
+                    <Tooltip title="Tải lại dữ liệu">
+                        <IconButton onClick={loadData} sx={{ bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 2 }}>
+                            <i className="fa-solid fa-rotate"></i>
+                        </IconButton>
+                    </Tooltip>
+                </div>
+            </div>
+
+            {/* 4. CONTENT: TABLE OR CARDS VIEW */}
+            {viewMode === 'table' ? (
+                <Paper elevation={0} className="customer-table-container glass-panel">
+                    <TableContainer sx={{ maxHeight: 'calc(100vh - 360px)' }}>
+                        <Table stickyHeader size="small">
+                            <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.8 } }}>
+                                <TableRow>
+                                    <TableCell align="center" style={{ width: '50px' }}>STT</TableCell>
+                                    <TableCell style={{ width: '70px' }}>AVATAR</TableCell>
+                                    <TableCell style={{ width: '220px' }}>HỌ VÀ TÊN KHÁCH HÀNG</TableCell>
+                                    <TableCell style={{ width: '150px' }}>SỐ ĐIỆN THOẠI</TableCell>
+                                    <TableCell align="center" style={{ width: '130px' }}>NGÀY SINH</TableCell>
+                                    <TableCell align="center" style={{ width: '110px' }}>GIỚI TÍNH</TableCell>
+                                    <TableCell style={{ width: '260px' }}>ĐỊA CHỈ</TableCell>
+                                    <TableCell align="center" style={{ width: '150px' }}>SỐ HỢP ĐỒNG</TableCell>
+                                    <TableCell align="center" style={{ width: '130px' }}>HÀNH ĐỘNG</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {filteredCustomers.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#94a3b8' }}>
+                                            <i className="fa-solid fa-users-slash" style={{ fontSize: '2.5rem', marginBottom: 10, display: 'block', color: '#cbd5e1' }}></i>
+                                            Không tìm thấy thông tin khách hàng nào phù hợp.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    filteredCustomers.map((cust, idx) => (
+                                        <TableRow key={cust._id || idx} className="customer-table-row">
+                                            <TableCell align="center" style={{ fontWeight: 600, color: '#64748b' }}>
+                                                {idx + 1}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <Avatar 
+                                                    src={cust.avatar || logoDefault} 
+                                                    sx={{ width: 38, height: 38, border: '2px solid #e2e8f0', margin: 'auto' }} 
+                                                />
+                                            </TableCell>
+                                            <TableCell style={{ fontWeight: 800, color: '#0f172a' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    {cust.tenKhachHang}
+                                                    {cust.facebookId && (
+                                                        <Tooltip title="Mở trang Facebook khách hàng">
+                                                            <a 
+                                                                href={`https://facebook.com/${cust.facebookId}`} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer" 
+                                                                style={{ color: '#1877f2', fontSize: '0.95rem' }}
+                                                            >
+                                                                <i className="fa-brands fa-facebook"></i>
+                                                            </a>
+                                                        </Tooltip>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell style={{ fontWeight: 600, color: '#2563eb' }}>
+                                                {cust.soDienThoai ? (
+                                                    <a href={`tel:${cust.soDienThoai}`} style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                        <i className="fa-solid fa-phone" style={{ fontSize: '0.75rem' }}></i> {cust.soDienThoai}
+                                                    </a>
+                                                ) : '-'}
+                                            </TableCell>
+                                            <TableCell align="center" style={{ color: '#475569', fontSize: '0.85rem' }}>
+                                                {cust.ngaySinhNhat ? (
+                                                    <span>🎂 {cust.ngaySinhNhat}</span>
+                                                ) : '-'}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                {cust.gioiTinh === 'Nữ' ? (
+                                                    <Chip label="Nữ" size="small" className="chip-gender-female" />
+                                                ) : (
+                                                    <Chip label="Nam" size="small" className="chip-gender-male" />
+                                                )}
+                                            </TableCell>
+                                            <TableCell style={{ color: '#64748b', fontSize: '0.82rem' }}>
+                                                {cust.diaChi || '-'}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                {cust.soHopDong >= 2 ? (
+                                                    <span className="badge-contract-vip">
+                                                        👑 {cust.soHopDong} hợp đồng
+                                                    </span>
+                                                ) : cust.soHopDong === 1 ? (
+                                                    <span className="badge-contract-active">
+                                                        ✓ 1 hợp đồng
+                                                    </span>
+                                                ) : (
+                                                    <span className="badge-contract-none">
+                                                        Chưa có HĐ
+                                                    </span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <Stack direction="row" spacing={1} justifyContent="center">
+                                                    <IconButton
+                                                        size="small"
+                                                        className="btn-action-edit"
+                                                        onClick={() => handleOpenEdit(cust)}
+                                                        title="Chỉnh sửa thông tin"
+                                                    >
+                                                        <i className="fa-solid fa-pen"></i>
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        className="btn-action-delete"
+                                                        onClick={() => handleDeleteCustomer(cust)}
+                                                        disabled={cust.soHopDong > 0}
+                                                        title={cust.soHopDong > 0 ? "Không thể xóa khách có hợp đồng" : "Xóa khách hàng"}
+                                                    >
+                                                        <i className="fa-solid fa-trash"></i>
+                                                    </IconButton>
+                                                </Stack>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Paper>
+            ) : (
+                /* CARDS GRID VIEW */
+                <div className="customer-grid-view">
+                    {filteredCustomers.length === 0 ? (
+                        <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                            <i className="fa-solid fa-users-slash" style={{ fontSize: '3rem', marginBottom: 12, display: 'block', color: '#cbd5e1' }}></i>
+                            Không tìm thấy thông tin khách hàng nào phù hợp.
                         </div>
                     ) : (
-                        customers.map((cust, idx) => (
-                            <Card key={cust._id} sx={{ mb: 2, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
-                                    <Box display="flex" alignItems="center" gap={1.5}>
-                                        <Avatar src={cust.avatar || logoDefault} sx={{ width: 40, height: 40, border: '2px solid #1976d2' }} />
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>
-                                            {cust.tenKhachHang}
+                        filteredCustomers.map(cust => (
+                            <div key={cust._id} className="customer-card glass-panel">
+                                <div className="customer-card-header">
+                                    <Avatar 
+                                        src={cust.avatar || logoDefault} 
+                                        sx={{ width: 54, height: 54, border: '3px solid #2563eb', boxShadow: '0 4px 10px rgba(37,99,235,0.2)' }}
+                                    />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {cust.tenKhachHang}
+                                            </Typography>
                                             {cust.facebookId && (
-                                                <a href={`https://facebook.com/${cust.facebookId}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: '#1877f2' }} title="Mở Facebook khách hàng">
+                                                <a href={`https://facebook.com/${cust.facebookId}`} target="_blank" rel="noopener noreferrer" style={{ color: '#1877f2' }}>
                                                     <i className="fa-brands fa-facebook"></i>
                                                 </a>
                                             )}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Chip 
-                                            label={cust.soHopDong > 0 ? `${cust.soHopDong} hợp đồng` : 'Chưa có HĐ'} 
-                                            size="small" 
-                                            sx={{ 
-                                                bgcolor: cust.soHopDong > 0 ? '#2e7d32' : '#9e9e9e', 
-                                                color: '#fff',
-                                                fontWeight: 'bold',
-                                                fontSize: '0.75rem',
-                                                height: '24px'
-                                            }} 
-                                        />
-                                    </Box>
-                                </Box>
-                                <Box sx={{ p: 2 }}>
-                                    <Grid container spacing={2}>
-                                        <Grid item xs={6}>
-                                            <Typography variant="caption" color="text.secondary">Số điện thoại</Typography>
-                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{cust.soDienThoai}</Typography>
-                                        </Grid>
-                                        <Grid item xs={6}>
-                                            <Typography variant="caption" color="text.secondary">Ngày sinh</Typography>
-                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{cust.ngaySinhNhat || '-'}</Typography>
-                                        </Grid>
-                                        <Grid item xs={6}>
-                                            <Typography variant="caption" color="text.secondary">Giới tính</Typography>
-                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{cust.gioiTinh || '-'}</Typography>
-                                        </Grid>
-                                        <Grid item xs={6}>
-                                            <Typography variant="caption" color="text.secondary">Địa chỉ</Typography>
-                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{cust.diaChi}</Typography>
-                                        </Grid>
-                                        <Grid item xs={12}>
-                                            <Stack direction="row" spacing={1} justifyContent="flex-end">
-                                                <Button
-                                                    size="small"
-                                                    variant="outlined"
-                                                    color="primary"
-                                                    onClick={() => handleOpenEdit(cust)}
-                                                    startIcon={<i className="fa-solid fa-pen"></i>}
-                                                >
-                                                    Sửa
-                                                </Button>
-                                                <Button
-                                                    size="small"
-                                                    variant="outlined"
-                                                    color="error"
-                                                    onClick={() => handleDeleteCustomer(cust)}
-                                                    startIcon={<i className="fa-solid fa-trash"></i>}
-                                                    disabled={cust.soHopDong > 0}
-                                                >
-                                                    Xóa
-                                                </Button>
-                                            </Stack>
-                                        </Grid>
-                                    </Grid>
-                                </Box>
-                            </Card>
+                                        </div>
+                                        <div style={{ marginTop: 2 }}>
+                                            {cust.soHopDong >= 2 ? (
+                                                <span className="badge-contract-vip">👑 {cust.soHopDong} Hợp đồng</span>
+                                            ) : cust.soHopDong === 1 ? (
+                                                <span className="badge-contract-active">✓ 1 Hợp đồng</span>
+                                            ) : (
+                                                <span className="badge-contract-none">Chưa có HĐ</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="customer-card-body">
+                                    <div className="customer-card-row">
+                                        <i className="fa-solid fa-phone" style={{ width: 18, color: '#2563eb' }}></i>
+                                        <span><b>SĐT:</b> {cust.soDienThoai || '-'}</span>
+                                    </div>
+                                    <div className="customer-card-row">
+                                        <i className="fa-solid fa-cake-candles" style={{ width: 18, color: '#e11d48' }}></i>
+                                        <span><b>Sinh nhật:</b> {cust.ngaySinhNhat || '-'} ({cust.gioiTinh || 'Nam'})</span>
+                                    </div>
+                                    <div className="customer-card-row">
+                                        <i className="fa-solid fa-location-dot" style={{ width: 18, color: '#64748b' }}></i>
+                                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><b>Đ/C:</b> {cust.diaChi || '-'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="customer-card-footer">
+                                    <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>ID: {cust._id ? cust._id.slice(-6) : '-'}</span>
+                                    <Stack direction="row" spacing={1}>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={() => handleOpenEdit(cust)}
+                                            startIcon={<i className="fa-solid fa-pen"></i>}
+                                            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+                                        >
+                                            Sửa
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            color="error"
+                                            onClick={() => handleDeleteCustomer(cust)}
+                                            disabled={cust.soHopDong > 0}
+                                            startIcon={<i className="fa-solid fa-trash"></i>}
+                                            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+                                        >
+                                            Xóa
+                                        </Button>
+                                    </Stack>
+                                </div>
+                            </div>
                         ))
                     )}
-                    </Stack>
                 </div>
-            ) : (
-            <TableContainer component={Paper} elevation={3} style={{ borderRadius: '8px', overflow: 'auto', marginTop: '20px', maxHeight: 'calc(100vh - 280px)' }}>
-                <Table stickyHeader>
-                    <TableHead sx={{ '& th': { backgroundColor: '#e3f2fd', color: '#1976d2', fontWeight: 'bold' } }}>
-                        <TableRow>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '60px' }}>STT</TableCell>
-                            <TableCell style={{ fontWeight: 'bold', width: '80px' }}>AVATAR</TableCell>
-                            <TableCell style={{ fontWeight: 'bold', width: '200px' }}>HỌ VÀ TÊN</TableCell>
-                            <TableCell style={{ fontWeight: 'bold', width: '150px' }}>SỐ ĐIỆN THOẠI</TableCell>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '130px' }}>NGÀY SINH</TableCell>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '110px' }}>GIỚI TÍNH</TableCell>
-                            <TableCell style={{ fontWeight: 'bold' }}>ĐỊA CHỈ</TableCell>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '160px' }}>SỐ HỢP ĐỒNG</TableCell>
-                            <TableCell align="center" style={{ fontWeight: 'bold', width: '180px' }}>HÀNH ĐỘNG</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {customers.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={9} align="center" style={{ padding: '30px', color: '#999' }}>
-                                    Không tìm thấy thông tin khách hàng nào.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            customers.map((cust, idx) => (
-                                <TableRow key={cust._id} className="quanlykhachhang-row">
-                                    <TableCell align="center">{idx + 1}</TableCell>
-                                    <TableCell align="center">
-                                        <Avatar src={cust.avatar || logoDefault} sx={{ width: 38, height: 38, border: '1px solid #e0e0e0', margin: 'auto' }} />
-                                    </TableCell>
-                                    <TableCell style={{ fontWeight: 'bold' }}>
-                                        {cust.tenKhachHang}
-                                        {cust.facebookId && (
-                                            <a href={`https://facebook.com/${cust.facebookId}`} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8, color: '#1877f2' }} title="Mở Facebook khách hàng">
-                                                <i className="fa-brands fa-facebook"></i>
-                                            </a>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>{cust.soDienThoai}</TableCell>
-                                    <TableCell align="center">{cust.ngaySinhNhat || '-'}</TableCell>
-                                    <TableCell align="center">{cust.gioiTinh || '-'}</TableCell>
-                                    <TableCell>{cust.diaChi}</TableCell>
-                                    <TableCell align="center">
-                                        {cust.soHopDong > 0 ? (
-                                            <span className="badge badge-active">{cust.soHopDong} hợp đồng</span>
-                                        ) : (
-                                            <span className="badge badge-none">Chưa có HĐ</span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <Stack direction="row" spacing={1} justifyContent="center">
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                color="primary"
-                                                onClick={() => handleOpenEdit(cust)}
-                                                startIcon={<i className="fa-solid fa-pen"></i>}
-                                            >
-                                                Sửa
-                                            </Button>
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                color="error"
-                                                onClick={() => handleDeleteCustomer(cust)}
-                                                startIcon={<i className="fa-solid fa-trash"></i>}
-                                                disabled={cust.soHopDong > 0}
-                                            >
-                                                Xóa
-                                            </Button>
-                                        </Stack>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
             )}
 
-            {/* DIALOG ADD CUSTOMER */}
-            <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)} maxWidth="sm" fullWidth>
-                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2', borderBottom: '1px solid #eee' }}>
-                    THÊM MỚI KHÁCH HÀNG
+            {/* 5. DIALOG ADD CUSTOMER */}
+            <Dialog 
+                open={openAddDialog} 
+                onClose={() => setOpenAddDialog(false)} 
+                maxWidth="sm" 
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+            >
+                <DialogTitle sx={{ bgcolor: '#0f172a', color: '#fff', display: 'flex', alignItems: 'center', gap: 1.5, py: 2 }}>
+                    <i className="fa-solid fa-user-plus" style={{ color: '#38bdf8' }}></i>
+                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                        THÊM MỚI HỒ SƠ KHÁCH HÀNG
+                    </Typography>
                 </DialogTitle>
-                <DialogContent dividers>
-                    <Box display="flex" flexDirection="column" gap={2.5} mt={1}>
+
+                <DialogContent dividers sx={{ p: 3 }}>
+                    <Box display="flex" flexDirection="column" gap={2.5}>
                         {/* AVATAR UPLOAD */}
-                        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" mb={1}>
+                        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center">
                             <Box position="relative">
                                 <Avatar
                                     src={avatar || logoDefault}
                                     alt="avatar"
-                                    sx={{ width: 90, height: 90, border: '3px solid #1976d2', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }}
+                                    sx={{ 
+                                        width: 90, 
+                                        height: 90, 
+                                        border: '3px solid #2563eb', 
+                                        boxShadow: '0 6px 16px rgba(37,99,235,0.3)' 
+                                    }}
                                 />
                                 <label htmlFor="add-cust-avatar-upload" style={{ position: 'absolute', bottom: -4, right: -4 }}>
                                     <input
@@ -537,117 +725,153 @@ function QuanLyKhachHang() {
                                         style={{ display: 'none' }}
                                         onChange={handleAvatarChange}
                                     />
-                                    <IconButton color="primary" aria-label="upload picture" component="span" sx={{ bgcolor: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', '&:hover': { bgcolor: '#f0f0f0' } }}>
+                                    <IconButton color="primary" component="span" sx={{ bgcolor: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.2)', '&:hover': { bgcolor: '#f0f0f0' } }}>
                                         <PhotoCamera fontSize="small" />
                                     </IconButton>
                                 </label>
                             </Box>
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                                Mặc định: Logo Long Wedding (Bấm icon máy ảnh để đổi)
+                                Bấm icon máy ảnh để tải ảnh chân dung khách hàng
                             </Typography>
                         </Box>
-                        <TextField
-                            label="Họ và tên khách hàng"
-                            required
-                            size="small"
-                            fullWidth
-                            value={tenKhachHang}
-                            onChange={(e) => setTenKhachHang(e.target.value)}
-                            placeholder="Ví dụ: Nguyễn Văn A"
-                        />
-                        <TextField
-                            label="Số điện thoại"
-                            required
-                            size="small"
-                            fullWidth
-                            value={soDienThoai}
-                            onChange={(e) => setSoDienThoai(e.target.value.replace(/\s/g, ''))}
-                            placeholder="Ví dụ: 0987654321"
-                        />
-                        <TextField
-                            label="Địa chỉ cư trú"
-                            required
-                            size="small"
-                            fullWidth
-                            value={diaChi}
-                            onChange={(e) => setDiaChi(e.target.value)}
-                            placeholder="Ví dụ: 123 Nguyễn Trãi, Thanh Xuân, Hà Nội"
-                        />
-                        
-                        <Stack direction="row" spacing={2}>
-                            <TextField
-                                label="Ngày sinh nhật (DD/MM/YYYY)"
-                                size="small"
-                                fullWidth
-                                value={ngaySinhNhat}
-                                onChange={(e) => setNgaySinhNhat(e.target.value)}
-                                placeholder="Ví dụ: 01/01/1995"
-                            />
-                            <FormControl size="small" style={{ minWidth: 150 }}>
-                                <InputLabel>Giới tính</InputLabel>
-                                <Select
-                                    value={gioiTinh}
-                                    label="Giới tính"
-                                    onChange={(e) => setGioiTinh(e.target.value)}
-                                >
-                                    <MenuItem value="Nam">Nam</MenuItem>
-                                    <MenuItem value="Nữ">Nữ</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Stack>
 
-                        <TextField
-                            label="Ngày cấp CCCD"
-                            size="small"
-                            fullWidth
-                            value={ngayCapCCCD}
-                            onChange={(e) => setNgayCapCCCD(e.target.value)}
-                            placeholder="Ví dụ: 15/08/2021"
-                        />
-                        
-                        <TextField
-                            label="Mã đăng nhập App khách hàng"
-                            size="small"
-                            fullWidth
-                            value={maDangNhap}
-                            onChange={(e) => setMaDangNhap(e.target.value)}
-                            placeholder="Ví dụ: longwedding123 (mặc định abcd1234)"
-                        />
-                        
-                        <TextField
-                            label="Link Facebook / ID Facebook"
-                            size="small"
-                            fullWidth
-                            value={facebookId}
-                            onChange={handleFacebookLinkChange}
-                            placeholder="Dán link facebook vào đây"
-                        />
+                        <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Họ và tên khách hàng"
+                                    required
+                                    fullWidth
+                                    value={tenKhachHang}
+                                    onChange={(e) => setTenKhachHang(e.target.value)}
+                                    placeholder="Ví dụ: Nguyễn Văn An, Trần Thị Thảo..."
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Số điện thoại liên hệ"
+                                    required
+                                    fullWidth
+                                    value={soDienThoai}
+                                    onChange={(e) => setSoDienThoai(e.target.value.replace(/\s/g, ''))}
+                                    placeholder="Ví dụ: 0987654321"
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Giới tính</InputLabel>
+                                    <Select
+                                        value={gioiTinh}
+                                        label="Giới tính"
+                                        onChange={(e) => setGioiTinh(e.target.value)}
+                                    >
+                                        <MenuItem value="Nam">👨 Nam</MenuItem>
+                                        <MenuItem value="Nữ">👩 Nữ</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Ngày sinh nhật (DD/MM/YYYY)"
+                                    fullWidth
+                                    value={ngaySinhNhat}
+                                    onChange={(e) => setNgaySinhNhat(e.target.value)}
+                                    placeholder="Ví dụ: 21/11/2000"
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Ngày cấp CCCD"
+                                    fullWidth
+                                    value={ngayCapCCCD}
+                                    onChange={(e) => setNgayCapCCCD(e.target.value)}
+                                    placeholder="Ví dụ: 15/08/2021"
+                                />
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Địa chỉ cư trú"
+                                    required
+                                    fullWidth
+                                    value={diaChi}
+                                    onChange={(e) => setDiaChi(e.target.value)}
+                                    placeholder="Ví dụ: Xóm Bình Nghĩa, Nghĩa Đàn, Nghệ An"
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Mã đăng nhập App khách hàng"
+                                    fullWidth
+                                    value={maDangNhap}
+                                    onChange={(e) => setMaDangNhap(e.target.value)}
+                                    placeholder="Mặc định: abcd1234"
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Link Facebook / UID Facebook"
+                                    fullWidth
+                                    value={facebookId}
+                                    onChange={handleFacebookLinkChange}
+                                    placeholder="Dán link Facebook tại đây..."
+                                    helperText="Tự động nhận diện UID & Tên khi dán link"
+                                />
+                            </Grid>
+                        </Grid>
                     </Box>
                 </DialogContent>
-                <DialogActions style={{ padding: '16px 24px', borderTop: '1px solid #eee' }}>
-                    <Button onClick={() => setOpenAddDialog(false)} color="inherit">
+
+                <DialogActions sx={{ p: 2.5, bgcolor: '#f8fafc' }}>
+                    <Button onClick={() => setOpenAddDialog(false)} color="inherit" sx={{ fontWeight: 600 }}>
                         Hủy
                     </Button>
-                    <Button onClick={handleCreateCustomer} variant="contained" color="primary">
-                        Thêm khách hàng
+                    <Button
+                        variant="contained"
+                        className="btn-add-customer"
+                        onClick={handleCreateCustomer}
+                        startIcon={<i className="fa-solid fa-check"></i>}
+                        sx={{ fontWeight: 700, borderRadius: 2 }}
+                    >
+                        Khởi Tạo Khách Hàng
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* DIALOG EDIT CUSTOMER */}
-            <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="sm" fullWidth>
-                <DialogTitle style={{ fontWeight: 'bold', color: '#1976d2', borderBottom: '1px solid #eee' }}>
-                    CẬP NHẬT THÔNG TIN KHÁCH HÀNG
+            {/* 6. DIALOG EDIT CUSTOMER */}
+            <Dialog 
+                open={openEditDialog} 
+                onClose={() => setOpenEditDialog(false)} 
+                maxWidth="sm" 
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+            >
+                <DialogTitle sx={{ bgcolor: '#0f172a', color: '#fff', display: 'flex', alignItems: 'center', gap: 1.5, py: 2 }}>
+                    <i className="fa-solid fa-user-pen" style={{ color: '#38bdf8' }}></i>
+                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                        CẬP NHẬT HỒ SƠ KHÁCH HÀNG
+                    </Typography>
                 </DialogTitle>
-                <DialogContent dividers>
-                    <Box display="flex" flexDirection="column" gap={2.5} mt={1}>
+
+                <DialogContent dividers sx={{ p: 3 }}>
+                    <Box display="flex" flexDirection="column" gap={2.5}>
                         {/* AVATAR UPLOAD */}
-                        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" mb={1}>
+                        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center">
                             <Box position="relative">
                                 <Avatar
                                     src={avatar || logoDefault}
                                     alt="avatar"
-                                    sx={{ width: 90, height: 90, border: '3px solid #1976d2', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }}
+                                    sx={{ 
+                                        width: 90, 
+                                        height: 90, 
+                                        border: '3px solid #2563eb', 
+                                        boxShadow: '0 6px 16px rgba(37,99,235,0.3)' 
+                                    }}
                                 />
                                 <label htmlFor="edit-cust-avatar-upload" style={{ position: 'absolute', bottom: -4, right: -4 }}>
                                     <input
@@ -657,93 +881,112 @@ function QuanLyKhachHang() {
                                         style={{ display: 'none' }}
                                         onChange={handleAvatarChange}
                                     />
-                                    <IconButton color="primary" aria-label="upload picture" component="span" sx={{ bgcolor: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', '&:hover': { bgcolor: '#f0f0f0' } }}>
+                                    <IconButton color="primary" component="span" sx={{ bgcolor: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.2)', '&:hover': { bgcolor: '#f0f0f0' } }}>
                                         <PhotoCamera fontSize="small" />
                                     </IconButton>
                                 </label>
                             </Box>
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                                Mặc định: Logo Long Wedding (Bấm icon máy ảnh để đổi)
+                                Bấm icon máy ảnh để đổi ảnh đại diện
                             </Typography>
                         </Box>
-                        <TextField
-                            label="Họ và tên khách hàng"
-                            required
-                            size="small"
-                            fullWidth
-                            value={tenKhachHang}
-                            onChange={(e) => setTenKhachHang(e.target.value)}
-                        />
-                        <TextField
-                            label="Số điện thoại"
-                            required
-                            size="small"
-                            fullWidth
-                            value={soDienThoai}
-                            onChange={(e) => setSoDienThoai(e.target.value)}
-                        />
-                        <TextField
-                            label="Địa chỉ cư trú"
-                            required
-                            size="small"
-                            fullWidth
-                            value={diaChi}
-                            onChange={(e) => setDiaChi(e.target.value)}
-                        />
-                        
-                        <Stack direction="row" spacing={2}>
-                            <TextField
-                                label="Ngày sinh nhật (DD/MM/YYYY)"
-                                size="small"
-                                fullWidth
-                                value={ngaySinhNhat}
-                                onChange={(e) => setNgaySinhNhat(e.target.value)}
-                            />
-                            <FormControl size="small" style={{ minWidth: 150 }}>
-                                <InputLabel>Giới tính</InputLabel>
-                                <Select
-                                    value={gioiTinh}
-                                    label="Giới tính"
-                                    onChange={(e) => setGioiTinh(e.target.value)}
-                                >
-                                    <MenuItem value="Nam">Nam</MenuItem>
-                                    <MenuItem value="Nữ">Nữ</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Stack>
 
-                        <TextField
-                            label="Ngày cấp CCCD"
-                            size="small"
-                            fullWidth
-                            value={ngayCapCCCD}
-                            onChange={(e) => setNgayCapCCCD(e.target.value)}
-                        />
-                        
-                        <TextField
-                            label="Mã đăng nhập App khách hàng"
-                            size="small"
-                            fullWidth
-                            value={maDangNhap}
-                            onChange={(e) => setMaDangNhap(e.target.value)}
-                        />
-                        
-                        <TextField
-                            label="Link Facebook / ID Facebook"
-                            size="small"
-                            fullWidth
-                            value={facebookId}
-                            onChange={handleFacebookLinkChange}
-                            placeholder="Dán link facebook vào đây"
-                        />
+                        <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Họ và tên khách hàng"
+                                    required
+                                    fullWidth
+                                    value={tenKhachHang}
+                                    onChange={(e) => setTenKhachHang(e.target.value)}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Số điện thoại liên hệ"
+                                    required
+                                    fullWidth
+                                    value={soDienThoai}
+                                    onChange={(e) => setSoDienThoai(e.target.value.replace(/\s/g, ''))}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Giới tính</InputLabel>
+                                    <Select
+                                        value={gioiTinh}
+                                        label="Giới tính"
+                                        onChange={(e) => setGioiTinh(e.target.value)}
+                                    >
+                                        <MenuItem value="Nam">👨 Nam</MenuItem>
+                                        <MenuItem value="Nữ">👩 Nữ</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Ngày sinh nhật (DD/MM/YYYY)"
+                                    fullWidth
+                                    value={ngaySinhNhat}
+                                    onChange={(e) => setNgaySinhNhat(e.target.value)}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Ngày cấp CCCD"
+                                    fullWidth
+                                    value={ngayCapCCCD}
+                                    onChange={(e) => setNgayCapCCCD(e.target.value)}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Địa chỉ cư trú"
+                                    required
+                                    fullWidth
+                                    value={diaChi}
+                                    onChange={(e) => setDiaChi(e.target.value)}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Mã đăng nhập App khách hàng"
+                                    fullWidth
+                                    value={maDangNhap}
+                                    onChange={(e) => setMaDangNhap(e.target.value)}
+                                />
+                            </Grid>
+
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Link Facebook / UID Facebook"
+                                    fullWidth
+                                    value={facebookId}
+                                    onChange={handleFacebookLinkChange}
+                                />
+                            </Grid>
+                        </Grid>
                     </Box>
                 </DialogContent>
-                <DialogActions style={{ padding: '16px 24px', borderTop: '1px solid #eee' }}>
-                    <Button onClick={() => setOpenEditDialog(false)} color="inherit">
+
+                <DialogActions sx={{ p: 2.5, bgcolor: '#f8fafc' }}>
+                    <Button onClick={() => setOpenEditDialog(false)} color="inherit" sx={{ fontWeight: 600 }}>
                         Hủy
                     </Button>
-                    <Button onClick={handleUpdateCustomer} variant="contained" color="primary">
-                        Cập nhật
+                    <Button
+                        variant="contained"
+                        className="btn-add-customer"
+                        onClick={handleUpdateCustomer}
+                        startIcon={<i className="fa-solid fa-check"></i>}
+                        sx={{ fontWeight: 700, borderRadius: 2 }}
+                    >
+                        Lưu Cập Nhật
                     </Button>
                 </DialogActions>
             </Dialog>
