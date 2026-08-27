@@ -30,6 +30,7 @@ import {
     Tabs,
     Tab,
     LinearProgress,
+    InputAdornment,
     useMediaQuery
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -53,6 +54,13 @@ import DiamondIcon from '@mui/icons-material/Diamond';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import CategoryIcon from '@mui/icons-material/Category';
 import CallIcon from '@mui/icons-material/Call';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ClearIcon from '@mui/icons-material/Clear';
 
 // Currency & Percentage Formatters
 const formatCurrency = (val) => {
@@ -79,6 +87,54 @@ const formatPercent = (val) => {
     const sign = num > 0 ? '+' : '';
     return `${sign}${num.toFixed(1)}%`;
 };
+
+const formatDateOnly = (dateVal) => {
+    if (!dateVal) return '-';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('vi-VN');
+};
+
+// =========================================================================
+// SCHEDULE KEYS & CLIENT-SIDE EXTRACTION
+// =========================================================================
+
+const SCHEDULE_DATE_KEYS = [
+    { key: 'ngayChup', label: 'Chụp hình', icon: '📸', className: 'badge-ngayChup' },
+    { key: 'ngayAnHoi', label: 'Ăn hỏi', icon: '💍', className: 'badge-ngayAnHoi' },
+    { key: 'ngayCuoi', label: 'Ngày cưới', icon: '👰', className: 'badge-ngayCuoi' },
+    { key: 'ngayChinhAnh', label: 'Chỉnh ảnh', icon: '🎨', className: 'badge-ngayChinhAnh' },
+    { key: 'ngayTraAnh', label: 'Trả ảnh', icon: '🖼️', className: 'badge-ngayTraAnh' },
+    { key: 'ngayChuyenInAnh', label: 'Chuyển in', icon: '🖨️', className: 'badge-ngayChuyenInAnh' },
+    { key: 'ngayMuonDo', label: 'Mượn đồ', icon: '👗', className: 'badge-ngayMuonDo' },
+    { key: 'ngayTraDo', label: 'Trả đồ', icon: '👔', className: 'badge-ngayTraDo' }
+];
+
+function extractMatchedSchedulesClient(hd, startDate, endDate) {
+    const sTime = new Date(startDate).getTime();
+    const eTime = new Date(endDate).getTime();
+    const matched = [];
+
+    if (hd.cacNgay) {
+        for (const item of SCHEDULE_DATE_KEYS) {
+            const val = hd.cacNgay[item.key];
+            if (val) {
+                const d = new Date(val);
+                const t = d.getTime();
+                if (!isNaN(t) && t >= sTime && t <= eTime) {
+                    matched.push({
+                        type: item.key,
+                        label: item.label,
+                        icon: item.icon,
+                        className: item.className,
+                        date: d
+                    });
+                }
+            }
+        }
+    }
+    return matched;
+}
 
 // =========================================================================
 // SMOOTH SPLINE / WAVE PATH GENERATOR (Cubic Bezier Spline)
@@ -206,44 +262,72 @@ function getTrend(curr = 0, prev = 0) {
 function buildComparisonClient(curr, prev) {
     return {
         soLuongHopDong: {
-            current: curr.soLuongHopDong,
-            previous: prev.soLuongHopDong,
-            diff: curr.soLuongHopDong - prev.soLuongHopDong,
+            current: curr.soLuongHopDong || 0,
+            previous: prev.soLuongHopDong || 0,
+            diff: (curr.soLuongHopDong || 0) - (prev.soLuongHopDong || 0),
             growthPercent: calcGrowth(curr.soLuongHopDong, prev.soLuongHopDong),
             trend: getTrend(curr.soLuongHopDong, prev.soLuongHopDong)
         },
         tongTienHopDong: {
-            current: curr.tongTienHopDong,
-            previous: prev.tongTienHopDong,
-            diff: curr.tongTienHopDong - prev.tongTienHopDong,
+            current: curr.tongTienHopDong || 0,
+            previous: prev.tongTienHopDong || 0,
+            diff: (curr.tongTienHopDong || 0) - (prev.tongTienHopDong || 0),
             growthPercent: calcGrowth(curr.tongTienHopDong, prev.tongTienHopDong),
             trend: getTrend(curr.tongTienHopDong, prev.tongTienHopDong)
         },
+        soLuongHopDongTheoLich: {
+            current: curr.soLuongHopDongTheoLich || 0,
+            previous: prev.soLuongHopDongTheoLich || 0,
+            diff: (curr.soLuongHopDongTheoLich || 0) - (prev.soLuongHopDongTheoLich || 0),
+            growthPercent: calcGrowth(curr.soLuongHopDongTheoLich, prev.soLuongHopDongTheoLich),
+            trend: getTrend(curr.soLuongHopDongTheoLich, prev.soLuongHopDongTheoLich)
+        },
+        tongDoanhSoTheoLich: {
+            current: curr.tongDoanhSoTheoLich || 0,
+            previous: prev.tongDoanhSoTheoLich || 0,
+            diff: (curr.tongDoanhSoTheoLich || 0) - (prev.tongDoanhSoTheoLich || 0),
+            growthPercent: calcGrowth(curr.tongDoanhSoTheoLich, prev.tongDoanhSoTheoLich),
+            trend: getTrend(curr.tongDoanhSoTheoLich, prev.tongDoanhSoTheoLich)
+        },
+        daThuTheoLich: {
+            current: curr.daThuTheoLich || 0,
+            previous: prev.daThuTheoLich || 0,
+            diff: (curr.daThuTheoLich || 0) - (prev.daThuTheoLich || 0),
+            growthPercent: calcGrowth(curr.daThuTheoLich, prev.daThuTheoLich),
+            trend: getTrend(curr.daThuTheoLich, prev.daThuTheoLich)
+        },
+        conNoTheoLich: {
+            current: curr.conNoTheoLich || 0,
+            previous: prev.conNoTheoLich || 0,
+            diff: (curr.conNoTheoLich || 0) - (prev.conNoTheoLich || 0),
+            growthPercent: calcGrowth(curr.conNoTheoLich, prev.conNoTheoLich),
+            trend: getTrend(curr.conNoTheoLich, prev.conNoTheoLich)
+        },
         soTienDaThu: {
-            current: curr.soTienDaThu,
-            previous: prev.soTienDaThu,
-            diff: curr.soTienDaThu - prev.soTienDaThu,
+            current: curr.soTienDaThu || 0,
+            previous: prev.soTienDaThu || 0,
+            diff: (curr.soTienDaThu || 0) - (prev.soTienDaThu || 0),
             growthPercent: calcGrowth(curr.soTienDaThu, prev.soTienDaThu),
             trend: getTrend(curr.soTienDaThu, prev.soTienDaThu)
         },
         soTienConNo: {
-            current: curr.soTienConNo,
-            previous: prev.soTienConNo,
-            diff: curr.soTienConNo - prev.soTienConNo,
+            current: curr.soTienConNo || 0,
+            previous: prev.soTienConNo || 0,
+            diff: (curr.soTienConNo || 0) - (prev.soTienConNo || 0),
             growthPercent: calcGrowth(curr.soTienConNo, prev.soTienConNo),
             trend: getTrend(curr.soTienConNo, prev.soTienConNo)
         },
         tongTienKhoanChi: {
-            current: curr.tongTienKhoanChi,
-            previous: prev.tongTienKhoanChi,
-            diff: curr.tongTienKhoanChi - prev.tongTienKhoanChi,
+            current: curr.tongTienKhoanChi || 0,
+            previous: prev.tongTienKhoanChi || 0,
+            diff: (curr.tongTienKhoanChi || 0) - (prev.tongTienKhoanChi || 0),
             growthPercent: calcGrowth(curr.tongTienKhoanChi, prev.tongTienKhoanChi),
             trend: getTrend(curr.tongTienKhoanChi, prev.tongTienKhoanChi)
         },
         laiRong: {
-            current: curr.laiRong,
-            previous: prev.laiRong,
-            diff: curr.laiRong - prev.laiRong,
+            current: curr.laiRong || 0,
+            previous: prev.laiRong || 0,
+            diff: (curr.laiRong || 0) - (prev.laiRong || 0),
             growthPercent: calcGrowth(curr.laiRong, prev.laiRong),
             trend: getTrend(curr.laiRong, prev.laiRong)
         }
@@ -257,21 +341,52 @@ function calculateMetricsFromRaw(contracts = [], expenses = [], startDate, endDa
     let conNoCuaHDKy = 0;
 
     const filteredContracts = [];
+    const scheduledContracts = [];
+    let tongDoanhSoTheoLich = 0;
+    let daThuTheoLich = 0;
+    let conNoTheoLich = 0;
+
     contracts.forEach(hd => {
         if (hd.maHopDong === 'CH-CHUNG') return;
-        if (!hd.ngayHopDong) return;
-        const d = new Date(hd.ngayHopDong);
-        if (d >= startDate && d <= endDate) {
-            filteredContracts.push(hd);
-            soLuongHopDong++;
+
+        // 1. Hợp đồng ký trong kỳ
+        if (hd.ngayHopDong) {
+            const d = new Date(hd.ngayHopDong);
+            if (d >= startDate && d <= endDate) {
+                filteredContracts.push(hd);
+                soLuongHopDong++;
+                const val = Number(hd.thanhToan?.tongGiaTriSauGiam ?? hd.thanhToan?.tongGiaTri ?? hd.tongTien ?? hd.giaTriHopDong ?? 0);
+                const paid = Number(hd.thanhToan?.khachHangDaThanhToan ?? 0);
+                const debt = Number(hd.thanhToan?.conLai ?? Math.max(0, val - paid));
+
+                tongTienHopDong += val;
+                daThuCuaHDKy += paid;
+                conNoCuaHDKy += debt;
+            }
+        }
+
+        // 2. Hợp đồng có lịch diễn ra trong kỳ
+        const matched = extractMatchedSchedulesClient(hd, startDate, endDate);
+        if (matched.length > 0) {
             const val = Number(hd.thanhToan?.tongGiaTriSauGiam ?? hd.thanhToan?.tongGiaTri ?? hd.tongTien ?? hd.giaTriHopDong ?? 0);
             const paid = Number(hd.thanhToan?.khachHangDaThanhToan ?? 0);
             const debt = Number(hd.thanhToan?.conLai ?? Math.max(0, val - paid));
 
-            tongTienHopDong += val;
-            daThuCuaHDKy += paid;
-            conNoCuaHDKy += debt;
+            tongDoanhSoTheoLich += val;
+            daThuTheoLich += paid;
+            conNoTheoLich += debt;
+
+            scheduledContracts.push({
+                ...hd,
+                matchedSchedules: matched
+            });
         }
+    });
+
+    scheduledContracts.sort((a, b) => {
+        const dateA = a.matchedSchedules?.[0]?.date ? new Date(a.matchedSchedules[0].date).getTime() : 0;
+        const dateB = b.matchedSchedules?.[0]?.date ? new Date(b.matchedSchedules[0].date).getTime() : 0;
+        return dateA - dateB;
     });
 
     let tongTienKhoanChi = 0;
@@ -287,6 +402,7 @@ function calculateMetricsFromRaw(contracts = [], expenses = [], startDate, endDa
 
     const laiRong = tongTienHopDong - tongTienKhoanChi;
     const tySuatLaiRong = tongTienHopDong > 0 ? Number(((laiRong / tongTienHopDong) * 100).toFixed(1)) : 0;
+    const tyLeThuHoiTheoLich = tongDoanhSoTheoLich > 0 ? Number(((daThuTheoLich / tongDoanhSoTheoLich) * 100).toFixed(1)) : 0;
 
     return {
         startDate,
@@ -295,10 +411,16 @@ function calculateMetricsFromRaw(contracts = [], expenses = [], startDate, endDa
         tongTienHopDong,
         soTienDaThu: daThuCuaHDKy,
         soTienConNo: conNoCuaHDKy,
+        soLuongHopDongTheoLich: scheduledContracts.length,
+        tongDoanhSoTheoLich,
+        daThuTheoLich,
+        conNoTheoLich,
+        tyLeThuHoiTheoLich,
         tongTienKhoanChi,
         laiRong,
         tySuatLaiRong,
         filteredContracts,
+        scheduledContracts,
         filteredExpenses
     };
 }
@@ -626,6 +748,7 @@ function DoanhThu() {
                 topSales,
                 topCustomers,
                 recentContracts: selCurStats.filteredContracts.slice(0, 10),
+                scheduledContracts: selCurStats.scheduledContracts,
                 recentExpenses: selCurStats.filteredExpenses.slice(0, 10)
             },
             overview,
@@ -659,8 +782,65 @@ function DoanhThu() {
     const topSales = selectedPeriod.topSales || [];
     const topCustomers = selectedPeriod.topCustomers || [];
     const recentContracts = selectedPeriod.recentContracts || [];
+    const scheduledContracts = selectedPeriod.scheduledContracts || [];
     const recentExpenses = selectedPeriod.recentExpenses || [];
     const systemStats = finalReport.systemStats || {};
+
+    // Filter & Search states for Scheduled Contracts Tab
+    const [scheduleSearch, setScheduleSearch] = useState('');
+    const [selectedScheduleFilter, setSelectedScheduleFilter] = useState('all');
+    const [selectedPaymentFilter, setSelectedPaymentFilter] = useState('all');
+
+    const filteredScheduledContracts = useMemo(() => {
+        return (scheduledContracts || []).filter(hd => {
+            if (scheduleSearch) {
+                const q = scheduleSearch.trim().toLowerCase();
+                const ma = (hd.maHopDong || '').toLowerCase();
+                const kh1 = (hd.khachHang1?.tenKhachHang || '').toLowerCase();
+                const sdt1 = (hd.khachHang1?.soDienThoai || '').toLowerCase();
+                const kh2 = (hd.khachHang2?.tenKhachHang || '').toLowerCase();
+                const sale = (hd.nguoiPhucVu?.banHang || '').toLowerCase();
+                const matchText = ma.includes(q) || kh1.includes(q) || sdt1.includes(q) || kh2.includes(q) || sale.includes(q);
+                if (!matchText) return false;
+            }
+
+            if (selectedScheduleFilter !== 'all') {
+                const hasType = hd.matchedSchedules?.some(s => s.type === selectedScheduleFilter);
+                if (!hasType) return false;
+            }
+
+            if (selectedPaymentFilter !== 'all') {
+                const status = hd.thanhToan?.trangThaiThanhToan || 'Chưa thanh toán';
+                if (selectedPaymentFilter === 'Đã thanh toán đủ' && status !== 'Đã thanh toán đủ') return false;
+                if (selectedPaymentFilter === 'Đang thanh toán' && status !== 'Đang thanh toán') return false;
+                if (selectedPaymentFilter === 'Chưa thanh toán' && status !== 'Chưa thanh toán') return false;
+            }
+
+            return true;
+        });
+    }, [scheduledContracts, scheduleSearch, selectedScheduleFilter, selectedPaymentFilter]);
+
+    const scheduleTypeCounts = useMemo(() => {
+        const counts = {
+            all: (scheduledContracts || []).length,
+            ngayChup: 0,
+            ngayAnHoi: 0,
+            ngayCuoi: 0,
+            ngayChinhAnh: 0,
+            ngayTraAnh: 0,
+            ngayChuyenInAnh: 0,
+            ngayMuonDo: 0,
+            ngayTraDo: 0
+        };
+        (scheduledContracts || []).forEach(hd => {
+            hd.matchedSchedules?.forEach(s => {
+                if (counts[s.type] !== undefined) {
+                    counts[s.type]++;
+                }
+            });
+        });
+        return counts;
+    }, [scheduledContracts]);
 
     const renderGrowthBadge = (comparisonItem, invertTrend = false) => {
         if (!comparisonItem) return null;
@@ -689,6 +869,7 @@ function DoanhThu() {
     const [hoveredIdx, setHoveredIdx] = useState(null);
     const [visibleWaves, setVisibleWaves] = useState({
         revenue: true,
+        scheduled: true,
         collected: true,
         expense: true,
         profit: true
@@ -719,7 +900,7 @@ function DoanhThu() {
         const yBase = padTop + chartH;
 
         const maxVal = Math.max(
-            ...timelineChart.map(d => Math.max(d.tongTienHopDong || 0, d.soTienDaThu || 0, d.tongTienKhoanChi || 0, d.laiRong || 0)),
+            ...timelineChart.map(d => Math.max(d.tongTienHopDong || 0, d.tongDoanhSoTheoLich || 0, d.soTienDaThu || 0, d.tongTienKhoanChi || 0, d.laiRong || 0)),
             1000000
         );
 
@@ -730,6 +911,12 @@ function DoanhThu() {
             const x = timelineChart.length === 1 ? padLeft + chartW / 2 : padLeft + step * i;
             const y = yBase - ((d.tongTienHopDong || 0) / maxVal) * chartH;
             return { x, y, val: d.tongTienHopDong || 0, item: d, idx: i };
+        });
+
+        const pointsScheduled = timelineChart.map((d, i) => {
+            const x = timelineChart.length === 1 ? padLeft + chartW / 2 : padLeft + step * i;
+            const y = yBase - ((d.tongDoanhSoTheoLich || 0) / maxVal) * chartH;
+            return { x, y, val: d.tongDoanhSoTheoLich || 0, item: d, idx: i };
         });
 
         const pointsCollected = timelineChart.map((d, i) => {
@@ -751,6 +938,7 @@ function DoanhThu() {
         });
 
         const waveRevenue = getSmoothSplinePath(pointsRevenue, yBase);
+        const waveScheduled = getSmoothSplinePath(pointsScheduled, yBase);
         const waveCollected = getSmoothSplinePath(pointsCollected, yBase);
         const waveExpense = getSmoothSplinePath(pointsExpense, yBase);
         const waveProfit = getSmoothSplinePath(pointsProfit, yBase);
@@ -772,6 +960,13 @@ function DoanhThu() {
                                 <stop offset="0%" stopColor="#10b981" stopOpacity="0.45" />
                                 <stop offset="70%" stopColor="#10b981" stopOpacity="0.08" />
                                 <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                            </linearGradient>
+
+                            {/* Scheduled Revenue Gradient */}
+                            <linearGradient id="wave-grad-scheduled" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#9333ea" stopOpacity="0.4" />
+                                <stop offset="70%" stopColor="#9333ea" stopOpacity="0.06" />
+                                <stop offset="100%" stopColor="#9333ea" stopOpacity="0.0" />
                             </linearGradient>
 
                             {/* Collected Gradient */}
@@ -823,6 +1018,14 @@ function DoanhThu() {
                             </g>
                         )}
 
+                        {/* 1.5 Scheduled Revenue Wave Area & Line */}
+                        {visibleWaves.scheduled && waveScheduled.areaPath && (
+                            <g>
+                                <path d={waveScheduled.areaPath} fill="url(#wave-grad-scheduled)" />
+                                <path d={waveScheduled.linePath} fill="none" stroke="#9333ea" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4 2" filter="url(#wave-glow)" />
+                            </g>
+                        )}
+
                         {/* 2. Collected Wave Area & Line */}
                         {visibleWaves.collected && waveCollected.areaPath && (
                             <g>
@@ -865,6 +1068,9 @@ function DoanhThu() {
                                     {/* Dots when active */}
                                     {visibleWaves.revenue && (d.tongTienHopDong > 0 || hoveredIdx === i) && (
                                         <circle cx={x} cy={pointsRevenue[i].y} r={hoveredIdx === i ? 5.5 : 3.5} fill="#10b981" stroke="#ffffff" strokeWidth="2" />
+                                    )}
+                                    {visibleWaves.scheduled && (d.tongDoanhSoTheoLich > 0 || hoveredIdx === i) && (
+                                        <circle cx={x} cy={pointsScheduled[i].y} r={hoveredIdx === i ? 5.5 : 3.5} fill="#9333ea" stroke="#ffffff" strokeWidth="2" />
                                     )}
                                     {visibleWaves.collected && (d.soTienDaThu > 0 || hoveredIdx === i) && (
                                         <circle cx={x} cy={pointsCollected[i].y} r={hoveredIdx === i ? 5.5 : 3.5} fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
@@ -911,7 +1117,7 @@ function DoanhThu() {
                         sx={{
                             position: 'absolute',
                             top: 8,
-                            left: Math.min(Math.max(hoveredX - 100, 20), width - 210),
+                            left: Math.min(Math.max(hoveredX - 100, 20), width - 220),
                             zIndex: 10,
                             p: 1.5,
                             borderRadius: '12px',
@@ -919,12 +1125,12 @@ function DoanhThu() {
                             color: '#ffffff',
                             backdropFilter: 'blur(8px)',
                             pointerEvents: 'none',
-                            minWidth: 190,
+                            minWidth: 200,
                             boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)'
                         }}
                     >
                         <Typography variant="caption" sx={{ fontWeight: 800, color: '#93c5fd', display: 'block', mb: 0.8, borderBottom: '1px solid rgba(255,255,255,0.15)', pb: 0.4 }}>
-                            📅 {hoveredData.subLabel ? `Ngày ${hoveredData.subLabel}` : hoveredData.label} ({hoveredData.soLuongHopDong || 0} HĐ)
+                            📅 {hoveredData.subLabel ? `Ngày ${hoveredData.subLabel}` : hoveredData.label} ({hoveredData.soLuongHopDong || 0} HĐ ký)
                         </Typography>
                         <Stack spacing={0.4}>
                             <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -932,12 +1138,13 @@ function DoanhThu() {
                                 <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.tongTienHopDong)}</Typography>
                             </Box>
                             <Box display="flex" justifyContent="space-between" alignItems="center">
-                                <Typography variant="caption" sx={{ color: '#7dd3fc', fontWeight: 600 }}>● Đã thu:</Typography>
-                                <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.soTienDaThu)}</Typography>
+                                <Typography variant="caption" sx={{ color: '#d8b4fe', fontWeight: 600 }}>● Doanh số theo lịch:</Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.tongDoanhSoTheoLich || 0)} ({hoveredData.soLuongHopDongTheoLich || 0} HĐ)</Typography>
                             </Box>
                             <Box display="flex" justifyContent="space-between" alignItems="center">
-                                <Typography variant="caption" sx={{ color: '#fca5a5', fontWeight: 600 }}>● Tiền chi:</Typography>
-                                <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.tongTienKhoanChi)}</Typography>
+                                <Typography variant="caption" sx={{ color: '#7dd3fc', fontWeight: 600 }}>● Đã thu:</Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.soTienDaThu)}</Typography>
+                                                       <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.tongTienKhoanChi)}</Typography>
                             </Box>
                             <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ borderTop: '1px dashed rgba(255,255,255,0.2)', pt: 0.4, mt: 0.2 }}>
                                 <Typography variant="caption" sx={{ color: '#c4b5fd', fontWeight: 700 }}>● Lãi ròng:</Typography>
@@ -961,7 +1168,7 @@ function DoanhThu() {
                     <div>
                         <h1 className="DoanhThu-heading">BÁO CÁO KINH DOANH & TÀI CHÍNH</h1>
                         <p className="DoanhThu-subheading">
-                            Thống kê hợp đồng, doanh số, thực thu, công nợ, chi phí và lãi ròng đa chu kỳ
+                            Thống kê hợp đồng, doanh số ký, doanh số theo lịch, thực thu, công nợ, chi phí và lãi ròng đa chu kỳ
                         </p>
                     </div>
                 </div>
@@ -1073,11 +1280,9 @@ function DoanhThu() {
                 </div>
             </div>
 
-
-
-            {/* 6 MAIN FINANCIAL METRIC CARDS FOR SELECTED PERIOD */}
-            <div className="metrics-grid-6">
-                {/* 1. TỔNG SỐ HỢP ĐỒNG */}
+            {/* 7 MAIN FINANCIAL METRIC CARDS FOR SELECTED PERIOD */}
+            <div className="metrics-grid-7">
+                {/* 1. TỔNG SỐ HỢP ĐỒNG KÝ */}
                 <div className="metric-card metric-contracts">
                     <div className="metric-card-header">
                         <div className="metric-icon-box">
@@ -1086,7 +1291,7 @@ function DoanhThu() {
                         {renderGrowthBadge(comparison.soLuongHopDong)}
                     </div>
                     <div>
-                        <p className="metric-title">Tổng Số Hợp Đồng</p>
+                        <p className="metric-title">Hợp Đồng Ký Trong Kỳ</p>
                         <h2 className="metric-value" style={{ color: '#2563eb' }}>
                             {currentMetrics.soLuongHopDong || 0} <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>HĐ</span>
                         </h2>
@@ -1094,14 +1299,14 @@ function DoanhThu() {
                     <div className="metric-sub-detail">
                         <span>Kỳ trước: <strong>{previousMetrics.soLuongHopDong || 0} HĐ</strong></span>
                         <span>
-                            Chênh lệch: <strong style={{ color: (comparison.soLuongHopDong?.diff || 0) >= 0 ? '#16a34a' : '#dc2626' }}>
+                            Lệch: <strong style={{ color: (comparison.soLuongHopDong?.diff || 0) >= 0 ? '#16a34a' : '#dc2626' }}>
                                 {(comparison.soLuongHopDong?.diff || 0) > 0 ? `+${comparison.soLuongHopDong?.diff}` : comparison.soLuongHopDong?.diff || 0} HĐ
                             </strong>
                         </span>
                     </div>
                 </div>
 
-                {/* 2. TỔNG DOANH SỐ HỢP ĐỒNG */}
+                {/* 2. TỔNG DOANH SỐ HỢP ĐỒNG KÝ */}
                 <div className="metric-card metric-contract-value">
                     <div className="metric-card-header">
                         <div className="metric-icon-box">
@@ -1110,7 +1315,7 @@ function DoanhThu() {
                         {renderGrowthBadge(comparison.tongTienHopDong)}
                     </div>
                     <div>
-                        <p className="metric-title">Tổng Doanh Số HĐ</p>
+                        <p className="metric-title">Doanh Số Ký Trong Kỳ</p>
                         <h2 className="metric-value" style={{ color: '#16a34a' }}>
                             {formatCurrency(currentMetrics.tongTienHopDong)}
                         </h2>
@@ -1118,14 +1323,36 @@ function DoanhThu() {
                     <div className="metric-sub-detail">
                         <span>Kỳ trước: <strong>{formatShortCurrency(previousMetrics.tongTienHopDong)}</strong></span>
                         <span>
-                            Chênh lệch: <strong style={{ color: (comparison.tongTienHopDong?.diff || 0) >= 0 ? '#16a34a' : '#dc2626' }}>
+                            Lệch: <strong style={{ color: (comparison.tongTienHopDong?.diff || 0) >= 0 ? '#16a34a' : '#dc2626' }}>
                                 {(comparison.tongTienHopDong?.diff || 0) > 0 ? '+' : ''}{formatShortCurrency(comparison.tongTienHopDong?.diff)}
                             </strong>
                         </span>
                     </div>
                 </div>
 
-                {/* 3. TỔNG TIỀN ĐÃ THU */}
+                {/* 3. DOANH SỐ THEO LỊCH TRONG KỲ (HỢP ĐỒNG CÓ LỊCH) */}
+                <div className="metric-card metric-scheduled">
+                    <div className="metric-card-header">
+                        <div className="metric-icon-box">
+                            <EventAvailableIcon />
+                        </div>
+                        {renderGrowthBadge(comparison.tongDoanhSoTheoLich)}
+                    </div>
+                    <div>
+                        <p className="metric-title">Doanh Số Theo Lịch Trong Kỳ</p>
+                        <h2 className="metric-value" style={{ color: '#9333ea' }}>
+                            {formatCurrency(currentMetrics.tongDoanhSoTheoLich)}
+                        </h2>
+                    </div>
+                    <div className="metric-sub-detail">
+                        <span>HĐ có lịch: <strong>{currentMetrics.soLuongHopDongTheoLich || 0} HĐ</strong></span>
+                        <span>
+                            Kỳ trước: <strong>{formatShortCurrency(previousMetrics.tongDoanhSoTheoLich)}</strong>
+                        </span>
+                    </div>
+                </div>
+
+                {/* 4. TỔNG TIỀN ĐÃ THU */}
                 <div className="metric-card metric-collected">
                     <div className="metric-card-header">
                         <div className="metric-icon-box">
@@ -1141,12 +1368,12 @@ function DoanhThu() {
                     <div className="metric-sub-detail">
                         <span>Kỳ trước: <strong>{formatShortCurrency(previousMetrics.soTienDaThu)}</strong></span>
                         <span>
-                            Tỷ lệ thu: <strong>{currentMetrics.tongTienHopDong > 0 ? ((currentMetrics.soTienDaThu / currentMetrics.tongTienHopDong) * 100).toFixed(1) : 0}%</strong>
+                            Tỷ lệ: <strong>{currentMetrics.tongTienHopDong > 0 ? ((currentMetrics.soTienDaThu / currentMetrics.tongTienHopDong) * 100).toFixed(1) : 0}%</strong>
                         </span>
                     </div>
                 </div>
 
-                {/* 4. TỔNG TIỀN KHÁCH HÀNG CÒN NỢ */}
+                {/* 5. TỔNG TIỀN KHÁCH HÀNG CÒN NỢ */}
                 <div className="metric-card metric-debt">
                     <div className="metric-card-header">
                         <div className="metric-icon-box">
@@ -1165,7 +1392,7 @@ function DoanhThu() {
                     </div>
                 </div>
 
-                {/* 5. TỔNG TIỀN CHI */}
+                {/* 6. TỔNG TIỀN CHI */}
                 <div className="metric-card metric-expenses">
                     <div className="metric-card-header">
                         <div className="metric-icon-box">
@@ -1182,14 +1409,14 @@ function DoanhThu() {
                     <div className="metric-sub-detail">
                         <span>Kỳ trước: <strong>{formatShortCurrency(previousMetrics.tongTienKhoanChi)}</strong></span>
                         <span>
-                            Chênh lệch: <strong style={{ color: (comparison.tongTienKhoanChi?.diff || 0) <= 0 ? '#16a34a' : '#dc2626' }}>
+                            Lệch: <strong style={{ color: (comparison.tongTienKhoanChi?.diff || 0) <= 0 ? '#16a34a' : '#dc2626' }}>
                                 {(comparison.tongTienKhoanChi?.diff || 0) > 0 ? '+' : ''}{formatShortCurrency(comparison.tongTienKhoanChi?.diff)}
                             </strong>
                         </span>
                     </div>
                 </div>
 
-                {/* 6. LÃI RÒNG */}
+                {/* 7. LÃI RÒNG */}
                 <div className="metric-card metric-profit">
                     <div className="metric-card-header">
                         <div className="metric-icon-box">
@@ -1198,7 +1425,7 @@ function DoanhThu() {
                         {renderGrowthBadge(comparison.laiRong)}
                     </div>
                     <div>
-                        <p className="metric-title">Lãi Ròng (Doanh Số - Chi)</p>
+                        <p className="metric-title">Lãi Ròng (Doanh Số Ký - Chi)</p>
                         <h2 className="metric-value" style={{ color: '#7c3aed' }}>
                             {formatCurrency(currentMetrics.laiRong)}
                         </h2>
@@ -1222,6 +1449,7 @@ function DoanhThu() {
                     sx={{ px: 2, '& .MuiTab-root': { fontWeight: 700, py: 1.6 } }}
                 >
                     <Tab icon={<BarChartIcon />} iconPosition="start" label="Biểu đồ & Cơ cấu tài chính" />
+                    <Tab icon={<EventAvailableIcon />} iconPosition="start" label={`Hợp Đồng & Doanh Số Theo Lịch (${currentMetrics.soLuongHopDongTheoLich || 0})`} />
                     <Tab icon={<CompareArrowsIcon />} iconPosition="start" label="Bảng So Sánh 4 Chu Kỳ (Tuần/Tháng/Quý/Năm)" />
                     <Tab icon={<EmojiEventsIcon />} iconPosition="start" label="Xếp Hạng Doanh Số Nhân Viên" />
                     <Tab icon={<DiamondIcon />} iconPosition="start" label="Khách Hàng Sử Dụng Dịch Vụ Nhiều Nhất" />
@@ -1231,7 +1459,7 @@ function DoanhThu() {
             {/* TAB 0: CHARTS & FINANCIAL BREAKDOWN */}
             {activeTab === 0 && (
                 <Grid container spacing={3}>
-                    {/* Timeline Bar Chart */}
+                    {/* Timeline Spline Wave Chart */}
                     <Grid item xs={12} lg={8}>
                         <div className="dashboard-section-card" style={{ height: '100%' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
@@ -1251,6 +1479,19 @@ function DoanhThu() {
                                             opacity: visibleWaves.revenue ? 1 : 0.6
                                         }}
                                         label="● Doanh số ký"
+                                    />
+                                    <Chip
+                                        size="small"
+                                        onClick={() => toggleWave('scheduled')}
+                                        sx={{
+                                            bgcolor: visibleWaves.scheduled ? '#f3e8ff' : '#f1f5f9',
+                                            color: visibleWaves.scheduled ? '#7e22ce' : '#94a3b8',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            border: visibleWaves.scheduled ? '1px solid #d8b4fe' : '1px solid #e2e8f0',
+                                            opacity: visibleWaves.scheduled ? 1 : 0.6
+                                        }}
+                                        label="● Doanh số theo lịch"
                                     />
                                     <Chip
                                         size="small"
@@ -1309,7 +1550,7 @@ function DoanhThu() {
                                 <div>
                                     <Box display="flex" justifyContent="space-between" mb={0.8}>
                                         <Typography variant="body2" fontWeight={700} color="#334155">
-                                            Tỷ lệ thu hồi dòng tiền
+                                            Tỷ lệ thu hồi dòng tiền (HĐ Ký)
                                         </Typography>
                                         <Typography variant="body2" fontWeight={800} color="#0284c7">
                                             {currentMetrics.tongTienHopDong > 0 ? ((currentMetrics.soTienDaThu / currentMetrics.tongTienHopDong) * 100).toFixed(1) : 0}%
@@ -1321,15 +1562,35 @@ function DoanhThu() {
                                         sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: '#0284c7' } }}
                                     />
                                     <Typography variant="caption" color="#64748b" display="block" mt={0.5}>
-                                        Đã thu {formatShortCurrency(currentMetrics.soTienDaThu)} / {formatShortCurrency(currentMetrics.tongTienHopDong)} doanh số
+                                        Đã thu {formatShortCurrency(currentMetrics.soTienDaThu)} / {formatShortCurrency(currentMetrics.tongTienHopDong)} doanh số ký
                                     </Typography>
                                 </div>
 
-                                {/* 2. Công nợ khách hàng */}
+                                {/* 2. Thu hồi vốn của HĐ có lịch */}
                                 <div>
                                     <Box display="flex" justifyContent="space-between" mb={0.8}>
                                         <Typography variant="body2" fontWeight={700} color="#334155">
-                                            Tỷ lệ công nợ còn lại
+                                            Tỷ lệ thu hồi HĐ Có Lịch Trong Kỳ
+                                        </Typography>
+                                        <Typography variant="body2" fontWeight={800} color="#9333ea">
+                                            {currentMetrics.tyLeThuHoiTheoLich || 0}%
+                                        </Typography>
+                                    </Box>
+                                    <LinearProgress
+                                        variant="determinate"
+                                        value={Math.min(100, currentMetrics.tyLeThuHoiTheoLich || 0)}
+                                        sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: '#9333ea' } }}
+                                    />
+                                    <Typography variant="caption" color="#64748b" display="block" mt={0.5}>
+                                        Đã thu {formatShortCurrency(currentMetrics.daThuTheoLich || 0)} / {formatShortCurrency(currentMetrics.tongDoanhSoTheoLich || 0)} doanh số lịch
+                                    </Typography>
+                                </div>
+
+                                {/* 3. Công nợ khách hàng */}
+                                <div>
+                                    <Box display="flex" justifyContent="space-between" mb={0.8}>
+                                        <Typography variant="body2" fontWeight={700} color="#334155">
+                                            Tỷ lệ công nợ còn lại (HĐ Ký)
                                         </Typography>
                                         <Typography variant="body2" fontWeight={800} color="#ea580c">
                                             {currentMetrics.tongTienHopDong > 0 ? ((currentMetrics.soTienConNo / currentMetrics.tongTienHopDong) * 100).toFixed(1) : 0}%
@@ -1345,7 +1606,7 @@ function DoanhThu() {
                                     </Typography>
                                 </div>
 
-                                {/* 3. Tỷ suất chi phí / Doanh số */}
+                                {/* 4. Tỷ suất chi phí / Doanh số */}
                                 <div>
                                     <Box display="flex" justifyContent="space-between" mb={0.8}>
                                         <Typography variant="body2" fontWeight={700} color="#334155">
@@ -1365,7 +1626,7 @@ function DoanhThu() {
                                     </Typography>
                                 </div>
 
-                                {/* 4. Tỷ suất Lãi Ròng / Doanh số */}
+                                {/* 5. Tỷ suất Lãi Ròng / Doanh số */}
                                 <div>
                                     <Box display="flex" justifyContent="space-between" mb={0.8}>
                                         <Typography variant="body2" fontWeight={700} color="#334155">
@@ -1390,8 +1651,394 @@ function DoanhThu() {
                 </Grid>
             )}
 
-            {/* TAB 1: MULTI-CYCLE COMPARISON TABLE (TUẦN, THÁNG, QUÝ, NĂM) */}
+            {/* TAB 1: DOANH SỐ & HỢP ĐỒNG THEO LỊCH TRONG KỲ (NEW TAB) */}
             {activeTab === 1 && (
+                <div className="dashboard-section-card">
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+                        <div>
+                            <h3 className="section-header-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <CalendarMonthIcon style={{ color: '#9333ea', fontSize: '1.7rem' }} />
+                                Danh Sách Hợp Đồng & Doanh Số Theo Lịch ({selectedPeriod.currentRange?.label || 'Kỳ này'})
+                            </h3>
+                            <p style={{ color: '#64748b', fontSize: '0.88rem', margin: '4px 0 0 0' }}>
+                                Thống kê chi tiết toàn bộ các hợp đồng có lịch diễn ra trong khoảng thời gian đang chọn (Lịch chụp, ăn hỏi, cưới, chỉnh ảnh, trả ảnh, mượn/trả đồ)
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* KPI Summary 4 Cards for Scheduled Contracts */}
+                    <Grid container spacing={2.5} sx={{ mb: 3 }}>
+                        {/* 1. Tổng Doanh Số HĐ Có Lịch */}
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2.2,
+                                    borderRadius: '16px',
+                                    border: '1px solid #e9d5ff',
+                                    background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)',
+                                    boxShadow: '0 4px 12px rgba(147, 51, 234, 0.08)'
+                                }}
+                            >
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                    <Box sx={{ p: 1, borderRadius: '12px', bgcolor: '#9333ea', color: '#fff', display: 'flex' }}>
+                                        <MonetizationOnIcon fontSize="small" />
+                                    </Box>
+                                    <div>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#7e22ce', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            Doanh Số Theo Lịch
+                                        </Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 800, color: '#581c87', lineHeight: 1.2 }}>
+                                            {formatCurrency(currentMetrics.tongDoanhSoTheoLich || 0)}
+                                        </Typography>
+                                    </div>
+                                </Box>
+                                <Typography variant="caption" color="#7e22ce" display="block" mt={1} pt={0.8} borderTop="1px dashed #d8b4fe">
+                                    Tính từ các HĐ có lịch phục vụ trong kỳ
+                                </Typography>
+                            </Paper>
+                        </Grid>
+
+                        {/* 2. Số Lượng HĐ Có Lịch */}
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2.2,
+                                    borderRadius: '16px',
+                                    border: '1px solid #bfdbfe',
+                                    background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)'
+                                }}
+                            >
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                    <Box sx={{ p: 1, borderRadius: '12px', bgcolor: '#2563eb', color: '#fff', display: 'flex' }}>
+                                        <EventAvailableIcon fontSize="small" />
+                                    </Box>
+                                    <div>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            Tổng Hợp Đồng Có Lịch
+                                        </Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e3a8a', lineHeight: 1.2 }}>
+                                            {currentMetrics.soLuongHopDongTheoLich || 0} <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#2563eb' }}>HĐ</span>
+                                        </Typography>
+                                    </div>
+                                </Box>
+                                <Typography variant="caption" color="#1d4ed8" display="block" mt={1} pt={0.8} borderTop="1px dashed #93c5fd">
+                                    📸 {scheduleTypeCounts.ngayChup} Chụp • 💍 {scheduleTypeCounts.ngayAnHoi} Hỏi • 👰 {scheduleTypeCounts.ngayCuoi} Cưới
+                                </Typography>
+                            </Paper>
+                        </Grid>
+
+                        {/* 3. Đã Thu Hồi Theo Lịch */}
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2.2,
+                                    borderRadius: '16px',
+                                    border: '1px solid #bbf7d0',
+                                    background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                                    boxShadow: '0 4px 12px rgba(22, 163, 74, 0.08)'
+                                }}
+                            >
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                    <Box sx={{ p: 1, borderRadius: '12px', bgcolor: '#16a34a', color: '#fff', display: 'flex' }}>
+                                        <AccountBalanceWalletIcon fontSize="small" />
+                                    </Box>
+                                    <div>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            Đã Thu Hồi
+                                        </Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 800, color: '#14532d', lineHeight: 1.2 }}>
+                                            {formatCurrency(currentMetrics.daThuTheoLich || 0)}
+                                        </Typography>
+                                    </div>
+                                </Box>
+                                <Typography variant="caption" color="#15803d" display="block" mt={1} pt={0.8} borderTop="1px dashed #86efac">
+                                    Tỷ lệ thu hồi đạt: <strong>{currentMetrics.tyLeThuHoiTheoLich || 0}%</strong>
+                                </Typography>
+                            </Paper>
+                        </Grid>
+
+                        {/* 4. Công Nợ Cần Thu Hồi */}
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2.2,
+                                    borderRadius: '16px',
+                                    border: '1px solid #fed7aa',
+                                    background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                                    boxShadow: '0 4px 12px rgba(234, 88, 12, 0.08)'
+                                }}
+                            >
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                    <Box sx={{ p: 1, borderRadius: '12px', bgcolor: '#ea580c', color: '#fff', display: 'flex' }}>
+                                        <PendingActionsIcon fontSize="small" />
+                                    </Box>
+                                    <div>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            Công Nợ Còn Lại
+                                        </Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 800, color: '#7c2d12', lineHeight: 1.2 }}>
+                                            {formatCurrency(currentMetrics.conNoTheoLich || 0)}
+                                        </Typography>
+                                    </div>
+                                </Box>
+                                <Typography variant="caption" color="#c2410c" display="block" mt={1} pt={0.8} borderTop="1px dashed #fdba74">
+                                    Cần thu hoàn tất trước khi bàn giao sản phẩm
+                                </Typography>
+                            </Paper>
+                        </Grid>
+                    </Grid>
+
+                    {/* Filter & Search Toolbar */}
+                    <div className="schedule-filter-toolbar">
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" width="100%">
+                            {/* Search Input */}
+                            <TextField
+                                size="small"
+                                placeholder="Tìm mã hợp đồng, tên khách hàng, SĐT, sale..."
+                                value={scheduleSearch}
+                                onChange={(e) => setScheduleSearch(e.target.value)}
+                                sx={{
+                                    flex: 1,
+                                    bgcolor: '#ffffff',
+                                    borderRadius: '10px',
+                                    '& .MuiOutlinedInput-root': { borderRadius: '10px' }
+                                }}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ color: '#94a3b8' }} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: scheduleSearch ? (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => setScheduleSearch('')}>
+                                                <ClearIcon fontSize="small" />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ) : null
+                                }}
+                            />
+
+                            {/* Schedule Type Filter */}
+                            <FormControl size="small" sx={{ minWidth: 200, bgcolor: '#ffffff', borderRadius: '10px' }}>
+                                <Select
+                                    value={selectedScheduleFilter}
+                                    onChange={(e) => setSelectedScheduleFilter(e.target.value)}
+                                    sx={{ borderRadius: '10px', fontWeight: 600 }}
+                                    displayEmpty
+                                >
+                                    <MenuItem value="all">📅 Tất cả loại lịch ({scheduleTypeCounts.all})</MenuItem>
+                                    <MenuItem value="ngayChup">📸 Lịch chụp ({scheduleTypeCounts.ngayChup})</MenuItem>
+                                    <MenuItem value="ngayAnHoi">💍 Lịch ăn hỏi ({scheduleTypeCounts.ngayAnHoi})</MenuItem>
+                                    <MenuItem value="ngayCuoi">👰 Lịch ngày cưới ({scheduleTypeCounts.ngayCuoi})</MenuItem>
+                                    <MenuItem value="ngayChinhAnh">🎨 Lịch chỉnh ảnh ({scheduleTypeCounts.ngayChinhAnh})</MenuItem>
+                                    <MenuItem value="ngayTraAnh">🖼️ Lịch trả ảnh ({scheduleTypeCounts.ngayTraAnh})</MenuItem>
+                                    <MenuItem value="ngayChuyenInAnh">🖨️ Lịch chuyển in ({scheduleTypeCounts.ngayChuyenInAnh})</MenuItem>
+                                    <MenuItem value="ngayMuonDo">👗 Lịch mượn đồ ({scheduleTypeCounts.ngayMuonDo})</MenuItem>
+                                    <MenuItem value="ngayTraDo">👔 Lịch trả đồ ({scheduleTypeCounts.ngayTraDo})</MenuItem>
+                                </Select>
+                            </FormControl>
+
+                            {/* Payment Status Filter */}
+                            <FormControl size="small" sx={{ minWidth: 170, bgcolor: '#ffffff', borderRadius: '10px' }}>
+                                <Select
+                                    value={selectedPaymentFilter}
+                                    onChange={(e) => setSelectedPaymentFilter(e.target.value)}
+                                    sx={{ borderRadius: '10px', fontWeight: 600 }}
+                                >
+                                    <MenuItem value="all">💳 Tất cả thanh toán</MenuItem>
+                                    <MenuItem value="Đã thanh toán đủ">✅ Đã thanh toán đủ</MenuItem>
+                                    <MenuItem value="Đang thanh toán">⏳ Đang thanh toán (còn nợ)</MenuItem>
+                                    <MenuItem value="Chưa thanh toán">❌ Chưa thanh toán</MenuItem>
+                                </Select>
+                            </FormControl>
+
+                            {/* Reset filter button */}
+                            {(scheduleSearch || selectedScheduleFilter !== 'all' || selectedPaymentFilter !== 'all') && (
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => {
+                                        setScheduleSearch('');
+                                        setSelectedScheduleFilter('all');
+                                        setSelectedPaymentFilter('all');
+                                    }}
+                                    sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700, borderColor: '#cbd5e1', color: '#64748b' }}
+                                >
+                                    Đặt lại
+                                </Button>
+                            )}
+                        </Stack>
+                    </div>
+
+                    {/* Scheduled Contracts Table */}
+                    {filteredScheduledContracts.length === 0 ? (
+                        <Box p={5} textAlign="center" color="#94a3b8" bgcolor="#f8fafc" borderRadius="14px" border="1px dashed #cbd5e1">
+                            <EventAvailableIcon sx={{ fontSize: '3rem', color: '#cbd5e1', mb: 1 }} />
+                            <Typography variant="body1" fontWeight={700} color="#64748b">
+                                Không tìm thấy hợp đồng nào có lịch trong kỳ phù hợp với bộ lọc
+                            </Typography>
+                            <Typography variant="caption" color="#94a3b8">
+                                Hãy thử thay đổi loại lịch, trạng thái thanh toán hoặc từ khóa tìm kiếm
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <TableContainer sx={{ border: '1px solid #e2e8f0', borderRadius: '14px', overflowX: 'auto' }}>
+                            <Table size="small">
+                                <TableHead sx={{ bgcolor: '#f8fafc' }}>
+                                    <TableRow>
+                                        <TableCell align="center" sx={{ fontWeight: 800, width: 60 }}>STT</TableCell>
+                                        <TableCell sx={{ fontWeight: 800, minWidth: 150 }}>Mã HĐ & Ngày Ký</TableCell>
+                                        <TableCell sx={{ fontWeight: 800, minWidth: 200 }}>Khách Hàng</TableCell>
+                                        <TableCell sx={{ fontWeight: 800, minWidth: 260 }}>Lịch Thực Hiện Trong Kỳ</TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 800, minWidth: 140 }}>Doanh Số HĐ</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 800, minWidth: 180 }}>Tiến Độ Thanh Toán</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 800, minWidth: 130 }}>Trạng Thái</TableCell>
+                                        <TableCell sx={{ fontWeight: 800, minWidth: 140 }}>Nhân Viên Sale</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {filteredScheduledContracts.map((hd, idx) => {
+                                        const val = Number(hd.thanhToan?.tongGiaTriSauGiam ?? hd.thanhToan?.tongGiaTri ?? hd.tongTien ?? hd.giaTriHopDong ?? 0);
+                                        const paid = Number(hd.thanhToan?.khachHangDaThanhToan ?? 0);
+                                        const debt = Number(hd.thanhToan?.conLai ?? Math.max(0, val - paid));
+                                        const percentPaid = val > 0 ? Math.min(100, Math.round((paid / val) * 100)) : 0;
+                                        const cust = hd.khachHang1 || {};
+                                        const payStatus = hd.thanhToan?.trangThaiThanhToan || (debt === 0 ? 'Đã thanh toán đủ' : paid > 0 ? 'Đang thanh toán' : 'Chưa thanh toán');
+
+                                        return (
+                                            <TableRow
+                                                key={hd._id || hd.maHopDong || idx}
+                                                sx={{
+                                                    '&:hover': { bgcolor: '#f8fafc' },
+                                                    transition: 'background-color 0.15s ease'
+                                                }}
+                                            >
+                                                {/* STT */}
+                                                <TableCell align="center" sx={{ fontWeight: 700, color: '#64748b' }}>
+                                                    {idx + 1}
+                                                </TableCell>
+
+                                                {/* Mã HĐ & Ngày Ký */}
+                                                <TableCell>
+                                                    <Typography variant="body2" sx={{ fontWeight: 800, color: '#1e40af' }}>
+                                                        {hd.maHopDong}
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: '#64748b' }}>
+                                                        Ký: {formatDateOnly(hd.ngayHopDong)}
+                                                    </Typography>
+                                                </TableCell>
+
+                                                {/* Khách hàng */}
+                                                <TableCell>
+                                                    <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                                                        {cust.tenKhachHang || ('Khách hàng ' + hd.maHopDong)}
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                        <CallIcon sx={{ fontSize: '0.75rem' }} /> {cust.soDienThoai || '-'}
+                                                        {cust.diaChi && cust.diaChi !== '-' ? ` • ${cust.diaChi}` : ''}
+                                                    </Typography>
+                                                </TableCell>
+
+                                                {/* Lịch Trong Kỳ */}
+                                                <TableCell>
+                                                    <div className="schedule-badges-wrapper">
+                                                        {hd.matchedSchedules && hd.matchedSchedules.length > 0 ? (
+                                                            hd.matchedSchedules.map((s, sIdx) => (
+                                                                <span key={sIdx} className={`schedule-badge-item ${s.className || 'badge-ngayChup'}`}>
+                                                                    <span className="schedule-badge-icon">{s.icon}</span>
+                                                                    <span className="schedule-badge-label">{s.label}:</span>
+                                                                    <span className="schedule-badge-date">{formatDateOnly(s.date)}</span>
+                                                                </span>
+                                                            ))
+                                                        ) : (
+                                                            <Typography variant="caption" color="#94a3b8">Không có lịch trong kỳ</Typography>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+
+                                                {/* Doanh Số HĐ */}
+                                                <TableCell align="right">
+                                                    <Typography variant="body2" sx={{ fontWeight: 800, color: '#16a34a' }}>
+                                                        {formatCurrency(val)}
+                                                    </Typography>
+                                                </TableCell>
+
+                                                {/* Tiến Độ Thanh Toán */}
+                                                <TableCell align="center">
+                                                    <Box sx={{ width: '100%', minWidth: 140 }}>
+                                                        <Box display="flex" justifyContent="space-between" mb={0.3}>
+                                                            <Typography variant="caption" sx={{ fontWeight: 700, color: '#0284c7' }}>
+                                                                Thu: {formatShortCurrency(paid)}
+                                                            </Typography>
+                                                            <Typography variant="caption" sx={{ fontWeight: 800, color: debt > 0 ? '#ea580c' : '#16a34a' }}>
+                                                                {percentPaid}%
+                                                            </Typography>
+                                                        </Box>
+                                                        <LinearProgress
+                                                            variant="determinate"
+                                                            value={percentPaid}
+                                                            sx={{
+                                                                height: 6,
+                                                                borderRadius: 3,
+                                                                bgcolor: '#e2e8f0',
+                                                                '& .MuiLinearProgress-bar': {
+                                                                    bgcolor: percentPaid >= 100 ? '#16a34a' : percentPaid >= 50 ? '#0284c7' : '#f59e0b'
+                                                                }
+                                                            }}
+                                                        />
+                                                        {debt > 0 && (
+                                                            <Typography variant="caption" sx={{ color: '#ea580c', fontWeight: 600, display: 'block', mt: 0.2 }}>
+                                                                Còn nợ: {formatShortCurrency(debt)}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                </TableCell>
+
+                                                {/* Trạng Thái Thanh Toán */}
+                                                <TableCell align="center">
+                                                    <Chip
+                                                        label={payStatus}
+                                                        size="small"
+                                                        sx={{
+                                                            fontWeight: 700,
+                                                            fontSize: '0.75rem',
+                                                            bgcolor: payStatus === 'Đã thanh toán đủ' ? '#dcfce7' : payStatus === 'Đang thanh toán' ? '#fef3c7' : '#fee2e2',
+                                                            color: payStatus === 'Đã thanh toán đủ' ? '#15803d' : payStatus === 'Đang thanh toán' ? '#b45309' : '#b91c1c',
+                                                            border: payStatus === 'Đã thanh toán đủ' ? '1px solid #86efac' : payStatus === 'Đang thanh toán' ? '1px solid #fcd34d' : '1px solid #fca5a5'
+                                                        }}
+                                                    />
+                                                </TableCell>
+
+                                                {/* Nhân Viên Sale */}
+                                                <TableCell>
+                                                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                                                        {hd.nguoiPhucVu?.banHang || 'Chưa phân công'}
+                                                    </Typography>
+                                                    {hd.nguoiPhucVu?.chupAnh && (
+                                                        <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
+                                                            Thợ: {hd.nguoiPhucVu.chupAnh}
+                                                        </Typography>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
+                </div>
+            )}
+
+            {/* TAB 2: MULTI-CYCLE COMPARISON TABLE (TUẦN, THÁNG, QUÝ, NĂM) */}
+            {activeTab === 2 && (
                 <div className="dashboard-section-card">
                     <h3 className="section-header-title">
                         <CompareArrowsIcon style={{ color: '#0284c7' }} />
@@ -1413,10 +2060,10 @@ function DoanhThu() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 1. Tổng số hợp đồng */}
+                                {/* 1. Tổng số hợp đồng ký */}
                                 <tr>
                                     <td>
-                                        <strong style={{ color: '#2563eb' }}>📝 Tổng số hợp đồng</strong>
+                                        <strong style={{ color: '#2563eb' }}>📝 Số HĐ ký trong kỳ</strong>
                                     </td>
                                     <td>
                                         <div><strong>{overview.week?.current?.soLuongHopDong || 0} HĐ</strong> (trước: {overview.week?.previous?.soLuongHopDong || 0})</div>
@@ -1436,10 +2083,10 @@ function DoanhThu() {
                                     </td>
                                 </tr>
 
-                                {/* 2. Tổng doanh số hợp đồng */}
+                                {/* 2. Tổng doanh số hợp đồng ký */}
                                 <tr>
                                     <td>
-                                        <strong style={{ color: '#16a34a' }}>💰 Tổng doanh số hợp đồng</strong>
+                                        <strong style={{ color: '#16a34a' }}>💰 Doanh số ký trong kỳ</strong>
                                     </td>
                                     <td>
                                         <div><strong>{formatCurrency(overview.week?.current?.tongTienHopDong)}</strong></div>
@@ -1459,7 +2106,53 @@ function DoanhThu() {
                                     </td>
                                 </tr>
 
-                                {/* 3. Tổng tiền đã thu */}
+                                {/* 3. Số HĐ có lịch thực hiện */}
+                                <tr style={{ backgroundColor: '#faf5ff' }}>
+                                    <td>
+                                        <strong style={{ color: '#9333ea' }}>📅 Số HĐ có lịch trong kỳ</strong>
+                                    </td>
+                                    <td>
+                                        <div><strong>{overview.week?.current?.soLuongHopDongTheoLich || 0} HĐ</strong> (trước: {overview.week?.previous?.soLuongHopDongTheoLich || 0})</div>
+                                        <div>{renderGrowthBadge(overview.week?.comparison?.soLuongHopDongTheoLich)}</div>
+                                    </td>
+                                    <td>
+                                        <div><strong>{overview.month?.current?.soLuongHopDongTheoLich || 0} HĐ</strong> (trước: {overview.month?.previous?.soLuongHopDongTheoLich || 0})</div>
+                                        <div>{renderGrowthBadge(overview.month?.comparison?.soLuongHopDongTheoLich)}</div>
+                                    </td>
+                                    <td>
+                                        <div><strong>{overview.quarter?.current?.soLuongHopDongTheoLich || 0} HĐ</strong> (trước: {overview.quarter?.previous?.soLuongHopDongTheoLich || 0})</div>
+                                        <div>{renderGrowthBadge(overview.quarter?.comparison?.soLuongHopDongTheoLich)}</div>
+                                    </td>
+                                    <td>
+                                        <div><strong>{overview.year?.current?.soLuongHopDongTheoLich || 0} HĐ</strong> (trước: {overview.year?.previous?.soLuongHopDongTheoLich || 0})</div>
+                                        <div>{renderGrowthBadge(overview.year?.comparison?.soLuongHopDongTheoLich)}</div>
+                                    </td>
+                                </tr>
+
+                                {/* 4. Doanh số theo lịch trong kỳ */}
+                                <tr style={{ backgroundColor: '#faf5ff' }}>
+                                    <td>
+                                        <strong style={{ color: '#9333ea' }}>🎯 Doanh số theo lịch trong kỳ</strong>
+                                    </td>
+                                    <td>
+                                        <div><strong>{formatCurrency(overview.week?.current?.tongDoanhSoTheoLich)}</strong></div>
+                                        <div>{renderGrowthBadge(overview.week?.comparison?.tongDoanhSoTheoLich)}</div>
+                                    </td>
+                                    <td>
+                                        <div><strong>{formatCurrency(overview.month?.current?.tongDoanhSoTheoLich)}</strong></div>
+                                        <div>{renderGrowthBadge(overview.month?.comparison?.tongDoanhSoTheoLich)}</div>
+                                    </td>
+                                    <td>
+                                        <div><strong>{formatCurrency(overview.quarter?.current?.tongDoanhSoTheoLich)}</strong></div>
+                                        <div>{renderGrowthBadge(overview.quarter?.comparison?.tongDoanhSoTheoLich)}</div>
+                                    </td>
+                                    <td>
+                                        <div><strong>{formatCurrency(overview.year?.current?.tongDoanhSoTheoLich)}</strong></div>
+                                        <div>{renderGrowthBadge(overview.year?.comparison?.tongDoanhSoTheoLich)}</div>
+                                    </td>
+                                </tr>
+
+                                {/* 5. Tổng tiền đã thu */}
                                 <tr>
                                     <td>
                                         <strong style={{ color: '#0891b2' }}>📥 Tổng tiền đã thu</strong>
@@ -1478,7 +2171,7 @@ function DoanhThu() {
                                     </td>
                                 </tr>
 
-                                {/* 4. Tổng tiền khách hàng còn nợ */}
+                                {/* 6. Tổng tiền khách hàng còn nợ */}
                                 <tr>
                                     <td>
                                         <strong style={{ color: '#ea580c' }}>⚠️ Khách hàng còn nợ</strong>
@@ -1497,7 +2190,7 @@ function DoanhThu() {
                                     </td>
                                 </tr>
 
-                                {/* 5. Tổng tiền chi */}
+                                {/* 7. Tổng tiền chi */}
                                 <tr>
                                     <td>
                                         <strong style={{ color: '#dc2626' }}>💸 Tổng tiền chi</strong>
@@ -1520,7 +2213,7 @@ function DoanhThu() {
                                     </td>
                                 </tr>
 
-                                {/* 6. Lãi Ròng */}
+                                {/* 8. Lãi Ròng */}
                                 <tr>
                                     <td>
                                         <strong style={{ color: '#7c3aed' }}>📈 Lãi Ròng</strong>
@@ -1548,8 +2241,8 @@ function DoanhThu() {
                 </div>
             )}
 
-            {/* TAB 2: SALES STAFF RANKINGS */}
-            {activeTab === 2 && (
+            {/* TAB 3: SALES STAFF RANKINGS */}
+            {activeTab === 3 && (
                 <div className="dashboard-section-card">
                     <h3 className="section-header-title">
                         <EmojiEventsIcon style={{ color: '#f59e0b' }} />
@@ -1609,8 +2302,8 @@ function DoanhThu() {
                 </div>
             )}
 
-            {/* TAB 3: TOP CUSTOMERS WITH MOST SERVICES */}
-            {activeTab === 3 && (
+            {/* TAB 4: TOP CUSTOMERS WITH MOST SERVICES */}
+            {activeTab === 4 && (
                 <div className="dashboard-section-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
                         <div>
@@ -1808,16 +2501,16 @@ function DoanhThu() {
                                                         {cust.services && cust.services.length > 0 ? (
                                                             cust.services.map((s, sIdx) => (
                                                                 <Chip
-                                                                    key={sIdx}
-                                                                    label={s}
-                                                                    size="small"
-                                                                    sx={{
-                                                                        fontSize: '0.72rem',
-                                                                        height: '22px',
-                                                                        bgcolor: '#f1f5f9',
-                                                                        color: '#334155',
-                                                                        fontWeight: 600
-                                                                    }}
+                                                                  key={sIdx}
+                                                                  label={s}
+                                                                  size="small"
+                                                                  sx={{
+                                                                      fontSize: '0.72rem',
+                                                                      height: '22px',
+                                                                      bgcolor: '#f1f5f9',
+                                                                      color: '#334155',
+                                                                      fontWeight: 600
+                                                                  }}
                                                                 />
                                                             ))
                                                         ) : (

@@ -1,38 +1,14 @@
 /* ==== BÁO CÁO KINH DOANH & TÀI CHÍNH LONG WEDDING ==== */
 
 .DoanhThu-container {
-    padding: 10px 14px 80px 14px;
+    padding: 0 0 40px 0;
     background-color: transparent;
-    height: calc(100vh - 85px);
-    max-height: calc(100vh - 85px);
-    overflow-y: auto !important;
-    overflow-x: hidden;
+    height: auto;
+    overflow: visible;
     flex: 1 1 auto;
-    min-height: 0 !important;
     box-sizing: border-box;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #1e293b;
-    scroll-behavior: smooth;
-}
-
-/* Custom Scrollbar for DoanhThu Container */
-.DoanhThu-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.DoanhThu-container::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 6px;
-}
-
-.DoanhThu-container::-webkit-scrollbar-thumb {
-    background: #94a3b8;
-    border-radius: 6px;
-    border: 2px solid #f1f5f9;
-}
-
-.DoanhThu-container::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
 }
 
 /* Header & Controls */
@@ -93,7 +69,7 @@
 
 
 
-/* 6 Core Financial Metric Cards */
+/* 6 & 7 Core Financial Metric Cards */
 .metrics-grid-6 {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
@@ -101,13 +77,30 @@
     margin-bottom: 22px;
 }
 
-@media (max-width: 1500px) {
+.metrics-grid-7 {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+@media (max-width: 1600px) {
+    .metrics-grid-7 {
+        grid-template-columns: repeat(4, 1fr);
+    }
     .metrics-grid-6 {
         grid-template-columns: repeat(3, 1fr);
     }
 }
 
+@media (max-width: 1200px) {
+    .metrics-grid-7 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
 @media (max-width: 900px) {
+    .metrics-grid-7,
     .metrics-grid-6 {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -117,6 +110,7 @@
 }
 
 @media (max-width: 600px) {
+    .metrics-grid-7,
     .metrics-grid-6 {
         grid-template-columns: 1fr;
     }
@@ -202,7 +196,7 @@
 }
 
 .metric-value {
-    font-size: 1.45rem;
+    font-size: 1.4rem;
     font-weight: 800;
     color: #0f172a;
     margin: 0 0 6px 0;
@@ -222,6 +216,7 @@
 /* Card Type Accents */
 .metric-contracts .metric-icon-box { background: #eff6ff; color: #2563eb; }
 .metric-contract-value .metric-icon-box { background: #f0fdf4; color: #16a34a; }
+.metric-scheduled .metric-icon-box { background: #faf5ff; color: #9333ea; }
 .metric-collected .metric-icon-box { background: #ecfeff; color: #0891b2; }
 .metric-debt .metric-icon-box { background: #fff7ed; color: #ea580c; }
 .metric-expenses .metric-icon-box { background: #fef2f2; color: #dc2626; }
@@ -283,6 +278,66 @@
 
 .comparison-table tr:last-child td {
     border-bottom: none;
+}
+
+/* Schedule Badges */
+.schedule-badge-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.badge-ngayChup {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.badge-ngayAnHoi {
+    background-color: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.badge-ngayCuoi {
+    background-color: #fce7f3;
+    color: #be185d;
+    border: 1px solid #fbcfe8;
+}
+
+.badge-ngayChinhAnh {
+    background-color: #f3e8ff;
+    color: #7e22ce;
+    border: 1px solid #e9d5ff;
+}
+
+.badge-ngayTraAnh {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.badge-ngayChuyenInAnh {
+    background-color: #ede9fe;
+    color: #6d28d9;
+    border: 1px solid #ddd6fe;
+}
+
+.badge-ngayMuonDo {
+    background-color: #ffedd5;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+}
+
+.badge-ngayTraDo {
+    background-color: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
 }
 
 /* Custom Scrollbar */

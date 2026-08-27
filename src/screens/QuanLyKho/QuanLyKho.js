@@ -482,24 +482,31 @@ const QuanLyKho = () => {
                     textColor="primary"
                     indicatorColor="primary"
                     variant={isMobile ? "scrollable" : "standard"}
+                    sx={{
+                        minHeight: '38px',
+                        '& .MuiTabs-indicator': {
+                            height: '3px',
+                            borderRadius: '3px 3px 0 0',
+                        }
+                    }}
                 >
                     <Tab 
-                        icon={<i className="fa-solid fa-boxes-packing" style={{ marginRight: 6, color: '#0284c7' }}></i>}
+                        icon={<i className="fa-solid fa-boxes-packing" style={{ marginRight: 6, color: '#0284c7', fontSize: '0.88rem' }}></i>}
                         iconPosition="start"
                         label="👗 Kho Sản Phẩm & Gói Dịch Vụ" 
-                        sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.95rem' }} 
+                        sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.86rem', minHeight: '38px', py: 0.6, px: 1.8 }} 
                     />
                     <Tab 
-                        icon={<i className="fa-solid fa-file-signature" style={{ marginRight: 6, color: '#9333ea' }}></i>}
+                        icon={<i className="fa-solid fa-file-signature" style={{ marginRight: 6, color: '#9333ea', fontSize: '0.88rem' }}></i>}
                         iconPosition="start"
                         label="💎 Danh Mục Loại Hợp Đồng" 
-                        sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.95rem' }} 
+                        sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.86rem', minHeight: '38px', py: 0.6, px: 1.8 }} 
                     />
                     <Tab 
-                        icon={<i className="fa-solid fa-store" style={{ marginRight: 6, color: '#059669' }}></i>}
+                        icon={<i className="fa-solid fa-store" style={{ marginRight: 6, color: '#059669', fontSize: '0.88rem' }}></i>}
                         iconPosition="start"
                         label="🏪 Danh Sách Shop Mua Hàng" 
-                        sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.95rem' }} 
+                        sx={{ fontWeight: 700, textTransform: 'none', fontSize: '0.86rem', minHeight: '38px', py: 0.6, px: 1.8 }} 
                     />
                 </Tabs>
             </div>
@@ -554,7 +561,7 @@ const QuanLyKho = () => {
                                 color="success"
                                 startIcon={<FileDownloadOutlinedIcon />}
                                 onClick={() => exportServicesToExcel(filteredServices)}
-                                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, height: 38 }}
+                                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, height: 36 }}
                             >
                                 Xuất Excel
                             </Button>
@@ -565,7 +572,7 @@ const QuanLyKho = () => {
                                 color="primary"
                                 startIcon={<FileUploadOutlinedIcon />}
                                 onClick={() => setOpenImportExcelDialog(true)}
-                                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, height: 38 }}
+                                sx={{ fontWeight: 700, textTransform: 'none', borderRadius: 2, height: 36 }}
                             >
                                 Nhập Excel
                             </Button>
@@ -573,9 +580,9 @@ const QuanLyKho = () => {
                     </div>
 
                     <Paper elevation={0} className="warehouse-table-container glass-panel">
-                        <TableContainer sx={{ maxHeight: 'calc(100vh - 360px)' }}>
+                        <TableContainer className="warehouse-table-scroll" sx={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', overflowX: 'auto' }}>
                             <Table stickyHeader size="small">
-                                <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.8 } }}>
+                                <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.2, borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' } }}>
                                     <TableRow>
                                         <TableCell align="center" style={{ width: '50px' }}>STT</TableCell>
                                         <TableCell style={{ width: '130px' }}>MÃ DỊCH VỤ</TableCell>
@@ -667,9 +674,9 @@ const QuanLyKho = () => {
                     </div>
 
                     <Paper elevation={0} className="warehouse-table-container glass-panel">
-                        <TableContainer sx={{ maxHeight: 'calc(100vh - 360px)' }}>
+                        <TableContainer className="warehouse-table-scroll" sx={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', overflowX: 'auto' }}>
                             <Table stickyHeader size="small">
-                                <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.8 } }}>
+                                <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.2, borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' } }}>
                                     <TableRow>
                                         <TableCell align="center" style={{ width: '60px' }}>STT</TableCell>
                                         <TableCell style={{ width: '120px' }}>MÃ ID</TableCell>
@@ -680,7 +687,7 @@ const QuanLyKho = () => {
                                 <TableBody>
                                     {contractTypes
                                         .filter(item => 
-                                            !contractTypeKeyword || 
+                                             !contractTypeKeyword || 
                                             item.name.toLowerCase().includes(contractTypeKeyword.toLowerCase()) ||
                                             String(item.id).includes(contractTypeKeyword)
                                         )
@@ -751,9 +758,9 @@ const QuanLyKho = () => {
                     </div>
 
                     <Paper elevation={0} className="warehouse-table-container glass-panel">
-                        <TableContainer sx={{ maxHeight: 'calc(100vh - 360px)' }}>
+                        <TableContainer className="warehouse-table-scroll" sx={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', overflowX: 'auto' }}>
                             <Table stickyHeader size="small">
-                                <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.8 } }}>
+                                <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.2, borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' } }}>
                                     <TableRow>
                                         <TableCell align="center" style={{ width: '50px' }}>STT</TableCell>
                                         <TableCell style={{ width: '220px' }}>TÊN SHOP MUA HÀNG</TableCell>

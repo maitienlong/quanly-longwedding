@@ -173,9 +173,12 @@ function DetailHopDongKhachHangDialog(props) {
     const [newKichThuoc, setNewKichThuoc] = useState("");
     const [newSoLuong, setNewSoLuong] = useState(1);
 
-    // state cho giảm giá
+    // state cho giảm giá & voucher
     const [giamGia, setGiamGia] = useState(0);
     const [loaiGiamGia, setLoaiGiamGia] = useState(0); // "VND" hoặc "%"
+    const [voucherCode, setVoucherCode] = useState("");
+    const [voucherGiamGia, setVoucherGiamGia] = useState(0);
+    const [voucherId, setVoucherId] = useState(null);
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
     const [openSepayDialog, setOpenSepayDialog] = useState(false);
@@ -315,6 +318,9 @@ function DetailHopDongKhachHangDialog(props) {
             setGioHang(data.gioHang || []);
             setGiamGia(data.thanhToan?.giamGia || 0);
             setLoaiGiamGia(data.thanhToan?.loaiGiamGia || 0);
+            setVoucherCode(data.thanhToan?.voucherCode || "");
+            setVoucherGiamGia(data.thanhToan?.voucherGiamGia || 0);
+            setVoucherId(data.thanhToan?.voucherId || null);
             setKhachThanhToanTruoc(0);
             setMethodPayment("Tiền mặt");
             setNoiDungPayment("Thanh toán thêm");
@@ -358,6 +364,9 @@ function DetailHopDongKhachHangDialog(props) {
             setDichVuChinh(0);
             setGioHang([]);
             setGiamGia(0);
+            setVoucherCode("");
+            setVoucherGiamGia(0);
+            setVoucherId(null);
             setKhachThanhToanTruoc(0);
             setAlbumData(null);
             setLinkAnhGoc("");
@@ -604,6 +613,11 @@ function DetailHopDongKhachHangDialog(props) {
             tongSauGiam = tongGoc - giamGia;
         }
 
+        const vDiscount = Number(voucherGiamGia) || 0;
+        if (vDiscount > 0) {
+            tongSauGiam -= vDiscount;
+        }
+
         return tongSauGiam < 0 ? 0 : tongSauGiam;
     };
 
@@ -813,6 +827,9 @@ function DetailHopDongKhachHangDialog(props) {
                 return {
                     giamGia: giamGia,
                     loaiGiamGia: loaiGiamGia,
+                    voucherCode: voucherCode || data?.thanhToan?.voucherCode || "",
+                    voucherGiamGia: voucherGiamGia || data?.thanhToan?.voucherGiamGia || 0,
+                    voucherId: voucherId || data?.thanhToan?.voucherId || undefined,
                     cacLuotThanhToan: cacLuotThanhToan
                 };
             })(),
@@ -2068,6 +2085,13 @@ function DetailHopDongKhachHangDialog(props) {
                                             <span>Sau giảm giá:</span>
                                             <b>{tongTien.toLocaleString("vi-VN")} đ</b>
                                         </div>
+
+                                        {(voucherCode || data?.thanhToan?.voucherCode) && (
+                                            <div className="hd-pay-row" style={{ color: '#15803d', fontSize: '0.78rem' }}>
+                                                <span>↳ Voucher (<strong>{voucherCode || data?.thanhToan?.voucherCode}</strong>):</span>
+                                                <b>-{(voucherGiamGia || data?.thanhToan?.voucherGiamGia || 0).toLocaleString("vi-VN")} đ</b>
+                                            </div>
+                                        )}
 
                                         <div className="hd-pay-row" style={{ color: '#16a34a' }}>
                                             <span>Đã thanh toán:</span>

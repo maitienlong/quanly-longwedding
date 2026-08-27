@@ -11,6 +11,7 @@ import QuanLyKho from "../screens/QuanLyKho/QuanLyKho";
 import QuanLyNhanVien from "../screens/QuanLyNhanVien/QuanLyNhanVien";
 import QuanLyKhachHang from "../screens/QuanLyKhachHang/QuanLyKhachHang";
 import QuanLyWebsite from "../screens/QuanLyWebsite/QuanLyWebsite";
+import QuanLyVoucher from "../screens/QuanLyVoucher/QuanLyVoucher";
 import SystemLogs from "../screens/SystemLogs/SystemLogs";
 import ThiDua from "../screens/ThiDua/ThiDua";
 import CauHinh from "../screens/CauHinh/CauHinh";
@@ -348,7 +349,22 @@ function MainV2() {
                                     </Link>
                                 </li>
 
-                                {/* 10. Nhật ký hệ thống */}
+                                {/* 10. Quản lý Voucher */}
+                                <li className="sapo-nav-item">
+                                    <Link 
+                                        to="/quanlyvoucher" 
+                                        className={`sapo-nav-link ${currentPath === '/quanlyvoucher' ? 'active' : ''}`}
+                                        onClick={() => setIsMenuOpen(false)}
+                                        title="Quản lý Voucher & Khuyến mãi"
+                                    >
+                                        <span className="sapo-item-icon" style={{ color: '#f59e0b' }}>
+                                            <i className="fa-solid fa-ticket"></i>
+                                        </span>
+                                        {!isCollapsed && <span className="sapo-item-title">Quản lý Voucher</span>}
+                                    </Link>
+                                </li>
+
+                                {/* 11. Nhật ký hệ thống */}
                                 <li className="sapo-nav-item">
                                     <Link 
                                         to="/system-logs" 
@@ -448,6 +464,7 @@ function MainV2() {
                     <Route path="/quanlykho" element={isAdmin ? <QuanLyKho /> : <Navigate to="/" replace />} />
                     <Route path="/quanlykhachhang" element={isAdmin ? <QuanLyKhachHang /> : <Navigate to="/" replace />} />
                     <Route path="/quanlywebsite" element={isAdmin ? <QuanLyWebsite /> : <Navigate to="/" replace />} />
+                    <Route path="/quanlyvoucher" element={isAdmin ? <QuanLyVoucher /> : <Navigate to="/" replace />} />
                     <Route path="/quanlynhanvien" element={isAdmin ? <QuanLyNhanVien /> : <Navigate to="/" replace />} />
                     <Route path="/system-logs" element={isAdmin ? <SystemLogs /> : <Navigate to="/" replace />} />
                 </Routes>

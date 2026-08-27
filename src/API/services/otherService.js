@@ -57,7 +57,19 @@ const appService = {
    findAllDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.LIST, params),
    createDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.CREATE, params),
    updateDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.UPDATE, params),
-   removeDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.REMOVE, params)
+   removeDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.REMOVE, params),
+   // VOUCHER CODE
+   findAllVouchers: (params) => axiosClient.post(ENDPOINTS.VOUCHER.LIST, params),
+   createVoucher: (params) => axiosClient.post(ENDPOINTS.VOUCHER.CREATE, params),
+   updateVoucher: (id, params) => axiosClient.put(`${ENDPOINTS.VOUCHER.UPDATE}/${id}`, params),
+   removeVoucher: (id) => axiosClient.delete(`${ENDPOINTS.VOUCHER.REMOVE}/${id}`),
+   toggleVoucherStatus: (id) => axiosClient.post(`${ENDPOINTS.VOUCHER.TOGGLE_STATUS}/${id}`),
+   getVoucherDetail: (id) => axiosClient.get(`${ENDPOINTS.VOUCHER.DETAIL}/${id}`),
+   validateVoucher: (params) => axiosClient.post(ENDPOINTS.VOUCHER.VALIDATE, params),
+   generateBatchCodes: (id, params) => axiosClient.post(`${ENDPOINTS.VOUCHER.GENERATE_CODES}/${id}`, params),
+   getGeneratedCodes: (id, params) => axiosClient.get(`${ENDPOINTS.VOUCHER.CODES}/${id}`, { params }),
+   deleteGeneratedCode: (id, codeId) => axiosClient.delete(`${ENDPOINTS.VOUCHER.CODES}/${id}/${codeId}`)
 };
 
 export default appService;
+

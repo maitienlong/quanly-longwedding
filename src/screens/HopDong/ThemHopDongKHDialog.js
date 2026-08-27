@@ -100,6 +100,12 @@ function ThemHopDongKHDialog(props) {
     const [giamGia, setGiamGia] = useState(0);
     const [loaiGiamGia, setLoaiGiamGia] = useState(0); // 0 = "VND", 1 = "%"
 
+    // Voucher States
+    const [voucherCodeInput, setVoucherCodeInput] = useState("");
+    const [appliedVoucher, setAppliedVoucher] = useState(null);
+    const [openVoucherModal, setOpenVoucherModal] = useState(false);
+    const [activeVouchersList, setActiveVouchersList] = useState([]);
+
     // Search suggestions
     const [searchTerm, setSearchTerm] = useState("");
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -212,7 +218,7 @@ function ThemHopDongKHDialog(props) {
 
     useEffect(() => {
         setTongTien(tinhTongThanhToan());
-    }, [gioHang, giamGia, loaiGiamGia]);
+    }, [gioHang, giamGia, loaiGiamGia, appliedVoucher]);
 
     const suggestions = useMemo(() => {
         const term = searchTerm?.trim();
@@ -356,7 +362,74 @@ function ThemHopDongKHDialog(props) {
         } else {
             tongSauGiam = tongGoc - giamGia;
         }
+
+        if (appliedVoucher?.calculatedDiscount) {
+            tongSauGiam -= appliedVoucher.calculatedDiscount;
+        }
+
         return tongSauGiam < 0 ? 0 : tongSauGiam;
+    };
+
+    const handleApplyVoucher = (codeToApply) => {
+        const code = (codeToApply || voucherCodeInput).trim().toUpperCase();
+        if (!code) {
+            toast.warning("Vui lòng nhập mã Voucher!");
+            return;
+        }
+
+        const tongGocSauGiamMon = gioHang.reduce((sum, item) => {
+            const price = parseFloat(item.giaChoThueDichVu?.toString().replace(/[^0-9.-]+/g, "") || 0);
+            const discountItem = parseFloat(item.giamGiaDichVu || 0);
+            return sum + Math.max(0, (price * (item.soLuong || 0)) - discountItem);
+        }, 0);
+
+        let baseTotal = tongGocSauGiamMon;
+        if (loaiGiamGia === 1) {
+            baseTotal = tongGocSauGiamMon - (tongGocSauGiamMon * (giamGia / 100));
+        } else {
+            baseTotal = tongGocSauGiamMon - giamGia;
+        }
+        baseTotal = Math.max(0, baseTotal);
+
+        otherService.validateVoucher({
+            code,
+            orderTotal: baseTotal,
+            khachHangId: idKH1 || undefined,
+            soDienThoai: phoneKH1 || undefined,
+            dichVuChinh
+        }).then(res => {
+            const voucherData = res.data?.data || res.data;
+            if (voucherData && voucherData.voucher) {
+                const { voucher, discountAmount } = voucherData;
+                setAppliedVoucher({
+                    ...voucher,
+                    calculatedDiscount: discountAmount
+                });
+                setVoucherCodeInput(voucher.code);
+                setOpenVoucherModal(false);
+                toast.success(`Đã áp dụng Voucher "${voucher.code}" (-${discountAmount.toLocaleString('vi-VN')} đ)`);
+            }
+        }).catch(err => {
+            toast.error(err?.response?.data?.message || "Mã Voucher không hợp lệ!");
+        });
+    };
+
+    const handleRemoveVoucher = () => {
+        setAppliedVoucher(null);
+        setVoucherCodeInput("");
+        toast.info("Đã gỡ mã Voucher");
+    };
+
+    const handleOpenSelectVoucherModal = () => {
+        otherService.findAllVouchers({ status: 'active' })
+            .then(res => {
+                const list = res.data?.vouchers || res.vouchers || (Array.isArray(res.data) ? res.data : []);
+                setActiveVouchersList(list);
+                setOpenVoucherModal(true);
+            })
+            .catch(() => {
+                toast.error("Không thể tải danh sách voucher");
+            });
     };
 
     const resetForm = () => {
@@ -399,6 +472,8 @@ function ThemHopDongKHDialog(props) {
         setShowSuggestions(false);
         setGiamGia(0);
         setLoaiGiamGia(0);
+        setVoucherCodeInput("");
+        setAppliedVoucher(null);
         setKhachThanhToan(0);
     };
 
@@ -761,6 +836,9 @@ function ThemHopDongKHDialog(props) {
             thanhToan: {
                 giamGia: giamGia,
                 loaiGiamGia: loaiGiamGia,
+                voucherCode: appliedVoucher?.code || "",
+                voucherId: appliedVoucher?._id || undefined,
+                voucherGiamGia: appliedVoucher?.calculatedDiscount || 0,
                 nhanVien: nhanVienSale,
                 khachThanhToan: {
                     amount: khachThanhToan,
@@ -1782,6 +1860,112 @@ function ThemHopDongKHDialog(props) {
                                         </div>
                                     </div>
 
+                                    {/* Voucher Khuyến Mãi */}
+                                    <div className="hd-form-group" style={{ marginTop: '10px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                            <label className="hd-form-label" style={{ margin: 0 }}>
+                                                <span>🏷️</span> Mã Voucher
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={handleOpenSelectVoucherModal}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: '#d97706',
+                                                    fontSize: '0.74rem',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer',
+                                                    padding: 0
+                                                }}
+                                            >
+                                                + Chọn Voucher
+                                            </button>
+                                        </div>
+
+                                        {!appliedVoucher ? (
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Nhập mã voucher..."
+                                                    value={voucherCodeInput}
+                                                    onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            handleApplyVoucher();
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        flex: 1,
+                                                        height: '32px',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid #cbd5e1',
+                                                        padding: '0 8px',
+                                                        fontSize: '0.82rem',
+                                                        textTransform: 'uppercase',
+                                                        fontWeight: 700,
+                                                        outline: 'none'
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleApplyVoucher()}
+                                                    style={{
+                                                        background: '#0f172a',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        borderRadius: '6px',
+                                                        padding: '0 12px',
+                                                        fontSize: '0.78rem',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    Áp dụng
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                background: '#ecfdf5',
+                                                border: '1.5px dashed #10b981',
+                                                borderRadius: '8px',
+                                                padding: '6px 10px'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span style={{ fontSize: '1rem' }}>🎁</span>
+                                                    <div>
+                                                        <div style={{ fontWeight: 800, color: '#065f46', fontSize: '0.84rem' }}>
+                                                            {appliedVoucher.code}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.72rem', color: '#047857' }}>
+                                                            Giảm -{appliedVoucher.calculatedDiscount?.toLocaleString('vi-VN')} đ
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRemoveVoucher}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        color: '#dc2626',
+                                                        fontSize: '0.9rem',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 800,
+                                                        padding: '2px 6px'
+                                                    }}
+                                                    title="Gỡ voucher"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {/* Bảng tổng kết tài chính */}
                                     <div className="hd-pay-summary-box" style={{ marginTop: '12px' }}>
                                         <div className="hd-pay-row">
@@ -1809,6 +1993,12 @@ function ThemHopDongKHDialog(props) {
                                             <div className="hd-pay-row" style={{ color: '#dc2626', fontSize: '0.76rem', paddingLeft: '8px' }}>
                                                 <span>↳ Giảm giá HĐ:</span>
                                                 <b>-{loaiGiamGia === 1 ? `${giamGia}%` : `${giamGia.toLocaleString("vi-VN")} đ`}</b>
+                                            </div>
+                                        )}
+                                        {appliedVoucher && appliedVoucher.calculatedDiscount > 0 && (
+                                            <div className="hd-pay-row" style={{ color: '#15803d', fontSize: '0.76rem', paddingLeft: '8px' }}>
+                                                <span>↳ Voucher ({appliedVoucher.code}):</span>
+                                                <b>-{appliedVoucher.calculatedDiscount.toLocaleString("vi-VN")} đ</b>
                                             </div>
                                         )}
                                         <div className="hd-pay-row" style={{ borderTop: '1.5px dashed #cbd5e1', paddingTop: '8px', marginTop: '4px', color: '#15803d' }}>
@@ -1930,6 +2120,112 @@ function ThemHopDongKHDialog(props) {
                     }
                 }}
             />
+
+            {/* MODAL CHỌN VOUCHER CÓ SẴN */}
+            <Dialog
+                open={openVoucherModal}
+                onClose={() => setOpenVoucherModal(false)}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{
+                    style: { borderRadius: '16px', padding: '6px' }
+                }}
+            >
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>🏷️</span> Chọn Mã Voucher Ưu Đãi
+                    </div>
+                    <button
+                        onClick={() => setOpenVoucherModal(false)}
+                        style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b' }}
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <div style={{ padding: '16px 20px', maxHeight: '420px', overflowY: 'auto' }}>
+                    {activeVouchersList.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {activeVouchersList.map((v) => {
+                                const isPercent = Number(v.discountType) === 1;
+                                const isCurrent = appliedVoucher?.code === v.code;
+                                return (
+                                    <div
+                                        key={v._id}
+                                        onClick={() => handleApplyVoucher(v.code)}
+                                        style={{
+                                            padding: '12px 14px',
+                                            borderRadius: '10px',
+                                            border: isCurrent ? '2px solid #10b981' : '1px solid #e2e8f0',
+                                            background: isCurrent ? '#f0fdf4' : '#ffffff',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <span style={{
+                                                    fontFamily: 'monospace',
+                                                    fontWeight: 800,
+                                                    background: '#fef3c7',
+                                                    color: '#92400e',
+                                                    padding: '2px 8px',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.85rem'
+                                                }}>
+                                                    {v.code}
+                                                </span>
+                                                <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f172a' }}>
+                                                    {v.title}
+                                                </span>
+                                            </div>
+                                            <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px' }}>
+                                                Giảm: <strong style={{ color: isPercent ? '#7c3aed' : '#059669' }}>
+                                                    {isPercent ? `${v.discountValue}%` : `${v.discountValue?.toLocaleString('vi-VN')} đ`}
+                                                </strong>
+                                                {v.minOrderValue > 0 && ` • Đơn tối thiểu: ${v.minOrderValue.toLocaleString('vi-VN')} đ`}
+                                                {v.endDate && ` • Hạn: ${new Date(v.endDate).toLocaleDateString('vi-VN')}`}
+                                            </div>
+                                        </div>
+                                        <button
+                                            style={{
+                                                padding: '6px 14px',
+                                                borderRadius: '6px',
+                                                border: 'none',
+                                                background: isCurrent ? '#10b981' : '#0f172a',
+                                                color: '#ffffff',
+                                                fontSize: '0.78rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {isCurrent ? 'Đang dùng' : 'Áp dụng'}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div style={{ textAlign: 'center', padding: '30px 10px', color: '#94a3b8' }}>
+                            <p style={{ margin: 0, fontSize: '0.88rem' }}>Không có mã voucher nào đang kích hoạt.</p>
+                        </div>
+                    )}
+                </div>
+
+                <div style={{ padding: '12px 20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setOpenVoucherModal(false)}
+                        style={{ textTransform: 'none', borderRadius: '8px', color: '#64748b', borderColor: '#cbd5e1' }}
+                    >
+                        Đóng
+                    </Button>
+                </div>
+            </Dialog>
         </Dialog>
     );
 }

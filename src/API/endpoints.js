@@ -77,5 +77,17 @@ export const ENDPOINTS = {
     CREATE: "/donViNhanTien/create",
     UPDATE: "/donViNhanTien/update",
     REMOVE: "/donViNhanTien/remove"
+  },
+  VOUCHER: {
+    LIST: "/api/vouchers/list",
+    CREATE: "/api/vouchers/create",
+    UPDATE: "/api/vouchers/update",
+    REMOVE: "/api/vouchers/remove",
+    DETAIL: "/api/vouchers/detail",
+    TOGGLE_STATUS: "/api/vouchers/toggle-status",
+    VALIDATE: "/api/vouchers/validate",
+    GENERATE_CODES: "/api/vouchers/generate-codes",
+    CODES: "/api/vouchers/codes"
   }
 };
+

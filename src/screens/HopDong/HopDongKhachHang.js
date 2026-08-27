@@ -435,7 +435,7 @@ function HopDongKhachHang() {
 
             {/* 4. CONTENT: TABLE OR GRID VIEW */}
             {isMobile ? (
-                <Box sx={{ pb: 10 }}>
+                <Box className="contract-list-scroll" sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pb: 10 }}>
                     {filteredHopDong && filteredHopDong.length > 0 ? (
                         filteredHopDong.map((hd, index) => (
                             <Card 
@@ -524,7 +524,7 @@ function HopDongKhachHang() {
                 </Box>
             ) : viewMode === 'grid' ? (
                 /* ===== DẠNG LƯỚI (GRID VIEW) ===== */
-                <Box sx={{ pb: 12, pt: 1, overflowY: 'auto', maxHeight: 'calc(100vh - 360px)', flexGrow: 1 }}>
+                <Box className="contract-list-scroll" sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5, pb: 4, pt: 0.5 }}>
                     {filteredHopDong && filteredHopDong.length > 0 ? (
                         <Grid container spacing={2.5}>
                             {filteredHopDong.map((hd, index) => {
@@ -743,9 +743,9 @@ function HopDongKhachHang() {
             ) : (
                 /* ===== DẠNG BẢNG (TABLE VIEW) ===== */
                 <Paper elevation={0} className="contract-table-container glass-panel">
-                    <TableContainer sx={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
+                    <TableContainer className="contract-list-scroll" sx={{ flex: 1, minHeight: 0, height: '100%', overflowY: 'auto', overflowX: 'auto' }}>
                         <Table stickyHeader size="small">
-                            <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.8 } }}>
+                            <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.5, zIndex: 3 } }}>
                                 <TableRow>
                                     <TableCell align='center' style={{ minWidth: 50, width: '4%' }}>STT</TableCell>
                                     <TableCell style={{ minWidth: 180, width: '18%' }}>TÊN KHÁCH HÀNG</TableCell>

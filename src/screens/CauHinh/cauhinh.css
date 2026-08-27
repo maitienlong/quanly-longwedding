@@ -3,12 +3,12 @@
    ========================================================= */
 
 .cauhinh-page-container {
-    padding: 16px 20px;
-    height: 100%;
+    padding: 0;
+    height: auto;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    background-color: #f8fafc;
+    overflow: visible;
+    background-color: transparent;
     box-sizing: border-box;
 }
 
