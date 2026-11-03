@@ -4,6 +4,7 @@ export const ENDPOINTS = {
     LOGIN: "/auth/loginUser",
     CREATE: "/auth/createUser",
     UPDATE: "/auth/updateUser",
+    UPDATE_PERMISSIONS: "/auth/updateUserPermissions",
     REMOVE: "/auth/removeUser",
     LIST: "/auth/findUsers"
   },
@@ -14,22 +15,44 @@ export const ENDPOINTS = {
     DELETEHOPDONG: "/hopDong/remove",
     UPDATEPROGRESS: "/hopDong/update-progress",
     PAYHOPDONG: "/hopDong/pay",
-    SEARCH: "/hopDong/search"
+    SEARCH: "/hopDong/search",
+    UPDATE_POST_PRODUCTION: "/hopDong/update-post-production",
+    ADD_ADDON: "/hopDong/add-addon",
+    UPDATE_AUDIT: "/hopDong/update-audit",
+    REMINDERS: "/hopDong/reminders"
   },
   TRANGPHUC: {
-    FINDALLTRANGPHUC: "/trangPhuc/find"
+    FINDALLTRANGPHUC: "/trangPhuc/find",
+    LIST: "/api/trang-phuc/list",
+    CREATE: "/api/trang-phuc/create",
+    UPDATE: "/api/trang-phuc/update",
+    REMOVE: "/api/trang-phuc/remove",
+    CHECK_CONFLICT: "/api/trang-phuc/check-conflict",
+    CALENDAR: "/api/trang-phuc/calendar"
+  },
+  LEAD: {
+    LIST: "/api/leads/list",
+    CREATE: "/api/leads/create",
+    UPDATE: "/api/leads/update",
+    CONVERT: "/api/leads/convert"
   },
   DICHVU: {
     FIND: "/dichVu/findAll",
     CREATE: "/dichVu/create",
     UPDATE: "/dichVu/update",
-    REMOVE: "/dichVu/remove"
-  }, KHACHHANG: {
+    REMOVE: "/dichVu/remove",
+    SYNC_TEMPLATES: "/dichVu/sync-invitation-templates",
+    PHOTO_SIZES_LIST: "/dichVu/photo-sizes/list",
+    PHOTO_SIZES_CREATE: "/dichVu/photo-sizes/create"
+  },
+  KHACHHANG: {
     FIND: "/khachHang/find",
     CREATE: "/khachHang/create",
     UPDATE: "/khachHang/update",
     REMOVE: "/khachHang/remove",
-    GET_FACEBOOK_INFO: "/khachHang/get-facebook-info"
+    GET_FACEBOOK_INFO: "/khachHang/get-facebook-info",
+    LICH_SU_THANH_TOAN: "/khachHang/lich-su-thanh-toan",
+    THONG_KE: "/khachHang/thong-ke"
   },
   CHITIEU: {
     CREATE: "/chiTieu/create",
@@ -47,7 +70,14 @@ export const ENDPOINTS = {
     SYNC: "/api/album/sync",
     LIST: "/api/album/admin/list",
     DETAIL: "/api/album/admin",
-    SETTINGS: "/api/album/admin"
+    SETTINGS: "/api/album/admin",
+    PORTAL: "/api/album/portal"
+  },
+  LOAI_DICHVU: {
+    LIST: "/loaiDichVu/findAll",
+    CREATE: "/loaiDichVu/create",
+    UPDATE: "/loaiDichVu/update",
+    REMOVE: "/loaiDichVu/remove"
   },
   LOAI_HOPDONG: {
     LIST: "/loaiHopDong/findAll",
@@ -70,7 +100,9 @@ export const ENDPOINTS = {
   },
   BAO_CAO: {
     KINH_DOANH: "/api/bao-cao/kinh-doanh",
-    TONG_QUAN: "/api/bao-cao/tong-quan"
+    TONG_QUAN: "/api/bao-cao/tong-quan",
+    LICH_SU_THANH_TOAN: "/api/bao-cao/lich-su-thanh-toan",
+    THONG_KE_KHACH_HANG: "/api/bao-cao/thong-ke-khach-hang"
   },
   DON_VI_NHAN_TIEN: {
     LIST: "/donViNhanTien/findAll",
@@ -90,4 +122,3 @@ export const ENDPOINTS = {
     CODES: "/api/vouchers/codes"
   }
 };
-

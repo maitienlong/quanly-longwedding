@@ -71,7 +71,9 @@
   gap: 4px;
 }
 
-.hd-floating-field input,
+.hd-floating-field > input,
+.hd-floating-field > select,
+.hd-floating-field input:not(.MuiInputBase-input),
 .hd-floating-field select {
   width: 100%;
   padding: 5px 9px;
@@ -85,10 +87,55 @@
   transition: all 0.2s ease;
 }
 
-.hd-floating-field input:focus,
+.hd-floating-field > input:focus,
+.hd-floating-field > select:focus,
+.hd-floating-field input:not(.MuiInputBase-input):focus,
 .hd-floating-field select:focus {
   border-color: #0284c7;
   box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.12);
+}
+
+/* Fix MUI DateTimePicker / TextField inside .hd-floating-field */
+.hd-floating-field .MuiTextField-root {
+  width: 100%;
+}
+
+.hd-floating-field .MuiOutlinedInput-root {
+  border-radius: 6px;
+  background-color: #ffffff;
+}
+
+.hd-floating-field .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
+  border-color: #cbd5e1;
+  border-radius: 6px;
+  transition: border-color 0.2s ease;
+}
+
+.hd-floating-field .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #94a3b8;
+}
+
+.hd-floating-field .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #0284c7;
+  border-width: 1.5px;
+}
+
+.hd-floating-field .MuiInputBase-input {
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  padding: 6.5px 10px !important;
+  font-size: 0.84rem !important;
+  color: #1e293b !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+}
+
+.hd-floating-field .MuiInputAdornment-root .MuiIconButton-root {
+  padding: 4px;
+  color: #64748b;
+  margin-right: -2px;
 }
 
 .hd-lunar-tag {

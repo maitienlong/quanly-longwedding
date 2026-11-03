@@ -5,6 +5,7 @@ import "./addserviceform.css";
 import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
 import { fileToBase64 } from "../utils/fileToBase64.js";
+import { useServiceTypes } from "../../hooks/useServiceTypes";
 
 import Dialog from '@mui/material/Dialog';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
@@ -16,41 +17,10 @@ import AutorenewRoundedIcon from '@mui/icons-material/AutorenewRounded';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
+import PackageDetailsManager from './components/PackageDetailsManager';
+import { migrateLegacyToDetails, validatePackageDetails, clearPackageDraft } from '../../utils/packageDetailsAdapter';
 
-const SERVICE_TYPES = [
-    {
-        id: 1,
-        name: "Trang Phục",
-        prefix: "CLOTHING_",
-        icon: "👗",
-        color: "#9333ea",
-        badgeBg: "#f3e8ff"
-    },
-    {
-        id: 2,
-        name: "Gói Dịch Vụ",
-        prefix: "SERVICE_",
-        icon: "📦",
-        color: "#2563eb",
-        badgeBg: "#dbeafe"
-    },
-    {
-        id: 3,
-        name: "Ảnh (Lab)",
-        prefix: "LAB_",
-        icon: "🖼️",
-        color: "#059669",
-        badgeBg: "#d1fae5"
-    },
-    {
-        id: 4,
-        name: "Trang Điểm",
-        prefix: "MAKEUP_",
-        icon: "💄",
-        color: "#db2777",
-        badgeBg: "#fce7f3"
-    }
-];
+/* Dynamic service types handled via useServiceTypes hook */
 
 const getImageUrl = (url) => {
     if (!url) return "";
@@ -62,9 +32,10 @@ const getImageUrl = (url) => {
 };
 
 function ServiceDetailDialog(props) {
-    const { onClose, data, open } = props;
+    const { onClose, data, open, initialEdit = false } = props;
     const { showLoading, hideLoading } = useLoading();
     const fileInputRef = useRef(null);
+    const { serviceTypes } = useServiceTypes();
 
     const [isEditing, setIsEditing] = useState(false);
 
@@ -80,8 +51,11 @@ function ServiceDetailDialog(props) {
     const [imageBase64, setImageBase64] = useState(null);
     const [loaiDichVu, setLoaiDichVu] = useState(1);
     const [isDragging, setIsDragging] = useState(false);
+    const [packageDetails, setPackageDetails] = useState(null);
 
     // Package parameters states
+    const [soLuongLichChup, setSoLuongLichChup] = useState(0);
+    const [soLuongLichMake, setSoLuongLichMake] = useState(0);
     const [soLuongAnhChinhSua, setSoLuongAnhChinhSua] = useState(0);
     const [soLuongAnh16x21, setSoLuongAnh16x21] = useState(0);
     const [soLuongAnh20x30, setSoLuongAnh20x30] = useState(0);
@@ -98,7 +72,7 @@ function ServiceDetailDialog(props) {
     // Load initial data when dialog opens or data changes
     useEffect(() => {
         if (data) {
-            setIsEditing(false);
+            setIsEditing(Boolean(initialEdit));
             setName(data.tenDichVu || '');
             setPriceRaw(data.giaTriDichVu || '');
             setPriceDisplay(data.giaTriDichVu ? formatCurrency(data.giaTriDichVu) : '');
@@ -111,6 +85,8 @@ function ServiceDetailDialog(props) {
             setLoaiDichVu(Number(data.loaiDichVu) || 1);
 
             // Package parameters
+            setSoLuongLichChup(data.soLuongLichChup !== undefined ? Number(data.soLuongLichChup) : (Number(data.loaiDichVu) === 2 ? 1 : 0));
+            setSoLuongLichMake(data.soLuongLichMake !== undefined ? Number(data.soLuongLichMake) : (Number(data.loaiDichVu) === 4 ? 1 : 0));
             setSoLuongAnhChinhSua(data.soLuongAnhChinhSua || 0);
             setSoLuongAnh16x21(data.soLuongAnh16x21 || 0);
             setSoLuongAnh20x30(data.soLuongAnh20x30 || 0);
@@ -123,8 +99,9 @@ function ServiceDetailDialog(props) {
             setTrangPhucVayCuoiNgayCuoi(data.trangPhucVayCuoiNgayCuoi || '');
             setTrangPhucVestChuReNgayCuoi(data.trangPhucVestChuReNgayCuoi || '');
             setHoaCamTay(data.hoaCamTay || '');
+            setPackageDetails(migrateLegacyToDetails(data));
         }
-    }, [data, open]);
+    }, [data, open, initialEdit]);
 
     const handlePriceChange = (e) => {
         const raw = parseCurrency(e.target.value);
@@ -193,7 +170,12 @@ function ServiceDetailDialog(props) {
     };
 
     const handleUpdate = (e) => {
-        e.preventDefault();
+        if (e && e.preventDefault) {
+            e.preventDefault();
+        }
+        if (e && e.stopPropagation) {
+            e.stopPropagation();
+        }
 
         if (!name || !name.trim()) {
             toast.error("Vui lòng nhập tên dịch vụ!");
@@ -203,6 +185,14 @@ function ServiceDetailDialog(props) {
         if (!priceRaw || Number(priceRaw) <= 0) {
             toast.error("Giá dịch vụ không hợp lệ!");
             return;
+        }
+
+        if (Number(loaiDichVu) === 2 && packageDetails) {
+            const validation = validatePackageDetails(packageDetails);
+            if (!validation.isValid) {
+                toast.error("Thông số gói không hợp lệ: " + validation.errors.join("; "));
+                return;
+            }
         }
 
         showLoading("Đang cập nhật dịch vụ...");
@@ -216,6 +206,9 @@ function ServiceDetailDialog(props) {
             tonKhoDichVu: tonKho ? Number(tonKho) : 0,
             moTaDichVu: description.trim(),
             imageDichVu: imageBase64,
+            details: Number(loaiDichVu) === 2 ? packageDetails : null,
+            soLuongLichChup: Number(loaiDichVu) === 2 ? (Number(soLuongLichChup) || 0) : 0,
+            soLuongLichMake: (Number(loaiDichVu) === 2 || Number(loaiDichVu) === 4) ? (Number(soLuongLichMake) || 0) : 0,
             soLuongAnhChinhSua: Number(loaiDichVu) === 2 ? Number(soLuongAnhChinhSua) || 0 : 0,
             soLuongAnh16x21: Number(loaiDichVu) === 2 ? Number(soLuongAnh16x21) || 0 : 0,
             soLuongAnh20x30: Number(loaiDichVu) === 2 ? Number(soLuongAnh20x30) || 0 : 0,
@@ -230,6 +223,7 @@ function ServiceDetailDialog(props) {
             hoaCamTay: Number(loaiDichVu) === 2 ? hoaCamTay : ""
         })
             .then((response) => {
+                clearPackageDraft(data.maDichVu);
                 toast.success("Cập nhật dịch vụ thành công!");
                 handleClose(true);
             })
@@ -242,8 +236,7 @@ function ServiceDetailDialog(props) {
 
     if (!data) return null;
 
-    const currentTypeObj = SERVICE_TYPES.find(t => t.id === Number(loaiDichVu)) || SERVICE_TYPES[0];
-    const dataTypeObj = SERVICE_TYPES.find(t => t.id === Number(data.loaiDichVu)) || SERVICE_TYPES[0];
+        const dataTypeObj = (serviceTypes || []).find(t => t.id === Number(data.loaiDichVu)) || (serviceTypes && serviceTypes[0]) || { id: 1, name: "Khác", icon: "📦", color: "#2563eb", badgeBg: "#dbeafe" };
 
     return (
         <Dialog 
@@ -286,7 +279,7 @@ function ServiceDetailDialog(props) {
                                     <span>Loại dịch vụ <span className="required-star">*</span></span>
                                 </div>
                                 <div className="service-type-grid">
-                                    {SERVICE_TYPES.map((type) => {
+                                    {(serviceTypes || []).map((type) => {
                                         const isSelected = Number(loaiDichVu) === type.id;
                                         return (
                                             <div
@@ -387,159 +380,18 @@ function ServiceDetailDialog(props) {
                                         </div>
                                     </div>
 
-                                    {Number(loaiDichVu) === 2 && (
-                                        <div className="service-package-box">
-                                            <div className="service-package-header">
-                                                <div className="service-package-title">
-                                                    <LayersOutlinedIcon fontSize="small" style={{ color: '#2563eb' }} />
-                                                    <span>Thông số chi tiết gói dịch vụ</span>
-                                                </div>
-                                                <span className="service-package-tag">Gói Dịch Vụ</span>
-                                            </div>
-
-                                            <div className="service-package-subgrid">
-                                                <div className="service-subgroup-title">📸 Hạng mục Ảnh</div>
-                                                
-                                                <div className="service-input-group">
-                                                    <label>SL ảnh chỉnh sửa</label>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        className="service-custom-input"
-                                                        value={soLuongAnhChinhSua}
-                                                        onChange={(e) => setSoLuongAnhChinhSua(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-input-group">
-                                                    <label>SL ảnh 16x21</label>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        className="service-custom-input"
-                                                        value={soLuongAnh16x21}
-                                                        onChange={(e) => setSoLuongAnh16x21(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-input-group">
-                                                    <label>SL ảnh 20x30</label>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        className="service-custom-input"
-                                                        value={soLuongAnh20x30}
-                                                        onChange={(e) => setSoLuongAnh20x30(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-input-group">
-                                                    <label>SL ảnh 60x90</label>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        className="service-custom-input"
-                                                        value={soLuongAnh60x90}
-                                                        onChange={(e) => setSoLuongAnh60x90(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-subgroup-title">💄 Trang điểm & Bê lễ</div>
-
-                                                <div className="service-input-group">
-                                                    <label>Trang điểm ngày ăn hỏi</label>
-                                                    <input
-                                                        type="text"
-                                                        className="service-custom-input"
-                                                        value={trangDiemNgayAnHoi}
-                                                        onChange={(e) => setTrangDiemNgayAnHoi(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-input-group">
-                                                    <label>Trang điểm ngày cưới</label>
-                                                    <input
-                                                        type="text"
-                                                        className="service-custom-input"
-                                                        value={trangDiemNgayCuoi}
-                                                        onChange={(e) => setTrangDiemNgayCuoi(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-input-group">
-                                                    <label>Trang phục đội bê lễ</label>
-                                                    <input
-                                                        type="text"
-                                                        className="service-custom-input"
-                                                        value={trangPhucChoDoiBeLe}
-                                                        onChange={(e) => setTrangPhucChoDoiBeLe(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-input-group">
-                                                    <label>Hoa cầm tay</label>
-                                                    <input
-                                                        type="text"
-                                                        className="service-custom-input"
-                                                        value={hoaCamTay}
-                                                        onChange={(e) => setHoaCamTay(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-subgroup-title">👗 Trang phục ngày cưới & ăn hỏi</div>
-
-                                                <div className="service-input-group">
-                                                    <label>TP cô dâu ngày ăn hỏi</label>
-                                                    <input
-                                                        type="text"
-                                                        className="service-custom-input"
-                                                        value={trangPhucCoDauNgayAnHoi}
-                                                        onChange={(e) => setTrangPhucCoDauNgayAnHoi(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-input-group">
-                                                    <label>TP chú rể ngày ăn hỏi</label>
-                                                    <input
-                                                        type="text"
-                                                        className="service-custom-input"
-                                                        value={trangPhucChuReNgayAnHoi}
-                                                        onChange={(e) => setTrangPhucChuReNgayAnHoi(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-input-group">
-                                                    <label>Váy cưới ngày cưới (giá trị)</label>
-                                                    <input
-                                                        type="text"
-                                                        className="service-custom-input"
-                                                        value={trangPhucVayCuoiNgayCuoi}
-                                                        onChange={(e) => setTrangPhucVayCuoiNgayCuoi(e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="service-input-group">
-                                                    <label>Vest chú rể ngày cưới</label>
-                                                    <input
-                                                        type="text"
-                                                        className="service-custom-input"
-                                                        value={trangPhucVestChuReNgayCuoi}
-                                                        onChange={(e) => setTrangPhucVestChuReNgayCuoi(e.target.value)}
-                                                    />
-                                                </div>
-                                            </div>
+                                    {/* Mô tả chi tiết nếu KHÔNG PHẢI là gói dịch vụ */}
+                                    {Number(loaiDichVu) !== 2 && (
+                                        <div className="service-input-group">
+                                            <label>Mô tả chi tiết</label>
+                                            <textarea
+                                                rows={4}
+                                                className="service-custom-textarea"
+                                                value={description}
+                                                onChange={(e) => setDescription(e.target.value)}
+                                            />
                                         </div>
                                     )}
-
-                                    <div className="service-input-group">
-                                        <label>Mô tả chi tiết</label>
-                                        <textarea
-                                            rows={4}
-                                            className="service-custom-textarea"
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                        />
-                                    </div>
                                 </div>
 
                                 {/* Right: Image Edit */}
@@ -619,10 +471,40 @@ function ServiceDetailDialog(props) {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Full-width Package Details for Gói Dịch Vụ khi Đang Chỉnh Sửa */}
+                            {Number(loaiDichVu) === 2 && (
+                                <div className="service-package-box service-package-box-full" style={{ marginTop: '18px', padding: '18px' }}>
+                                    <div className="service-package-header" style={{ marginBottom: '14px' }}>
+                                        <div className="service-package-title">
+                                            <LayersOutlinedIcon fontSize="small" style={{ color: '#2563eb' }} />
+                                            <span>Thông số chi tiết gói dịch vụ</span>
+                                        </div>
+                                        <span className="service-package-tag">Gói Dịch Vụ</span>
+                                    </div>
+                                    <PackageDetailsManager
+                                        packageCode={data?.maDichVu || 'PKG'}
+                                        details={packageDetails}
+                                        onChange={setPackageDetails}
+                                        isEditing={true}
+                                    />
+                                    <div className="service-input-group" style={{ marginTop: '16px' }}>
+                                        <label>Mô tả chi tiết gói dịch vụ</label>
+                                        <textarea
+                                            rows={3}
+                                            className="service-custom-textarea"
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                            placeholder="Nhập thông tin giới thiệu hoặc lưu ý về gói dịch vụ..."
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </form>
                     ) : (
                         /* ================= READ-ONLY DETAILS VIEW ================= */
-                        <div className="service-modal-main-grid">
+                        <>
+                            <div className="service-modal-main-grid">
                             {/* Cột trái: Thông tin hiển thị */}
                             <div className="service-form-col-left">
                                 
@@ -676,62 +558,35 @@ function ServiceDetailDialog(props) {
                                     </div>
                                 </div>
 
-                                {/* Thông số gói nếu là Gói Dịch Vụ */}
-                                {Number(data.loaiDichVu) === 2 && (
-                                    <div className="service-detail-section" style={{ background: '#f8fafc', borderColor: '#cbd5e1' }}>
-                                        <div className="service-detail-section-title" style={{ color: '#1e40af' }}>
-                                            <LayersOutlinedIcon fontSize="small" />
-                                            <span>Thông số chi tiết gói dịch vụ</span>
+                                {/* Hàng 3b (CHỈ HIỂN THỊ KHI CHỌN MAKEUP - TYPE 4): THIẾT LẬP SỐ LỊCH MAKEUP */}
+                                {Number(loaiDichVu) === 4 && (
+                                    <div className="service-package-box" style={{ borderColor: '#fbcfe8', background: '#fff5f7' }}>
+                                        <div className="service-package-header">
+                                            <div className="service-package-title" style={{ color: '#be185d' }}>
+                                                <span>💄 Cấu hình số lịch phân công Make-up</span>
+                                            </div>
+                                            <span className="service-package-tag" style={{ background: '#fce7f3', color: '#be185d' }}>Dịch vụ Make-up</span>
                                         </div>
-
-                                        <div className="service-detail-package-grid">
-                                            <div className="service-detail-package-item">
-                                                <span>📸</span>
-                                                <div><b>SL ảnh chỉnh sửa:</b> {data.soLuongAnhChinhSua || 0} ảnh</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>🖼️</span>
-                                                <div><b>SL ảnh 16x21:</b> {data.soLuongAnh16x21 || 0} ảnh</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>🖼️</span>
-                                                <div><b>SL ảnh 20x30:</b> {data.soLuongAnh20x30 || 0} ảnh</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>🖼️</span>
-                                                <div><b>SL ảnh 60x90:</b> {data.soLuongAnh60x90 || 0} ảnh</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>💄</span>
-                                                <div><b>Makeup ăn hỏi:</b> {data.trangDiemNgayAnHoi || "Không có"}</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>💄</span>
-                                                <div><b>Makeup cưới:</b> {data.trangDiemNgayCuoi || "Không có"}</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>👥</span>
-                                                <div><b>Trang phục bê lễ:</b> {data.trangPhucChoDoiBeLe || "Không có"}</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>💐</span>
-                                                <div><b>Hoa cầm tay:</b> {data.hoaCamTay || "Không có"}</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>👰</span>
-                                                <div><b>TP cô dâu ăn hỏi:</b> {data.trangPhucCoDauNgayAnHoi || "Không có"}</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>🤵</span>
-                                                <div><b>TP chú rể ăn hỏi:</b> {data.trangPhucChuReNgayAnHoi || "Không có"}</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>👗</span>
-                                                <div><b>Váy cưới ngày cưới:</b> {data.trangPhucVayCuoiNgayCuoi || "Không có"}</div>
-                                            </div>
-                                            <div className="service-detail-package-item">
-                                                <span>🤵</span>
-                                                <div><b>Vest chú rể ngày cưới:</b> {data.trangPhucVestChuReNgayCuoi || "Không có"}</div>
+                                        <div className="service-input-group">
+                                            <label style={{ color: '#be185d', fontWeight: 700 }}>
+                                                Số lượt / lịch trang điểm phân công
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#db2777', display: 'block' }}>
+                                                    (Mặc định là 1 lịch; nếu gói makeup 2 lần ăn hỏi + cưới thì nhập 2)
+                                                </span>
+                                            </label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', maxWidth: '300px' }}>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="10"
+                                                    className="service-custom-input"
+                                                    value={soLuongLichMake}
+                                                    onChange={(e) => setSoLuongLichMake(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                                                    style={{ fontWeight: 700, fontSize: '1rem', color: '#be185d' }}
+                                                />
+                                                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#be185d', whiteSpace: 'nowrap' }}>
+                                                    ⚡ {soLuongLichMake || 1} lịch make
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -770,6 +625,23 @@ function ServiceDetailDialog(props) {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Full-width Package Details for Gói Dịch Vụ khi Xem Chi Tiết */}
+                        {Number(data.loaiDichVu) === 2 && (
+                            <div className="service-detail-section" style={{ background: '#f8fafc', borderColor: '#cbd5e1', padding: '18px', marginTop: '16px' }}>
+                                <div className="service-detail-section-title" style={{ color: '#1e40af', marginBottom: '14px' }}>
+                                    <LayersOutlinedIcon fontSize="small" />
+                                    <span>Thông số chi tiết gói dịch vụ</span>
+                                </div>
+                                <PackageDetailsManager
+                                    packageCode={data?.maDichVu || 'PKG'}
+                                    details={packageDetails}
+                                    onChange={setPackageDetails}
+                                    isEditing={false}
+                                />
+                            </div>
+                        )}
+                        </>
                     )}
                 </div>
 
@@ -778,6 +650,7 @@ function ServiceDetailDialog(props) {
                     {isEditing ? (
                         <>
                             <button
+                                key="btn-cancel-edit"
                                 type="button"
                                 className="service-btn-cancel"
                                 onClick={() => setIsEditing(false)}
@@ -786,8 +659,9 @@ function ServiceDetailDialog(props) {
                             </button>
 
                             <button
-                                type="submit"
-                                form="serviceEditForm"
+                                key="btn-save-edit"
+                                type="button"
+                                onClick={handleUpdate}
                                 className="service-btn-submit"
                                 style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
                             >
@@ -798,6 +672,7 @@ function ServiceDetailDialog(props) {
                     ) : (
                         <>
                             <button
+                                key="btn-delete-service"
                                 type="button"
                                 className="service-btn-clear"
                                 style={{ borderColor: '#fca5a5', color: '#dc2626', background: '#fff' }}
@@ -808,9 +683,14 @@ function ServiceDetailDialog(props) {
                             </button>
 
                             <button
+                                key="btn-start-edit"
                                 type="button"
                                 className="service-btn-submit"
-                                onClick={() => setIsEditing(true)}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setIsEditing(true);
+                                }}
                             >
                                 <EditRoundedIcon fontSize="small" />
                                 <span>Chỉnh sửa dịch vụ</span>

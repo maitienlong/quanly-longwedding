@@ -20,9 +20,33 @@ const websiteService = {
           "Content-Type": "multipart/form-data"
         }
       });
+      if (res) {
+        if (typeof res.url === 'string') res.url = res.url.replace(/^http:\/\/api\.longwedding\.vn/i, 'https://api.longwedding.vn');
+        if (typeof res.path === 'string') res.path = res.path.replace(/^http:\/\/api\.longwedding\.vn/i, 'https://api.longwedding.vn');
+        if (res.data) {
+          if (typeof res.data.url === 'string') res.data.url = res.data.url.replace(/^http:\/\/api\.longwedding\.vn/i, 'https://api.longwedding.vn');
+          if (typeof res.data.path === 'string') res.data.path = res.data.path.replace(/^http:\/\/api\.longwedding\.vn/i, 'https://api.longwedding.vn');
+        }
+      }
       return res;
     } catch (error) {
       console.error("Error uploading image:", error);
+      throw error;
+    }
+  },
+
+  uploadAudio: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append("audio", file);
+      const res = await axiosClient.post(`/api/website/upload-audio`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      });
+      return res;
+    } catch (error) {
+      console.error("Error uploading audio:", error);
       throw error;
     }
   },

@@ -4,6 +4,9 @@ import { useLoading } from "../../context/LoadingContext";
 import { useContractTypes } from "../../hooks/useContractTypes";
 import { toast } from 'sonner';
 import { PRESET_AWARDS, getEmployeeAwards, saveEmployeeAwards } from '../../utils/awardHelper';
+import { ALL_PERMISSIONS, PERMISSION_GROUPS, PERMISSION_PRESETS } from '../../utils/permissionHelper';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import './quanlynhanvien.css';
 
 // Material UI components
@@ -156,6 +159,86 @@ function QuanLyNhanVien() {
         chiTieuNam: 200,
         hoaHongTheoLoaiHD: []
     });
+
+    // Permission Dialog State
+    const [openPermDialog, setOpenPermDialog] = useState(false);
+    const [selectedPermUser, setSelectedPermUser] = useState(null);
+    const [currentPerms, setCurrentPerms] = useState([]);
+
+    const handleOpenPermDialog = (emp) => {
+        setSelectedPermUser(emp);
+        let initialPerms = [];
+        if (emp.permission === 1 || emp.positon === 'Quản lý' || emp.positon === 'Admin') {
+            initialPerms = ALL_PERMISSIONS.map(p => p.id);
+        } else if (Array.isArray(emp.permissions) && emp.permissions.length > 0) {
+            initialPerms = [...emp.permissions];
+        } else {
+            initialPerms = ['tongquan', 'banhang', 'lichcuahang', 'lichSoanDo'];
+        }
+        setCurrentPerms(initialPerms);
+        setOpenPermDialog(true);
+    };
+
+    const handleTogglePerm = (permId) => {
+        setCurrentPerms(prev => {
+            if (prev.includes(permId)) {
+                return prev.filter(id => id !== permId);
+            } else {
+                return [...prev, permId];
+            }
+        });
+    };
+
+    const handleSelectAllPerms = () => {
+        setCurrentPerms(ALL_PERMISSIONS.map(p => p.id));
+    };
+
+    const handleDeselectAllPerms = () => {
+        setCurrentPerms([]);
+    };
+
+    const handleApplyPreset = (preset) => {
+        setCurrentPerms([...preset.permissions]);
+        toast.info(`Đã chọn mẫu quyền: ${preset.name}`);
+    };
+
+    const handleSavePermissions = () => {
+        if (!selectedPermUser) return;
+        showLoading("Đang lưu phân quyền chức năng...");
+        
+        const payload = {
+            username: selectedPermUser.username,
+            permissions: currentPerms
+        };
+
+        otherService.updateUserPermissions(payload)
+            .then(() => {
+                toast.success(`Đã cập nhật phân quyền cho "${selectedPermUser.fullname || selectedPermUser.username}" thành công!`);
+                setOpenPermDialog(false);
+                
+                // Đồng bộ lại localStorage nếu đang cập nhật chính tài khoản đang đăng nhập
+                const currentLoginUserStr = localStorage.getItem('user');
+                if (currentLoginUserStr) {
+                    try {
+                        const currentLoginUser = JSON.parse(currentLoginUserStr);
+                        if (currentLoginUser.username === selectedPermUser.username) {
+                            currentLoginUser.permissions = currentPerms;
+                            localStorage.setItem('user', JSON.stringify(currentLoginUser));
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+
+                loadData();
+                hideLoading();
+            })
+            .catch((err) => {
+                console.error(err);
+                toast.error("Lỗi khi cập nhật phân quyền: " + (err.response?.data?.message || err.message));
+                hideLoading();
+            });
+    };
 
     // Award / Danh Hiệu Dialog State
     const [openAwardDialog, setOpenAwardDialog] = useState(false);
@@ -653,7 +736,7 @@ function QuanLyNhanVien() {
                         <i className="fa-solid fa-users-gear"></i> LONG WEDDING HUMAN RESOURCES
                     </div>
                     <h2>
-                        <i className="fa-solid fa-users" style={{ color: '#0284c7' }}></i> QUẢN LÝ NHÂN SỰ & ĐỘI NGŨ
+                        <i className="fa-solid fa-users" style={{ color: '#0284c7' }}></i> HUMAN RESOURCES (HRM)
                     </h2>
                     <p className="emp-subtitle">
                         Quản lý hồ sơ nhân viên, phân quyền truy cập, định mức chỉ tiêu KPI và cơ chế hoa hồng theo từng loại hợp đồng
@@ -919,18 +1002,46 @@ function QuanLyNhanVien() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell align="center">
-                                                    {user.permission === 1 ? (
-                                                        <span className="perm-badge perm-admin">
-                                                            <i className="fa-solid fa-shield-halved"></i> Quản trị
+                                                    {user.permission === 1 || user.positon === 'Quản lý' || user.positon === 'Admin' ? (
+                                                        <span className="perm-badge perm-admin" style={{ background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)', color: '#7e22ce', border: '1px solid #d8b4fe' }}>
+                                                            <i className="fa-solid fa-crown"></i> Quản trị viên
                                                         </span>
                                                     ) : (
-                                                        <span className="perm-badge perm-staff">
-                                                            <i className="fa-solid fa-user"></i> Nhân viên
-                                                        </span>
+                                                        <Tooltip title="Nhấp để điều chỉnh phân quyền chức năng">
+                                                            <Chip 
+                                                                icon={<i className="fa-solid fa-user-shield" style={{ fontSize: '0.75rem', color: '#6366f1' }}></i>}
+                                                                label={`${(user.permissions && user.permissions.length > 0) ? user.permissions.length : 4} quyền`}
+                                                                size="small"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleOpenPermDialog(user);
+                                                                }}
+                                                                sx={{ 
+                                                                    fontWeight: 700, 
+                                                                    fontSize: '0.75rem', 
+                                                                    bgcolor: '#eef2ff', 
+                                                                    color: '#4f46e5',
+                                                                    border: '1px solid #c7d2fe',
+                                                                    cursor: 'pointer',
+                                                                    '&:hover': { bgcolor: '#e0e7ff', transform: 'scale(1.05)' },
+                                                                    transition: 'all 0.15s ease'
+                                                                }}
+                                                            />
+                                                        </Tooltip>
                                                     )}
                                                 </TableCell>
                                                 <TableCell align="center" onClick={(e) => e.stopPropagation()}>
                                                     <Stack direction="row" spacing={1} justifyContent="center">
+                                                        <Tooltip title="Phân quyền chức năng cho tài khoản">
+                                                            <IconButton 
+                                                                size="small" 
+                                                                className="btn-action-perm"
+                                                                onClick={() => handleOpenPermDialog(user)}
+                                                                sx={{ color: '#7e22ce', bgcolor: '#faf5ff', border: '1px solid #e9d5ff', '&:hover': { bgcolor: '#7e22ce', color: '#ffffff' } }}
+                                                            >
+                                                                <i className="fa-solid fa-user-shield"></i>
+                                                            </IconButton>
+                                                        </Tooltip>
                                                         <Tooltip title="Tặng danh hiệu & Vinh danh nhân viên">
                                                             <IconButton 
                                                                 size="small" 
@@ -1078,6 +1189,15 @@ function QuanLyNhanVien() {
                                             >
                                                 Báo Cáo & Lương
                                             </Button>
+                                            <IconButton 
+                                                size="small" 
+                                                className="btn-action-perm"
+                                                onClick={() => handleOpenPermDialog(user)}
+                                                title="Phân quyền chức năng"
+                                                sx={{ color: '#7e22ce', bgcolor: '#faf5ff', border: '1px solid #e9d5ff' }}
+                                            >
+                                                <i className="fa-solid fa-user-shield"></i>
+                                            </IconButton>
                                             <IconButton 
                                                 size="small" 
                                                 className="btn-action-award"
@@ -2213,6 +2333,279 @@ function QuanLyNhanVien() {
                     >
                         💾 Lưu & Vinh Danh
                     </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* 6. MODAL PHÂN QUYỀN CHỨC NĂNG CHO NHÂN VIÊN */}
+            <Dialog 
+                open={openPermDialog} 
+                onClose={() => setOpenPermDialog(false)} 
+                maxWidth="md" 
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' } }}
+            >
+                {/* Header */}
+                <DialogTitle sx={{ 
+                    background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)', 
+                    color: '#ffffff', 
+                    p: 2.5 
+                }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1.5}>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                            <Box 
+                                sx={{ 
+                                    width: 44, 
+                                    height: 44, 
+                                    borderRadius: '12px', 
+                                    bgcolor: 'rgba(255,255,255,0.15)', 
+                                    backdropFilter: 'blur(8px)',
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    fontSize: '1.25rem',
+                                    color: '#c084fc',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                                }}
+                            >
+                                <i className="fa-solid fa-user-shield"></i>
+                            </Box>
+                            <Box>
+                                <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '-0.2px', color: '#ffffff' }}>
+                                    PHÂN QUYỀN CHỨC NĂNG CHO THÀNH VIÊN
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: '#c7d2fe', fontSize: '0.8rem' }}>
+                                    Điều chỉnh quyền truy cập các module nghiệp vụ cho từng tài khoản
+                                </Typography>
+                            </Box>
+                        </Box>
+
+                        {selectedPermUser && (
+                            <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                                <Chip 
+                                    label={`${selectedPermUser.fullname || selectedPermUser.username}`} 
+                                    sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#ffffff', fontWeight: 700 }}
+                                />
+                                <Chip 
+                                    label={`@${selectedPermUser.username}`} 
+                                    size="small"
+                                    sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#e0e7ff', fontSize: '0.75rem' }}
+                                />
+                                <Chip 
+                                    label={selectedPermUser.positon || 'Nhân viên'} 
+                                    size="small"
+                                    sx={{ bgcolor: '#7c3aed', color: '#ffffff', fontWeight: 600, fontSize: '0.75rem' }}
+                                />
+                            </Box>
+                        )}
+                    </Box>
+                </DialogTitle>
+
+                <DialogContent sx={{ p: 3, bgcolor: '#f8fafc', maxHeight: '72vh', overflowY: 'auto' }}>
+                    {/* Presets Selection Toolbar */}
+                    <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: '12px', bgcolor: '#ffffff', border: '1px solid #e2e8f0' }}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5} flexWrap="wrap" gap={1}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#334155', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <i className="fa-solid fa-wand-magic-sparkles" style={{ color: '#8b5cf6' }}></i> Mẫu phân quyền định sẵn (Chọn nhanh):
+                            </Typography>
+                            <Box display="flex" gap={1}>
+                                <Button 
+                                    size="small" 
+                                    variant="outlined" 
+                                    onClick={handleSelectAllPerms}
+                                    sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 700, borderRadius: '6px', py: 0.3 }}
+                                >
+                                    Chọn tất cả
+                                </Button>
+                                <Button 
+                                    size="small" 
+                                    variant="outlined" 
+                                    color="inherit"
+                                    onClick={handleDeselectAllPerms}
+                                    sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, borderRadius: '6px', py: 0.3, color: '#64748b' }}
+                                >
+                                    Bỏ chọn hết
+                                </Button>
+                            </Box>
+                        </Box>
+
+                        <Box display="flex" gap={1} flexWrap="wrap">
+                            {PERMISSION_PRESETS.map(preset => {
+                                const isMatching = preset.permissions.length === currentPerms.length && 
+                                    preset.permissions.every(p => currentPerms.includes(p));
+
+                                return (
+                                    <Chip 
+                                        key={preset.id}
+                                        icon={<i className={preset.icon} style={{ color: isMatching ? '#ffffff' : preset.color, fontSize: '0.85rem' }}></i>}
+                                        label={preset.name}
+                                        onClick={() => handleApplyPreset(preset)}
+                                        clickable
+                                        sx={{ 
+                                            fontWeight: 700, 
+                                            fontSize: '0.78rem', 
+                                            py: 1.8,
+                                            px: 0.5,
+                                            borderRadius: '8px',
+                                            bgcolor: isMatching ? preset.color : '#f1f5f9',
+                                            color: isMatching ? '#ffffff' : '#334155',
+                                            border: `1.5px solid ${isMatching ? preset.color : '#cbd5e1'}`,
+                                            boxShadow: isMatching ? `0 4px 10px -2px ${preset.color}66` : 'none',
+                                            transition: 'all 0.15s ease',
+                                            '&:hover': {
+                                                bgcolor: isMatching ? preset.color : '#e2e8f0',
+                                                transform: 'translateY(-1px)'
+                                            }
+                                        }}
+                                    />
+                                );
+                            })}
+                        </Box>
+                    </Paper>
+
+                    {/* Permissions Grid Grouped by Category */}
+                    <Stack spacing={2.5}>
+                        {PERMISSION_GROUPS.map(group => {
+                            const groupPerms = ALL_PERMISSIONS.filter(p => p.group === group.id);
+                            const selectedInGroup = groupPerms.filter(p => currentPerms.includes(p.id)).length;
+                            const isAllInGroup = selectedInGroup === groupPerms.length;
+
+                            return (
+                                <Paper 
+                                    key={group.id} 
+                                    elevation={0} 
+                                    sx={{ 
+                                        p: 2, 
+                                        borderRadius: '14px', 
+                                        bgcolor: '#ffffff', 
+                                        border: '1px solid #e2e8f0',
+                                        borderLeft: `5px solid ${group.color}`
+                                    }}
+                                >
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+                                        <Box display="flex" alignItems="center" gap={1.2}>
+                                            <i className={group.icon} style={{ color: group.color, fontSize: '1.1rem' }}></i>
+                                            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.95rem' }}>
+                                                {group.name}
+                                            </Typography>
+                                            <Chip 
+                                                label={`${selectedInGroup}/${groupPerms.length}`} 
+                                                size="small" 
+                                                sx={{ 
+                                                    fontWeight: 700, 
+                                                    fontSize: '0.72rem', 
+                                                    bgcolor: selectedInGroup > 0 ? `${group.color}15` : '#f1f5f9',
+                                                    color: selectedInGroup > 0 ? group.color : '#94a3b8'
+                                                }} 
+                                            />
+                                        </Box>
+
+                                        <Button
+                                            size="small"
+                                            onClick={() => {
+                                                if (isAllInGroup) {
+                                                    setCurrentPerms(prev => prev.filter(id => !groupPerms.some(gp => gp.id === id)));
+                                                } else {
+                                                    const newIds = groupPerms.map(gp => gp.id);
+                                                    setCurrentPerms(prev => Array.from(new Set([...prev, ...newIds])));
+                                                }
+                                            }}
+                                            sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, color: group.color }}
+                                        >
+                                            {isAllInGroup ? 'Bỏ chọn nhóm' : 'Chọn cả nhóm'}
+                                        </Button>
+                                    </Box>
+
+                                    <Grid container spacing={1.5}>
+                                        {groupPerms.map(perm => {
+                                            const isChecked = currentPerms.includes(perm.id);
+
+                                            return (
+                                                <Grid item xs={12} sm={6} key={perm.id}>
+                                                    <Box 
+                                                        onClick={() => handleTogglePerm(perm.id)}
+                                                        sx={{ 
+                                                            p: 1.5, 
+                                                            borderRadius: '10px', 
+                                                            border: `1.5px solid ${isChecked ? group.color : '#e2e8f0'}`,
+                                                            bgcolor: isChecked ? `${group.color}08` : '#ffffff',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'flex-start',
+                                                            gap: 1.5,
+                                                            transition: 'all 0.15s ease',
+                                                            '&:hover': {
+                                                                bgcolor: isChecked ? `${group.color}12` : '#f8fafc',
+                                                                borderColor: group.color,
+                                                                transform: 'translateY(-1px)'
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Checkbox 
+                                                            checked={isChecked} 
+                                                            onChange={() => handleTogglePerm(perm.id)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            size="small"
+                                                            sx={{ 
+                                                                p: 0, 
+                                                                mt: 0.2,
+                                                                color: '#cbd5e1',
+                                                                '&.Mui-checked': { color: group.color }
+                                                            }}
+                                                        />
+                                                        <Box flexGrow={1}>
+                                                            <Box display="flex" alignItems="center" gap={1}>
+                                                                <i className={perm.icon} style={{ color: perm.color, fontSize: '0.85rem' }}></i>
+                                                                <Typography variant="body2" sx={{ fontWeight: 800, color: '#1e293b' }}>
+                                                                    {perm.label}
+                                                                </Typography>
+                                                            </Box>
+                                                            <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem', display: 'block', mt: 0.3, lineHeight: 1.3 }}>
+                                                                {perm.desc}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </Grid>
+                                            );
+                                        })}
+                                    </Grid>
+                                </Paper>
+                            );
+                        })}
+                    </Stack>
+                </DialogContent>
+
+                {/* Footer */}
+                <DialogActions sx={{ p: 2, bgcolor: '#ffffff', borderTop: '1px solid #e2e8f0', justifyContent: 'space-between' }}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.85rem' }}>
+                            Đã kích hoạt: <span style={{ color: '#7c3aed', fontWeight: 800 }}>{currentPerms.length} / {ALL_PERMISSIONS.length}</span> tính năng
+                        </Typography>
+                    </Box>
+
+                    <Box display="flex" gap={1.5}>
+                        <Button
+                            variant="outlined"
+                            onClick={() => setOpenPermDialog(false)}
+                            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, color: '#64748b' }}
+                        >
+                            Hủy bỏ
+                        </Button>
+                        <Button
+                            variant="contained"
+                            onClick={handleSavePermissions}
+                            sx={{ 
+                                borderRadius: 2, 
+                                textTransform: 'none', 
+                                fontWeight: 800, 
+                                px: 3,
+                                background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
+                                boxShadow: '0 4px 12px rgba(124,58,237,0.3)',
+                                '&:hover': { background: 'linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%)' }
+                            }}
+                        >
+                            <i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i> Lưu phân quyền
+                        </Button>
+                    </Box>
                 </DialogActions>
             </Dialog>
         </div>

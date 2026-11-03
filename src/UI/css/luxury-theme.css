@@ -1,0 +1,104 @@
+/* Luxury Theme & Spotlight Bar Styling for Long Wedding */
+
+:root {
+    --lw-gold-primary: #eab308;
+    --lw-gold-light: #fde047;
+    --lw-gold-dark: #ca8a04;
+    --lw-gold-glow: rgba(234, 179, 8, 0.25);
+    --lw-dark-bg: #0f172a;
+    --lw-dark-surface: #1e293b;
+    --lw-dark-card: rgba(30, 41, 59, 0.7);
+    --lw-glass-border: rgba(234, 179, 8, 0.2);
+}
+
+/* Spotlight Quick Search Button on Sidebar */
+.sapo-quick-search-btn {
+    margin: 8px 14px 14px 14px;
+    padding: 8px 14px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    border-radius: 12px;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.sapo-quick-search-btn:hover {
+    background: rgba(234, 179, 8, 0.12);
+    border-color: #eab308;
+    color: #ffffff;
+    box-shadow: 0 4px 16px var(--lw-gold-glow);
+    transform: translateY(-1px);
+}
+
+.sapo-quick-search-btn-collapsed {
+    margin: 6px auto 12px auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    color: #eab308;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sapo-quick-search-btn-collapsed:hover {
+    background: #eab308;
+    color: #0f172a;
+    box-shadow: 0 0 15px var(--lw-gold-glow);
+}
+
+.sapo-quick-search-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.sapo-quick-search-kbd {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(234, 179, 8, 0.25);
+    color: #eab308;
+    border-radius: 5px;
+    padding: 2px 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+/* Mobile Quick Search Button in Topbar */
+.sapo-mobile-search-btn {
+    background: rgba(234, 179, 8, 0.15);
+    border: 1px solid rgba(234, 179, 8, 0.35);
+    color: #eab308;
+    border-radius: 8px;
+    padding: 5px 9px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s ease;
+}
+
+.sapo-mobile-search-btn:hover {
+    background: #eab308;
+    color: #0f172a;
+}
+
+/* Subtle Golden Glassmorphism Cards */
+.luxury-glass-card {
+    background: rgba(30, 41, 59, 0.65) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(234, 179, 8, 0.2) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25) !important;
+}

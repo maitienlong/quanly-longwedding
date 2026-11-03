@@ -385,6 +385,56 @@
   border-color: #e2e8f0;
 }
 
+/* Fix MUI DateTimePicker / TextField inside .hd-form-group and .hd-schedule-fields-grid */
+.hd-form-group .MuiTextField-root,
+.hd-schedule-fields-grid .MuiTextField-root {
+  width: 100%;
+}
+
+.hd-form-group .MuiOutlinedInput-root,
+.hd-schedule-fields-grid .MuiOutlinedInput-root {
+  border-radius: var(--hd-radius-sm, 6px);
+  background-color: #ffffff;
+}
+
+.hd-form-group .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline,
+.hd-schedule-fields-grid .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
+  border-color: #cbd5e1;
+  border-radius: var(--hd-radius-sm, 6px);
+  transition: border-color 0.2s ease;
+}
+
+.hd-form-group .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline,
+.hd-schedule-fields-grid .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #94a3b8;
+}
+
+.hd-form-group .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline,
+.hd-schedule-fields-grid .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--hd-accent, #0284c7);
+  border-width: 1.5px;
+}
+
+.hd-form-group .MuiInputBase-input,
+.hd-schedule-fields-grid .MuiInputBase-input {
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  padding: 6.5px 10px !important;
+  font-size: 0.84rem !important;
+  color: #1e293b !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+}
+
+.hd-form-group .MuiInputAdornment-root .MuiIconButton-root,
+.hd-schedule-fields-grid .MuiInputAdornment-root .MuiIconButton-root {
+  padding: 4px;
+  color: #64748b;
+  margin-right: -2px;
+}
+
 /* Compact Customer Box */
 .hd-customer-box {
   background: #f8fafc;
@@ -421,6 +471,60 @@
   max-height: 240px;
   overflow-y: auto;
   margin-bottom: 10px;
+}
+
+/* Resizable Cart Table Wrap */
+.hd-cart-table-wrap {
+  border: 1px solid var(--hd-card-border);
+  border-radius: var(--hd-radius-sm) var(--hd-radius-sm) 0 0;
+  overflow-y: auto;
+  background: #ffffff;
+  resize: vertical;
+  min-height: 140px;
+  max-height: 900px;
+  position: relative;
+  transition: border-color 0.2s ease;
+}
+
+.hd-cart-table-wrap:focus-within,
+.hd-cart-table-wrap:hover {
+  border-color: #93c5fd;
+}
+
+.hd-cart-resize-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 10px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-top: none;
+  border-radius: 0 0 var(--hd-radius-sm) var(--hd-radius-sm);
+  cursor: ns-resize;
+  user-select: none;
+  transition: all 0.2s ease;
+  margin-bottom: 12px;
+}
+
+.hd-cart-resize-handle::after {
+  content: '';
+  width: 36px;
+  height: 3px;
+  background: #cbd5e1;
+  border-radius: 2px;
+  transition: background 0.2s ease, width 0.2s ease;
+}
+
+.hd-cart-resize-handle:hover,
+.hd-cart-resize-handle.active {
+  background: #e0f2fe;
+  border-color: #0284c7;
+}
+
+.hd-cart-resize-handle:hover::after,
+.hd-cart-resize-handle.active::after {
+  background: #0284c7;
+  width: 48px;
 }
 
 .hd-table-compact {
@@ -488,6 +592,31 @@
   padding: 0 6px;
   font-weight: 700;
   font-size: 0.78rem;
+}
+
+.hd-qty-input-mini {
+  width: 42px;
+  height: 22px;
+  padding: 0 2px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  border: none;
+  outline: none;
+  color: #1e293b;
+  background: transparent;
+  -moz-appearance: textfield;
+}
+
+.hd-qty-input-mini::-webkit-outer-spin-button,
+.hd-qty-input-mini::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.hd-qty-input-mini:focus {
+  background: #eff6ff;
+  border-radius: 2px;
 }
 
 /* Compact Specification Grid */
@@ -706,3 +835,588 @@
   position: relative !important;
   width: 100%;
 }
+
+/* ================= 6. LỊCH TRÌNH TRANG ĐIỂM (MAKEUP) PHÁT SINH ================= */
+.hd-makeup-schedule-box {
+  margin-top: 6px;
+  background: #fdf2f8;
+  border: 1px solid #fbcfe8;
+  border-left: 3px solid #db2777;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.hd-makeup-schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.hd-makeup-schedule-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #db2777;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hd-makeup-schedule-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: #fce7f3;
+  color: #be185d;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid #fbcfe8;
+}
+
+.hd-makeup-schedule-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.hd-makeup-schedule-grid .full-width {
+  grid-column: span 2;
+}
+
+.hd-makeup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hd-makeup-field label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.hd-makeup-field input,
+.hd-makeup-field select {
+  font-size: 0.75rem;
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+}
+
+.hd-makeup-field input:focus,
+.hd-makeup-field select:focus {
+  border-color: #db2777;
+  box-shadow: 0 0 0 2px rgba(219, 39, 119, 0.15);
+}
+
+.hd-makeup-lunar {
+  font-size: 0.66rem;
+  color: #d97706;
+  font-weight: 600;
+  margin-top: 1px;
+}
+
+/* ================= 7. PHÂN CÔNG ĐỘI NGŨ & LỊCH TRÌNH DỊCH VỤ TỔNG HỢP ================= */
+.hd-schedule-section {
+  margin-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+}
+
+.hd-schedule-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.hd-schedule-section-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hd-schedule-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.hd-schedule-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+.hd-schedule-card.type-photo {
+  border-left: 3.5px solid #0284c7;
+  background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 28%);
+}
+
+.hd-schedule-card.type-makeup {
+  border-left: 3.5px solid #db2777;
+  background: linear-gradient(180deg, #fdf2f8 0%, #ffffff 28%);
+}
+
+.hd-schedule-card.type-video {
+  border-left: 3.5px solid #4f46e5;
+  background: linear-gradient(180deg, #eef2ff 0%, #ffffff 28%);
+}
+
+.hd-schedule-card.type-bts {
+  border-left: 3.5px solid #ea580c;
+  background: linear-gradient(180deg, #fff7ed 0%, #ffffff 28%);
+}
+
+.hd-schedule-card.type-cskh {
+  border-left: 3.5px solid #10b981;
+  background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 28%);
+}
+
+.hd-schedule-card.type-support {
+  border-left: 3.5px solid #8b5cf6;
+  background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 28%);
+}
+
+.hd-schedule-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.hd-schedule-badge-photo {
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #bae6fd;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hd-schedule-badge-makeup {
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #fce7f3;
+  color: #be185d;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #fbcfe8;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hd-schedule-badge-video {
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #e0e7ff;
+  color: #3730a3;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #c7d2fe;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hd-schedule-badge-bts {
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #ffedd5;
+  color: #c2410c;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #fed7aa;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hd-schedule-badge-cskh {
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #d1fae5;
+  color: #047857;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #a7f3d0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hd-schedule-badge-support {
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #ede9fe;
+  color: #6d28d9;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd6fe;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hd-schedule-add-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+}
+
+.hd-schedule-add-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.hd-schedule-add-btn {
+  border: none;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.hd-schedule-add-btn.btn-photo {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+.hd-schedule-add-btn.btn-photo:hover {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.hd-schedule-add-btn.btn-makeup {
+  background: #fce7f3;
+  color: #be185d;
+  border: 1px solid #fbcfe8;
+}
+.hd-schedule-add-btn.btn-makeup:hover {
+  background: #db2777;
+  color: #ffffff;
+}
+
+.hd-schedule-add-btn.btn-video {
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+.hd-schedule-add-btn.btn-video:hover {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+.hd-schedule-add-btn.btn-bts {
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+.hd-schedule-add-btn.btn-bts:hover {
+  background: #ea580c;
+  color: #ffffff;
+}
+
+.hd-schedule-add-btn.btn-cskh {
+  background: #d1fae5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+.hd-schedule-add-btn.btn-cskh:hover {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.hd-schedule-add-btn.btn-support {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+.hd-schedule-add-btn.btn-support:hover {
+  background: #8b5cf6;
+  color: #ffffff;
+}
+
+.hd-schedule-type-select {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+}
+
+.hd-schedule-delete-btn {
+  border: 1px solid #fee2e2;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  transition: all 0.15s ease;
+}
+
+.hd-schedule-delete-btn:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+.hd-schedule-turn-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.hd-schedule-fields-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hd-schedule-fields-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.hd-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.hd-quick-chip-btn {
+  font-size: 0.66rem;
+  font-weight: 600;
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hd-quick-chip-btn:hover {
+  background: #eff6ff;
+  color: #0284c7;
+  border-color: #bfdbfe;
+}
+
+.hd-schedule-empty {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+/* Service Turn Row in Cart Table */
+.hd-service-turn-row {
+  margin-top: 5px;
+  padding: 4px 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hd-service-turn-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #166534;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hd-turn-stepper {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #86efac;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hd-turn-stepper button {
+  border: none;
+  background: #f0fdf4;
+  color: #166534;
+  font-weight: 700;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.hd-turn-stepper button:hover {
+  background: #dcfce7;
+}
+
+.hd-turn-stepper input {
+  width: 32px;
+  height: 22px;
+  text-align: center;
+  font-size: 0.74rem;
+  font-weight: 800;
+  border: none;
+  border-left: 1px solid #bbf7d0;
+  border-right: 1px solid #bbf7d0;
+  color: #15803d;
+  background: #ffffff;
+  outline: none;
+}
+
+.hd-turn-sync-tag {
+  font-size: 0.67rem;
+  color: #15803d;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   SUB-STAGE (ĐANG THỰC HIỆN / HOÀN THÀNH) STYLES
+   ========================================================================== */
+.hd-substage-toggle-container {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 2px 4px;
+  gap: 4px;
+  margin-left: 10px;
+}
+
+.hd-substage-btn {
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+
+.hd-substage-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hd-substage-btn.active.pending {
+  background: #f59e0b;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+.hd-substage-btn.active.in-progress {
+  background: #d97706;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.5);
+}
+
+.hd-substage-btn.active.post-prod {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+}
+
+.hd-substage-btn.active.review {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.5);
+}
+
+.hd-substage-btn.active.done {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.hd-advance-step-btn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
+  padding: 3px 12px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
+}
+
+.hd-advance-step-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.6);
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+.hd-step-node-mini.active-subdone .hd-step-circle-mini {
+  background: #059669;
+  border-color: #34d399;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
+}
+
+

@@ -1,0 +1,1058 @@
+/* =========================================================================
+   PACKAGE DETAILS MANAGER - ULTRA-MODERN & SCIENTIFIC UI/UX
+   Zero Horizontal Scrollbar • Adaptive Card Rows • Segmented Tabs • Steppers
+========================================================================= */
+
+.pdm-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* =========================================================================
+   1. TOP DASHBOARD (KPI METRIC CARDS & MODE SWITCHER)
+========================================================================= */
+.pdm-top-dashboard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.pdm-kpi-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.pdm-kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.pdm-kpi-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.pdm-kpi-blue {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+.pdm-kpi-blue.active {
+  border-color: #2563eb;
+  background: #dbeafe;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+}
+
+.pdm-kpi-amber {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+.pdm-kpi-amber.active {
+  border-color: #d97706;
+  background: #fef3c7;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.25);
+}
+
+.pdm-kpi-emerald {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+.pdm-kpi-emerald.active {
+  border-color: #059669;
+  background: #d1fae5;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.25);
+}
+
+.pdm-kpi-pink {
+  background: #fdf2f8;
+  border-color: #fbcfe8;
+  color: #9d174d;
+}
+.pdm-kpi-pink.active {
+  border-color: #db2777;
+  background: #fce7f3;
+  box-shadow: 0 0 0 2px rgba(219, 39, 119, 0.25);
+}
+
+.pdm-kpi-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.pdm-kpi-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.pdm-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.85;
+}
+
+.pdm-kpi-val {
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Tools: Draft notice & Mode switcher */
+.pdm-top-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.pdm-draft-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #b45309;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.pdm-btn-restore {
+  background: #f59e0b;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.pdm-btn-restore:hover {
+  background: #d97706;
+}
+
+.pdm-mode-switcher {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.pdm-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdm-mode-btn:hover {
+  color: #0f172a;
+}
+
+.pdm-mode-btn.active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* =========================================================================
+   2. SEGMENTED TABS NAVIGATION BAR (7 PHÂN HỆ)
+========================================================================= */
+.pdm-tabbed-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.pdm-nav-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  padding: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  scrollbar-width: thin;
+}
+
+.pdm-nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.pdm-nav-tab:hover {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.pdm-nav-tab.active {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #1e293b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* Active tab accents */
+.pdm-nav-tab.active.pdm-tab-blue { border-color: #93c5fd; color: #1d4ed8; }
+.pdm-nav-tab.active.pdm-tab-amber { border-color: #fcd34d; color: #b45309; }
+.pdm-nav-tab.active.pdm-tab-emerald { border-color: #6ee7b7; color: #047857; }
+.pdm-nav-tab.active.pdm-tab-pink { border-color: #f9a8d4; color: #be185d; }
+.pdm-nav-tab.active.pdm-tab-purple { border-color: #c4b5fd; color: #6d28d9; }
+.pdm-nav-tab.active.pdm-tab-cyan { border-color: #67e8f9; color: #0e7490; }
+.pdm-nav-tab.active.pdm-tab-slate { border-color: #94a3b8; color: #334155; }
+
+.pdm-tab-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.pdm-tab-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.pdm-nav-tab.active .pdm-tab-badge {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.pdm-tab-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+/* =========================================================================
+   3. QUICK-ADD SIZE BAR (BÀN GIAO ẢNH)
+========================================================================= */
+.pdm-quick-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border: 1.5px dashed #a7f3d0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.pdm-quick-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #065f46;
+  white-space: nowrap;
+}
+
+.pdm-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.pdm-quick-chip {
+  background: #ffffff;
+  border: 1px solid #6ee7b7;
+  color: #047857;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.pdm-quick-chip:hover {
+  background: #059669;
+  color: #ffffff;
+  border-color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
+}
+
+.pdm-quick-chip-new {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  font-style: italic;
+}
+
+.pdm-quick-chip-new:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+/* =========================================================================
+   4. ADAPTIVE CARD ROWS (THAY THẾ TABLE TĨNH - 100% RESPONSIVE)
+========================================================================= */
+.pdm-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.pdm-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pdm-card-row:hover {
+  border-color: #cbd5e1;
+  background: #fafafa;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
+}
+
+.pdm-card-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  min-width: 24px;
+  text-align: center;
+}
+
+.pdm-row-drag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.pdm-row-idx {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #475569;
+  min-width: 26px;
+  text-align: center;
+}
+
+.pdm-row-arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pdm-btn-arrow {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 1px 3px;
+  font-size: 0.75rem;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s ease;
+}
+
+.pdm-btn-arrow:hover:not(:disabled) {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.pdm-btn-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pdm-card-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pdm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pdm-field label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.pdm-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* =========================================================================
+   5. CONTROLS: INPUTS, SELECTS, STEPPERS, COMBO
+========================================================================= */
+.pdm-input,
+.pdm-select,
+.pdm-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.86rem;
+  color: #0f172a;
+  background-color: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+}
+
+.pdm-input:focus,
+.pdm-select:focus,
+.pdm-textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.pdm-input.has-error,
+.pdm-select.has-error,
+.pdm-input-wh.has-error {
+  border-color: #ef4444 !important;
+  background: #fff5f5 !important;
+}
+
+.pdm-error-text {
+  font-size: 0.72rem;
+  color: #dc2626;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Stepper [-] [qty] [+] */
+.pdm-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  overflow: hidden;
+  height: 34px;
+}
+
+.pdm-stepper button {
+  width: 28px;
+  height: 100%;
+  border: none;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s ease;
+  user-select: none;
+}
+
+.pdm-stepper button:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.pdm-stepper input {
+  width: 44px;
+  height: 100%;
+  border: none;
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #0f172a;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.pdm-stepper input::-webkit-outer-spin-button,
+.pdm-stepper input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Combo Stepper + Unit for Wardrobe */
+.pdm-stepper-combo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdm-input-qty {
+  width: 50px;
+  padding: 7px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.88rem;
+  outline: none;
+}
+
+.pdm-input-unit {
+  width: 60px;
+  padding: 7px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  outline: none;
+}
+
+/* Size combo for Deliverables */
+.pdm-size-combo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdm-wh-inputs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
+.pdm-input-wh {
+  width: 42px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #0f172a;
+  outline: none;
+}
+
+.pdm-wh-times {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.pdm-unit-text {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* Action Icon Buttons */
+.pdm-btn-icon {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.pdm-btn-icon:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.pdm-btn-delete:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+/* Bottom Add Buttons */
+.pdm-bottom-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.pdm-btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1.5px dashed #2563eb;
+  background: #eff6ff;
+  color: #2563eb;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pdm-btn-add:hover {
+  background: #dbeafe;
+  border-style: solid;
+  transform: translateY(-1px);
+}
+
+.pdm-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.pdm-btn-primary:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.pdm-sub-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.pdm-legacy-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #d97706;
+  background: #fef3c7;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+/* =========================================================================
+   6. RETOUCH BOXES (PHÂN HỆ HẬU KỲ)
+========================================================================= */
+.pdm-retouch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.pdm-form-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pdm-form-box-header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.pdm-box-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.pdm-form-box-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pdm-form-box-header p {
+  margin: 2px 0 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.pdm-stepper-large {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+  height: 42px;
+  max-width: 200px;
+}
+
+.pdm-stepper-large button {
+  width: 40px;
+  height: 100%;
+  border: none;
+  background: #f1f5f9;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.pdm-stepper-large button:hover {
+  background: #e2e8f0;
+}
+
+.pdm-stepper-large input {
+  flex: 1;
+  height: 100%;
+  border: none;
+  border-left: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #1e293b;
+  outline: none;
+}
+
+.pdm-select-large {
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
+.pdm-inline-unit {
+  display: flex;
+  align-items: center;
+  position: relative;
+  max-width: 180px;
+}
+
+.pdm-input-large {
+  padding: 10px 12px;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.pdm-unit-badge {
+  position: absolute;
+  right: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* =========================================================================
+   7. TERMS SECTION
+========================================================================= */
+.pdm-terms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pdm-term-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pdm-term-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pdm-term-badge {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.pdm-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.pdm-term-title-input {
+  font-weight: 700;
+}
+
+/* =========================================================================
+   8. EMPTY STATES & VIEW MODE GRIDS
+========================================================================= */
+.pdm-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
+}
+
+.pdm-empty-icon {
+  font-size: 2.2rem;
+  margin-bottom: 8px;
+}
+
+.pdm-empty-state p {
+  margin: 0 0 12px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.pdm-empty-sub {
+  font-size: 0.8rem !important;
+  color: #94a3b8 !important;
+  margin-top: -6px !important;
+}
+
+.pdm-view-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.pdm-view-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #ffffff;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.pdm-view-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.pdm-view-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pdm-view-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.pdm-view-desc {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.pdm-empty-text {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* =========================================================================
+   9. ACCORDIONS VIEW (FOR EXPANDED ALL MODE)
+========================================================================= */
+.pdm-accordions-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pdm-accordion {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+.pdm-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: #f8fafc;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+}
+
+.pdm-accordion-header:hover {
+  background: #f1f5f9;
+}
+
+.pdm-accordion.open .pdm-accordion-header {
+  border-bottom-color: #e2e8f0;
+}
+
+.pdm-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #1e293b;
+}
+
+.pdm-header-icon {
+  font-size: 1.15rem;
+}
+
+.pdm-accordion-body {
+  padding: 16px;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.pdm-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.pdm-badge-blue { background: #dbeafe; color: #1d4ed8; }
+.pdm-badge-amber { background: #fef3c7; color: #b45309; }
+.pdm-badge-emerald { background: #d1fae5; color: #047857; }
+.pdm-badge-pink { background: #fce7f3; color: #be185d; }
+.pdm-badge-purple { background: #ede9fe; color: #6d28d9; }
+.pdm-badge-cyan { background: #cffafe; color: #0e7490; }
+.pdm-badge-slate { background: #f1f5f9; color: #475569; }
+
+/* =========================================================================
+   10. SIZE DIALOG INSIDE COMPONENT
+========================================================================= */
+.pdm-size-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pdm-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pdm-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pdm-form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.pdm-dialog-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+}

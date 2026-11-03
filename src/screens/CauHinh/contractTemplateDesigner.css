@@ -1,0 +1,854 @@
+/* ==========================================================================
+   ==== CONTRACT TEMPLATE DESIGNER - STYLESHEET ====
+   ========================================================================== */
+
+.contract-designer-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+/* 1. Header Toolbar */
+.designer-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(8px);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.designer-toolbar-left,
+.designer-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.designer-mode-switch {
+    display: flex;
+    background: #f1f5f9;
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.designer-mode-btn {
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.designer-mode-btn:hover {
+    color: #1e293b;
+}
+
+.designer-mode-btn.active {
+    background: #ffffff;
+    color: #0284c7;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* 2. Main Workspace */
+.designer-workspace {
+    display: flex;
+    gap: 0;
+    align-items: flex-start;
+    width: 100%;
+    min-height: 750px;
+    position: relative;
+}
+
+.designer-workspace.split-view .designer-editor-pane {
+    flex-shrink: 0;
+    min-width: 320px;
+    max-width: 900px;
+}
+
+.designer-workspace.split-view .designer-preview-pane {
+    flex: 1;
+    min-width: 420px;
+}
+
+.designer-workspace.full-preview .designer-editor-pane {
+    display: none;
+}
+
+.designer-workspace.full-preview .designer-preview-pane {
+    flex: 1;
+    width: 100%;
+}
+
+/* Thanh kéo điều chỉnh kích thước giữa cột soạn thảo & bản mẫu */
+.designer-split-resizer {
+    width: 16px;
+    margin: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    user-select: none;
+    align-self: stretch;
+    position: relative;
+    z-index: 15;
+    transition: background 0.15s ease;
+}
+
+.designer-split-resizer:hover,
+.designer-split-resizer.dragging {
+    background: rgba(2, 132, 199, 0.08);
+}
+
+.resizer-handle-line {
+    width: 2px;
+    height: 100%;
+    background: #cbd5e1;
+    transition: background 0.15s ease;
+}
+
+.designer-split-resizer:hover .resizer-handle-line,
+.designer-split-resizer.dragging .resizer-handle-line {
+    background: #0284c7;
+}
+
+.resizer-handle-pill {
+    position: sticky;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 38px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #64748b;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.15s ease;
+}
+
+.designer-split-resizer:hover .resizer-handle-pill,
+.designer-split-resizer.dragging .resizer-handle-pill {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+}
+
+/* 3. Editor Pane */
+.designer-editor-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.editor-section-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+    overflow: hidden;
+    transition: border-color 0.2s ease;
+}
+
+.editor-section-card.focused {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.editor-section-header {
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.editor-section-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.editor-section-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Dynamic Parameter Toolbar / Bar */
+.param-quickbar {
+    background: #f0f9ff;
+    border: 1px dashed #7dd3fc;
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.param-quickbar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #0369a1;
+}
+
+.param-chips-scroll {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.param-chip-btn {
+    background: #ffffff;
+    border: 1px solid #bae6fd;
+    color: #0284c7;
+    border-radius: 14px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: monospace;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.param-chip-btn:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+    transform: translateY(-1px);
+}
+
+/* Terms Editor */
+.terms-editor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.term-edit-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.term-edit-row:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.term-index-badge {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-weight: 800;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    margin-top: 4px;
+}
+
+.term-content-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.term-actions-box {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* 4. Preview Pane (Virtual Desk & A4 Paper) */
+.designer-preview-pane {
+    background: #cbd5e1;
+    border-radius: 14px;
+    padding: 24px 20px;
+    overflow-x: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.preview-desk-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 960px;
+    margin-bottom: 20px;
+    padding: 8px 16px;
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    flex-wrap: wrap;
+    gap: 10px;
+    position: relative;
+    z-index: 5;
+}
+
+.preview-scale-info {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Bộ điều chỉnh kích thước / Zoom hiển thị */
+.preview-size-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.zoom-control-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+.size-ctrl-btn {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.size-ctrl-btn:hover:not(:disabled) {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.size-ctrl-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.size-ctrl-btn.text-btn {
+    width: auto;
+    padding: 0 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.size-ctrl-btn.text-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.zoom-label {
+    font-family: monospace;
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: #0369a1;
+    min-width: 44px;
+    text-align: center;
+}
+
+/* A4 Paper Simulation */
+.contract-a4-paper {
+    width: 100%;
+    max-width: 800px;
+    min-height: 1100px;
+    background: #ffffff;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-radius: 2px;
+    padding: 38px 45px;
+    font-family: 'Times New Roman', Times, serif;
+    color: #000;
+    line-height: 1.35;
+    font-size: 13px;
+    position: relative;
+    box-sizing: border-box;
+    transition: max-width 0.2s ease, zoom 0.2s ease, transform 0.2s ease;
+}
+
+.contract-a4-paper.wide-mode {
+    max-width: 940px;
+}
+
+.contract-a4-paper.full-mode {
+    max-width: 100%;
+}
+
+/* Paper Interactive Edit Zones */
+.paper-edit-zone {
+    position: relative;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.paper-edit-zone:hover {
+    outline: 2px dashed #0284c7;
+    background: rgba(2, 132, 199, 0.02);
+}
+
+.paper-edit-zone:hover::after {
+    content: "✏️ Nhấp để chỉnh sửa";
+    position: absolute;
+    top: -20px;
+    right: 4px;
+    background: #0284c7;
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.paper-edit-zone.active-zone {
+    outline: 2px solid #0284c7;
+    background: rgba(2, 132, 199, 0.04);
+}
+
+/* Parameter Badge in Preview (when tag mode enabled) */
+.contract-param-badge {
+    display: inline-block;
+    background: #e0f2fe;
+    color: #0284c7;
+    border: 1px solid #7dd3fc;
+    border-radius: 4px;
+    padding: 0 4px;
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 11px;
+    margin: 0 1px;
+}
+
+.contract-param-badge.sample-value {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px dashed #f59e0b;
+}
+
+/* Paper Content Elements */
+.paper-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+}
+
+.paper-logo-box {
+    text-align: center;
+    width: 150px;
+}
+
+.paper-logo-img {
+    max-height: 64px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+.paper-contract-meta {
+    text-align: right;
+    font-size: 12.5px;
+    line-height: 1.4;
+}
+
+.paper-main-heading {
+    text-align: center;
+    margin: 2px 0 10px 0;
+    padding: 4px;
+}
+
+.paper-main-heading h1 {
+    color: #c28e2b;
+    font-size: 20px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin: 0 0 2px 0;
+    letter-spacing: 0.5px;
+}
+
+.paper-main-heading p {
+    font-size: 12px;
+    font-weight: bold;
+    font-style: italic;
+    margin: 0;
+    color: #111;
+}
+
+.paper-sec-title {
+    font-size: 13.5px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin: 8px 0 4px 0;
+}
+
+.paper-party-grid {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    gap: 15px;
+}
+
+.paper-party-a {
+    flex: 1.3;
+}
+
+.paper-party-b {
+    flex: 0.9;
+}
+
+.paper-party-b-card {
+    text-align: center;
+    padding: 0 4px;
+}
+
+.paper-party-header-title {
+    font-weight: bold;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+
+.paper-party-a-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+    font-size: 12.5px;
+}
+
+.paper-party-a-col {
+    width: 48%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.paper-party-b-title {
+    font-weight: bold;
+    font-size: 12.5px;
+    text-transform: uppercase;
+    line-height: 1.3;
+}
+
+.paper-party-b-hotline {
+    font-weight: bold;
+    font-size: 13px;
+    margin-top: 3px;
+}
+
+.paper-content-block {
+    font-size: 12.5px;
+    line-height: 1.4;
+}
+
+.paper-sec-subtitle {
+    font-size: 12.5px;
+    font-weight: bold;
+    margin: 6px 0 3px 0;
+    color: #000;
+}
+
+.paper-services-table,
+.paper-schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3px 0 6px 0;
+    border: 1px solid #000;
+}
+
+.paper-services-table th,
+.paper-services-table td,
+.paper-schedule-table th,
+.paper-schedule-table td {
+    border: 1px solid #000;
+    padding: 3px 5px;
+    vertical-align: middle;
+    font-size: 11.5px;
+    line-height: 1.3;
+}
+
+.paper-services-table th,
+.paper-schedule-table th {
+    font-weight: bold;
+    background: #f8fafc;
+    color: #000;
+}
+
+.paper-services-total-row td {
+    font-weight: bold;
+    background: #fff;
+}
+
+.paper-content-line {
+    margin-bottom: 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.paper-content-line-full {
+    margin-bottom: 2px;
+}
+
+.paper-dates-highlight {
+    margin: 5px 0;
+    font-size: 12.5px;
+}
+
+.paper-chk-box {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border: 1.2px solid #000;
+    margin-right: 3px;
+    vertical-align: middle;
+    text-align: center;
+    line-height: 10px;
+    font-size: 10px;
+}
+
+.paper-package-items-container {
+    margin: 4px 0 6px 0;
+    padding: 4px 0;
+    border-top: 1px dashed #cbd5e1;
+    border-bottom: 1px dashed #cbd5e1;
+}
+
+.paper-package-items-title {
+    font-size: 11.5px;
+    font-weight: bold;
+    color: #0f172a;
+    margin-bottom: 3px;
+}
+
+.paper-package-items-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5px 14px;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.paper-package-item-row {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.paper-package-items-blank {
+    font-size: 12px;
+    line-height: 1.8;
+    padding: 2px 0;
+}
+
+.paper-blank-line {
+    margin: 2px 0;
+}
+
+.paper-payment-summary-table,
+.paper-payment-history-table,
+.paper-payment-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3px 0 5px 0;
+    border: 1px solid #000;
+}
+
+.paper-payment-summary-table th,
+.paper-payment-summary-table td,
+.paper-payment-history-table th,
+.paper-payment-history-table td,
+.paper-payment-table th,
+.paper-payment-table td {
+    border: 1px solid #000;
+    padding: 3px 5px;
+    vertical-align: middle;
+    font-size: 11.5px;
+    line-height: 1.3;
+}
+
+.paper-payment-summary-table th,
+.paper-payment-history-table th,
+.paper-payment-table th {
+    font-weight: bold;
+    background: #f8fafc;
+    color: #000;
+}
+
+.paper-terms-block {
+    font-size: 11.5px;
+    line-height: 1.35;
+    margin-top: 2px;
+    padding: 4px;
+}
+
+.paper-term-item {
+    margin: 2px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    position: relative;
+}
+
+.paper-signatures-grid {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 14px;
+    text-align: center;
+    padding: 4px;
+}
+
+.paper-sig-column {
+    width: 45%;
+}
+
+.paper-sig-title {
+    font-weight: bold;
+    font-size: 12.5px;
+    text-transform: uppercase;
+}
+
+.paper-sig-guide {
+    font-size: 11px;
+    font-style: italic;
+    margin-top: 1px;
+}
+
+.paper-sig-blank {
+    height: 48px;
+}
+
+.paper-sig-name {
+    font-weight: bold;
+    font-size: 12.5px;
+}
+
+.paper-footer-note {
+    text-align: center;
+    margin-top: 16px;
+    font-style: italic;
+    font-size: 11.5px;
+    color: #475569;
+    border-top: 1px dashed #cbd5e1;
+    padding-top: 8px;
+}
+
+/* Autocomplete Floating Popover */
+.param-autocomplete-menu {
+    position: absolute;
+    z-index: 1000;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    width: 320px;
+    max-height: 380px;
+    overflow-y: auto;
+    padding: 6px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.param-autocomplete-header {
+    padding: 6px 10px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #64748b;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+}
+
+.param-autocomplete-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: background-color 0.15s ease;
+}
+
+.param-autocomplete-item:hover,
+.param-autocomplete-item.active {
+    background-color: #f0f9ff;
+}
+
+.param-item-key {
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #0284c7;
+}
+
+.param-item-label {
+    font-size: 0.76rem;
+    color: #334155;
+    font-weight: 600;
+}
+
+.param-item-sample {
+    font-size: 0.72rem;
+    color: #64748b;
+    font-style: italic;
+}

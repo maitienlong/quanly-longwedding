@@ -422,12 +422,32 @@ body {
     margin-bottom: 2px;
 }
 
+.sapo-time-card.interactive {
+    cursor: pointer;
+    transition: all 0.25s ease;
+    user-select: none;
+}
+
+.sapo-time-card.interactive:hover {
+    background: rgba(56, 189, 248, 0.08);
+    border-color: rgba(56, 189, 248, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.sapo-time-card.interactive:active {
+    transform: translateY(0);
+}
+
 .sapo-time-clock {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 700;
     color: #f8fafc;
     font-family: monospace;
     letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .sapo-time-date {
@@ -441,6 +461,37 @@ body {
     color: #fbbf24;
     font-weight: 600;
     margin-top: 2px;
+}
+
+.sapo-time-hint {
+    font-size: 10px;
+    color: #38bdf8;
+    font-weight: 600;
+    margin-top: 4px;
+    padding-top: 3px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+    opacity: 0.85;
+    transition: opacity 0.2s;
+}
+
+.sapo-time-card.interactive:hover .sapo-time-hint {
+    opacity: 1;
+}
+
+.sapo-footer-clock-btn {
+    margin-bottom: 4px;
+}
+
+.sapo-footer-clock-btn:hover {
+    background: rgba(56, 189, 248, 0.12) !important;
+}
+
+.sapo-mobile-clock-btn {
+    transition: all 0.2s ease;
+}
+
+.sapo-mobile-clock-btn:hover {
+    background: rgba(56, 189, 248, 0.25) !important;
 }
 
 .sapo-settings-btn {
@@ -536,9 +587,13 @@ body {
     flex-direction: column;
     padding: 16px 20px;
     height: 100vh;
+    max-height: 100vh;
     overflow-y: auto;
     overflow-x: hidden;
     box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+    -webkit-overflow-scrolling: touch;
 }
 
 .main-content::-webkit-scrollbar {
@@ -884,9 +939,10 @@ tbody tr:hover {
 /* ==== Footer Styling ==== */
 .main-footer {
     text-align: center;
-    padding-top: 20px;
+    padding-top: 10px;
     font-size: 12px;
     color: #999;
+    flex-shrink: 0;
 }
 
 
@@ -1306,3 +1362,35 @@ tbody tr:hover {
         border-radius: 0 !important;
     }
 }
+
+/* Nút Khóa PIN trên menu */
+.sapo-lock-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: rgba(245, 158, 11, 0.18);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sapo-lock-menu-btn {
+    transition: all 0.18s ease;
+}
+
+.sapo-lock-menu-btn:hover {
+    background: rgba(245, 158, 11, 0.12) !important;
+    color: #fbbf24 !important;
+}
+
+.sapo-footer-lock-btn {
+    color: #f59e0b !important;
+    font-weight: 600;
+}
+
+.sapo-footer-lock-btn:hover {
+    background: rgba(245, 158, 11, 0.14) !important;
+    color: #fbbf24 !important;
+}

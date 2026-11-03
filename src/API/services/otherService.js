@@ -9,11 +9,33 @@ const appService = {
    UPDATE_HOPDONG: (params) => axiosClient.post(ENDPOINTS.HOPDONG.UPDATE, params),
    UPDATE_PROGRESS: (params) => axiosClient.post(ENDPOINTS.HOPDONG.UPDATEPROGRESS, params),
    deleteHopDong: (params) => axiosClient.post(ENDPOINTS.HOPDONG.DELETEHOPDONG, params),
-   findAllTrangPhuc: (params) => axiosClient.post(ENDPOINTS.TRANGPHUC.FINDALLTRANGPHUC, params),
+   updatePostProduction: (params) => axiosClient.post(ENDPOINTS.HOPDONG.UPDATE_POST_PRODUCTION, params),
+   addAddonItem: (params) => axiosClient.post(ENDPOINTS.HOPDONG.ADD_ADDON, params),
+   updateContractWithAudit: (params) => axiosClient.post(ENDPOINTS.HOPDONG.UPDATE_AUDIT, params),
+   getReminders: (params) => axiosClient.get(ENDPOINTS.HOPDONG.REMINDERS, { params }),
+
+   // TRANG PHỤC & VÁY CƯỚI (INVENTORY & CONFLICT GUARD)
+   findAllTrangPhuc: (params) => axiosClient.post(ENDPOINTS.TRANGPHUC.LIST, params),
+   listTrangPhuc: (params) => axiosClient.post(ENDPOINTS.TRANGPHUC.LIST, params),
+   createTrangPhuc: (params) => axiosClient.post(ENDPOINTS.TRANGPHUC.CREATE, params),
+   updateTrangPhuc: (params) => axiosClient.post(ENDPOINTS.TRANGPHUC.UPDATE, params),
+   removeTrangPhuc: (params) => axiosClient.post(ENDPOINTS.TRANGPHUC.REMOVE, params),
+   checkCostumeConflict: (params) => axiosClient.post(ENDPOINTS.TRANGPHUC.CHECK_CONFLICT, params),
+   getCostumeCalendar: () => axiosClient.get(ENDPOINTS.TRANGPHUC.CALENDAR),
+
+   // QUẢN LÝ LEAD (N8N / MESSENGER / WEB)
+   listLeads: (params) => axiosClient.post(ENDPOINTS.LEAD.LIST, params),
+   createLead: (params) => axiosClient.post(ENDPOINTS.LEAD.CREATE, params),
+   updateLead: (params) => axiosClient.post(ENDPOINTS.LEAD.UPDATE, params),
+   convertLeadToContract: (params) => axiosClient.post(ENDPOINTS.LEAD.CONVERT, params),
+
    findDichVu: (params) => axiosClient.post(ENDPOINTS.DICHVU.FIND, params),
    ServiceAddProdcut: (params) => axiosClient.post(ENDPOINTS.DICHVU.CREATE, params),
    ServiceUpdateProduct: (params) => axiosClient.post(ENDPOINTS.DICHVU.UPDATE, params),
    ServiceRemoveProduct: (params) => axiosClient.post(ENDPOINTS.DICHVU.REMOVE, params),
+   syncInvitationTemplates: (params) => axiosClient.post(ENDPOINTS.DICHVU.SYNC_TEMPLATES, params),
+   listPhotoSizes: () => axiosClient.post(ENDPOINTS.DICHVU.PHOTO_SIZES_LIST, {}),
+   createPhotoSize: (params) => axiosClient.post(ENDPOINTS.DICHVU.PHOTO_SIZES_CREATE, params),
    findKhachHang: (params) => axiosClient.post(ENDPOINTS.KHACHHANG.FIND, params),
    createKhachHang: (params) => axiosClient.post(ENDPOINTS.KHACHHANG.CREATE, params),
    LIST_CHITIEU: (params) => axiosClient.post(ENDPOINTS.CHITIEU.LIST, params),
@@ -22,6 +44,7 @@ const appService = {
    REMOVE_CHITIEU: (params) => axiosClient.post(ENDPOINTS.CHITIEU.REMOVE, params),
    createUser: (params) => axiosClient.post(ENDPOINTS.AUTH.CREATE, params),
    updateUser: (params) => axiosClient.post(ENDPOINTS.AUTH.UPDATE, params),
+   updateUserPermissions: (params) => axiosClient.post(ENDPOINTS.AUTH.UPDATE_PERMISSIONS, params),
    removeUser: (params) => axiosClient.post(ENDPOINTS.AUTH.REMOVE, params),
    findUsers: (params) => axiosClient.post(ENDPOINTS.AUTH.LIST, params),
    updateKhachHang: (params) => axiosClient.post(ENDPOINTS.KHACHHANG.UPDATE, params),
@@ -31,11 +54,18 @@ const appService = {
    findAllLichSoanDo: (params) => axiosClient.post(ENDPOINTS.LICH_SOAN_DO.FIND_ALL, params),
    findByContractLichSoanDo: (params) => axiosClient.post(ENDPOINTS.LICH_SOAN_DO.FIND_BY_CONTRACT, params),
    removeLichSoanDo: (params) => axiosClient.post(ENDPOINTS.LICH_SOAN_DO.REMOVE, params),
-   // ALBUM
+   // ALBUM & CLIENT PORTAL
    syncAlbum: (params) => axiosClient.post(ENDPOINTS.ALBUM.SYNC, params),
    listAlbums: (params) => axiosClient.get(ENDPOINTS.ALBUM.LIST, { params }),
    getAlbumDetail: (maHopDong) => axiosClient.get(`${ENDPOINTS.ALBUM.DETAIL}/${maHopDong}`),
    updateAlbumSettings: (maHopDong, params) => axiosClient.put(`${ENDPOINTS.ALBUM.SETTINGS}/${maHopDong}/settings`, params),
+   getPortalInfo: (maHopDong) => axiosClient.get(`${ENDPOINTS.ALBUM.PORTAL}/${maHopDong}`),
+   portalPhotoAction: (maHopDong, params) => axiosClient.post(`${ENDPOINTS.ALBUM.PORTAL}/${maHopDong}/photo-action`, params),
+   portalCompleteSelection: (maHopDong, params) => axiosClient.post(`${ENDPOINTS.ALBUM.PORTAL}/${maHopDong}/complete`, params),
+   findAllLoaiDichVu: (params) => axiosClient.post(ENDPOINTS.LOAI_DICHVU.LIST, params),
+   createLoaiDichVu: (params) => axiosClient.post(ENDPOINTS.LOAI_DICHVU.CREATE, params),
+   updateLoaiDichVu: (params) => axiosClient.post(ENDPOINTS.LOAI_DICHVU.UPDATE, params),
+   removeLoaiDichVu: (params) => axiosClient.post(ENDPOINTS.LOAI_DICHVU.REMOVE, params),
    findAllLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.LIST, params),
    createLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.CREATE, params),
    updateLoaiHopDong: (params) => axiosClient.post(ENDPOINTS.LOAI_HOPDONG.UPDATE, params),
@@ -50,9 +80,11 @@ const appService = {
    getSepayQrInfo: (maHopDong, amount, sessionCode) => axiosClient.get(`${ENDPOINTS.SEPAY.QR_INFO}/${maHopDong}?amount=${amount || 0}${sessionCode ? `&sessionCode=${sessionCode}` : ''}`),
    checkSepayStatus: (maHopDong) => axiosClient.get(`${ENDPOINTS.SEPAY.CHECK_STATUS}/${maHopDong}`),
    getSepayNotifications: (since) => axiosClient.get(`${ENDPOINTS.SEPAY.NOTIFICATIONS}${since ? `?since=${since}` : ""}`),
-   // BÁO CÁO KINH DOANH
+   // BÁO CÁO KINH DOANH & KHÁCH HÀNG
    getBaoCaoKinhDoanh: (params) => axiosClient.post(ENDPOINTS.BAO_CAO.KINH_DOANH, params),
    getBaoCaoTongQuan: (params) => axiosClient.post(ENDPOINTS.BAO_CAO.TONG_QUAN, params),
+   getLichSuThanhToan: (params) => axiosClient.post(ENDPOINTS.BAO_CAO.LICH_SU_THANH_TOAN, params),
+   getThongKeKhachHang: (params) => axiosClient.post(ENDPOINTS.BAO_CAO.THONG_KE_KHACH_HANG, params),
    // ĐƠN VỊ NHẬN TIỀN
    findAllDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.LIST, params),
    createDonViNhanTien: (params) => axiosClient.post(ENDPOINTS.DON_VI_NHAN_TIEN.CREATE, params),
@@ -72,4 +104,3 @@ const appService = {
 };
 
 export default appService;
-

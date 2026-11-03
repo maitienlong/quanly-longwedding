@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import otherService from '../../API/services/otherService';
 import { useLoading } from "../../context/LoadingContext";
 import { toast } from 'sonner';
@@ -27,10 +28,16 @@ import {
     TableRow,
     TableCell,
     TableContainer,
+    TablePagination,
     Tabs,
     Tab,
     LinearProgress,
+    CircularProgress,
     InputAdornment,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
     useMediaQuery
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -57,10 +64,10 @@ import CallIcon from '@mui/icons-material/Call';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import SearchIcon from '@mui/icons-material/Search';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import ScheduleIcon from '@mui/icons-material/Schedule';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ClearIcon from '@mui/icons-material/Clear';
+import CloseIcon from '@mui/icons-material/Close';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 
 // Currency & Percentage Formatters
 const formatCurrency = (val) => {
@@ -842,6 +849,154 @@ function DoanhThu() {
         return counts;
     }, [scheduledContracts]);
 
+    // Filter & Search states for Payment History Tab (Tab 5)
+    const [paymentSearch, setPaymentSearch] = useState('');
+    const [paymentScope, setPaymentScope] = useState('all'); // 'all' | 'period'
+    const [paymentMethodFilter, setPaymentMethodFilter] = useState('all');
+    const [paymentPage, setPaymentPage] = useState(0);
+    const [paymentRowsPerPage, setPaymentRowsPerPage] = useState(20);
+
+    // Extract all payment history records
+    const allPaymentHistory = useMemo(() => {
+        const list = [];
+        (rawHopDongs || []).forEach(hd => {
+            if (hd.maHopDong === 'CH-CHUNG') return;
+            const custName = hd.khachHang1?.tenKhachHang || hd.khachHang2?.tenKhachHang || 'Khách hàng';
+            const phone = hd.khachHang1?.soDienThoai || hd.khachHang2?.soDienThoai || '-';
+            const nhanVien = hd.nguoiPhucVu?.banHang || '-';
+            const trangThaiHD = hd.thanhToan?.trangThaiThanhToan || 'Chưa thanh toán';
+
+            const cacLuot = hd.thanhToan?.cacLuotThanhToan;
+            if (Array.isArray(cacLuot) && cacLuot.length > 0) {
+                cacLuot.forEach((p, idx) => {
+                    const amt = Number(p.amount) || 0;
+                    if (amt > 0) {
+                        const mth = p.method === 1 ? 'Chuyển khoản' : (p.method === 0 ? 'Tiền mặt' : (p.method || 'Tiền mặt'));
+                        list.push({
+                            id: p.id || `${hd._id || hd.maHopDong}-${idx}`,
+                            maHopDong: hd.maHopDong,
+                            hopDongId: hd._id,
+                            khachHang: p.khachHang || custName,
+                            soDienThoai: phone,
+                            ngayThanhToan: p.date || hd.ngayHopDong || hd.createdAt,
+                            soTien: amt,
+                            phuongThuc: mth,
+                            noiDung: p.noiDung || `Thanh toán đợt ${idx + 1}`,
+                            nhanVien: p.nhanVien || nhanVien,
+                            trangThaiHD: trangThaiHD,
+                            tongGiaTriHD: Number(hd.thanhToan?.tongGiaTriSauGiam ?? hd.thanhToan?.tongGiaTri ?? hd.tongTien ?? hd.giaTriHopDong ?? 0),
+                            conLaiHD: Number(hd.thanhToan?.conLai ?? 0)
+                        });
+                    }
+                });
+            } else if (Number(hd.thanhToan?.khachHangDaThanhToan) > 0) {
+                const mth = hd.thanhToan?.khachThanhToan?.method === 1 ? 'Chuyển khoản' : (hd.thanhToan?.phuongThucThanhToan || 'Tiền mặt');
+                list.push({
+                    id: `init-${hd._id || hd.maHopDong}`,
+                    maHopDong: hd.maHopDong,
+                    hopDongId: hd._id,
+                    khachHang: custName,
+                    soDienThoai: phone,
+                    ngayThanhToan: hd.ngayHopDong || hd.createdAt,
+                    soTien: Number(hd.thanhToan.khachHangDaThanhToan),
+                    phuongThuc: mth,
+                    noiDung: 'Thanh toán hợp đồng (đặt cọc/toàn bộ)',
+                    nhanVien: nhanVien,
+                    trangThaiHD: trangThaiHD,
+                    tongGiaTriHD: Number(hd.thanhToan?.tongGiaTriSauGiam ?? hd.thanhToan?.tongGiaTri ?? hd.tongTien ?? hd.giaTriHopDong ?? 0),
+                    conLaiHD: Number(hd.thanhToan?.conLai ?? 0)
+                });
+            }
+        });
+
+        // Sắp xếp mới nhất lên đầu
+        list.sort((a, b) => new Date(b.ngayThanhToan || 0).getTime() - new Date(a.ngayThanhToan || 0).getTime());
+        return list;
+    }, [rawHopDongs]);
+
+    // Filter payment history based on search, scope, and method
+    const filteredPaymentHistory = useMemo(() => {
+        let result = allPaymentHistory;
+
+        // Scope filter
+        if (paymentScope === 'period' && selectedPeriod?.currentRange?.startDate && selectedPeriod?.currentRange?.endDate) {
+            const sTime = new Date(selectedPeriod.currentRange.startDate).getTime();
+            const eTime = new Date(selectedPeriod.currentRange.endDate).getTime();
+            result = result.filter(item => {
+                const t = new Date(item.ngayThanhToan).getTime();
+                return !isNaN(t) && t >= sTime && t <= eTime;
+            });
+        }
+
+        // Method filter
+        if (paymentMethodFilter !== 'all') {
+            result = result.filter(item => (item.phuongThuc || '').toLowerCase().includes(paymentMethodFilter.toLowerCase()));
+        }
+
+        // Search text
+        if (paymentSearch.trim()) {
+            const q = paymentSearch.trim().toLowerCase();
+            result = result.filter(item =>
+                (item.maHopDong || '').toLowerCase().includes(q) ||
+                (item.khachHang || '').toLowerCase().includes(q) ||
+                (item.soDienThoai || '').toLowerCase().includes(q) ||
+                (item.noiDung || '').toLowerCase().includes(q) ||
+                (item.nhanVien || '').toLowerCase().includes(q)
+            );
+        }
+
+        return result;
+    }, [allPaymentHistory, paymentScope, selectedPeriod, paymentMethodFilter, paymentSearch]);
+
+    // Summary statistics for payment history
+    const paymentStats = useMemo(() => {
+        let totalCount = filteredPaymentHistory.length;
+        let totalAmount = 0;
+        let bankAmount = 0;
+        let cashAmount = 0;
+
+        filteredPaymentHistory.forEach(p => {
+            totalAmount += p.soTien;
+            const m = (p.phuongThuc || '').toLowerCase();
+            if (m.includes('chuyển khoản') || m.includes('ck') || m.includes('bank')) {
+                bankAmount += p.soTien;
+            } else if (m.includes('tiền mặt') || m.includes('cash')) {
+                cashAmount += p.soTien;
+            }
+        });
+
+        return { totalCount, totalAmount, bankAmount, cashAmount };
+    }, [filteredPaymentHistory]);
+
+    const exportPaymentHistoryToExcel = () => {
+        try {
+            const rows = filteredPaymentHistory.map((item, idx) => ({
+                "STT": idx + 1,
+                "Mã Hợp Đồng": item.maHopDong,
+                "Tên Khách Hàng": item.khachHang,
+                "Số Điện Thoại": item.soDienThoai,
+                "Ngày Thanh Toán": item.ngayThanhToan ? new Date(item.ngayThanhToan).toLocaleString('vi-VN') : '-',
+                "Số Tiền (VNĐ)": item.soTien,
+                "Phương Thức": item.phuongThuc,
+                "Nội Dung / Đợt Thu": item.noiDung,
+                "Nhân Viên": item.nhanVien,
+                "Trạng Thái HĐ": item.trangThaiHD,
+                "Tổng Giá Trị HĐ": item.tongGiaTriHD,
+                "Còn Nợ HĐ": item.conLaiHD
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "LichSuThanhToan");
+            const fileName = `LichSuThanhToan_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+            toast.success(`Đã xuất ${rows.length} dòng lịch sử thanh toán thành công!`);
+        } catch (err) {
+            console.error("Lỗi xuất Excel lịch sử thanh toán:", err);
+            toast.error("Không thể xuất file Excel: " + (err.message || "Lỗi"));
+        }
+    };
+
     const renderGrowthBadge = (comparisonItem, invertTrend = false) => {
         if (!comparisonItem) return null;
         const growth = comparisonItem.growthPercent || 0;
@@ -879,6 +1034,16 @@ function DoanhThu() {
         setVisibleWaves(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
+    const setWavePreset = (preset) => {
+        if (preset === 'all') {
+            setVisibleWaves({ revenue: true, scheduled: true, collected: true, expense: true, profit: true });
+        } else if (preset === 'rev_profit') {
+            setVisibleWaves({ revenue: true, scheduled: false, collected: false, expense: false, profit: true });
+        } else if (preset === 'cashflow') {
+            setVisibleWaves({ revenue: false, scheduled: false, collected: true, expense: true, profit: true });
+        }
+    };
+
     const renderTimelineChart = () => {
         if (!timelineChart || timelineChart.length === 0) {
             return (
@@ -888,8 +1053,8 @@ function DoanhThu() {
             );
         }
 
-        const width = 800;
-        const height = 320;
+        const width = 840;
+        const height = 330;
         const padLeft = 65;
         const padRight = 30;
         const padTop = 35;
@@ -951,7 +1116,7 @@ function DoanhThu() {
                 <Box sx={{ width: '100%', overflowX: 'auto' }} className="custom-scroll">
                     <svg
                         viewBox={`0 0 ${width} ${height}`}
-                        style={{ minWidth: '640px', width: '100%', height: '300px', overflow: 'visible', cursor: 'crosshair' }}
+                        style={{ minWidth: '680px', width: '100%', height: '320px', overflow: 'visible', cursor: 'crosshair' }}
                         onMouseLeave={() => setHoveredIdx(null)}
                     >
                         <defs>
@@ -964,9 +1129,9 @@ function DoanhThu() {
 
                             {/* Scheduled Revenue Gradient */}
                             <linearGradient id="wave-grad-scheduled" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#9333ea" stopOpacity="0.4" />
-                                <stop offset="70%" stopColor="#9333ea" stopOpacity="0.06" />
-                                <stop offset="100%" stopColor="#9333ea" stopOpacity="0.0" />
+                                <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
+                                <stop offset="70%" stopColor="#8b5cf6" stopOpacity="0.06" />
+                                <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.0" />
                             </linearGradient>
 
                             {/* Collected Gradient */}
@@ -978,9 +1143,9 @@ function DoanhThu() {
 
                             {/* Profit Gradient */}
                             <linearGradient id="wave-grad-profit" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.45" />
-                                <stop offset="70%" stopColor="#8b5cf6" stopOpacity="0.08" />
-                                <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.0" />
+                                <stop offset="0%" stopColor="#6366f1" stopOpacity="0.45" />
+                                <stop offset="70%" stopColor="#6366f1" stopOpacity="0.08" />
+                                <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
                             </linearGradient>
 
                             {/* Expense Gradient */}
@@ -992,7 +1157,7 @@ function DoanhThu() {
 
                             {/* Soft glow filter */}
                             <filter id="wave-glow" x="-10%" y="-10%" width="120%" height="120%">
-                                <feDropShadow dx="0" dy="3" stdDeviation="3" floodOpacity="0.15" />
+                                <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.2" />
                             </filter>
                         </defs>
 
@@ -1022,7 +1187,7 @@ function DoanhThu() {
                         {visibleWaves.scheduled && waveScheduled.areaPath && (
                             <g>
                                 <path d={waveScheduled.areaPath} fill="url(#wave-grad-scheduled)" />
-                                <path d={waveScheduled.linePath} fill="none" stroke="#9333ea" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4 2" filter="url(#wave-glow)" />
+                                <path d={waveScheduled.linePath} fill="none" stroke="#8b5cf6" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="5 3" filter="url(#wave-glow)" />
                             </g>
                         )}
 
@@ -1046,17 +1211,18 @@ function DoanhThu() {
                         {visibleWaves.profit && waveProfit.areaPath && (
                             <g>
                                 <path d={waveProfit.areaPath} fill="url(#wave-grad-profit)" />
-                                <path d={waveProfit.linePath} fill="none" stroke="#8b5cf6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#wave-glow)" />
+                                <path d={waveProfit.linePath} fill="none" stroke="#6366f1" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#wave-glow)" />
                             </g>
                         )}
 
                         {/* Data Points (Dots on Waves for days with values) */}
                         {timelineChart.map((d, i) => {
                             const x = timelineChart.length === 1 ? padLeft + chartW / 2 : padLeft + step * i;
+                            const isHovered = hoveredIdx === i;
                             return (
                                 <g key={i}>
                                     {/* X-axis labels */}
-                                    <text x={x} y={height - padBottom + 16} textAnchor="middle" fontSize="10.5" fill={hoveredIdx === i ? "#0284c7" : "#475569"} fontWeight={hoveredIdx === i ? "800" : "600"}>
+                                    <text x={x} y={height - padBottom + 16} textAnchor="middle" fontSize="10.5" fill={isHovered ? "#0284c7" : "#475569"} fontWeight={isHovered ? "800" : "600"}>
                                         {d.label}
                                     </text>
                                     {d.subLabel && (
@@ -1066,20 +1232,20 @@ function DoanhThu() {
                                     )}
 
                                     {/* Dots when active */}
-                                    {visibleWaves.revenue && (d.tongTienHopDong > 0 || hoveredIdx === i) && (
-                                        <circle cx={x} cy={pointsRevenue[i].y} r={hoveredIdx === i ? 5.5 : 3.5} fill="#10b981" stroke="#ffffff" strokeWidth="2" />
+                                    {visibleWaves.revenue && (d.tongTienHopDong > 0 || isHovered) && (
+                                        <circle cx={x} cy={pointsRevenue[i].y} r={isHovered ? 6 : 3.5} fill="#10b981" stroke="#ffffff" strokeWidth="2" />
                                     )}
-                                    {visibleWaves.scheduled && (d.tongDoanhSoTheoLich > 0 || hoveredIdx === i) && (
-                                        <circle cx={x} cy={pointsScheduled[i].y} r={hoveredIdx === i ? 5.5 : 3.5} fill="#9333ea" stroke="#ffffff" strokeWidth="2" />
+                                    {visibleWaves.scheduled && (d.tongDoanhSoTheoLich > 0 || isHovered) && (
+                                        <circle cx={x} cy={pointsScheduled[i].y} r={isHovered ? 6 : 3.5} fill="#8b5cf6" stroke="#ffffff" strokeWidth="2" />
                                     )}
-                                    {visibleWaves.collected && (d.soTienDaThu > 0 || hoveredIdx === i) && (
-                                        <circle cx={x} cy={pointsCollected[i].y} r={hoveredIdx === i ? 5.5 : 3.5} fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
+                                    {visibleWaves.collected && (d.soTienDaThu > 0 || isHovered) && (
+                                        <circle cx={x} cy={pointsCollected[i].y} r={isHovered ? 6 : 3.5} fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
                                     )}
-                                    {visibleWaves.profit && (d.laiRong > 0 || hoveredIdx === i) && (
-                                        <circle cx={x} cy={pointsProfit[i].y} r={hoveredIdx === i ? 6 : 4} fill="#8b5cf6" stroke="#ffffff" strokeWidth="2" />
+                                    {visibleWaves.profit && (d.laiRong > 0 || isHovered) && (
+                                        <circle cx={x} cy={pointsProfit[i].y} r={isHovered ? 6.5 : 4} fill="#6366f1" stroke="#ffffff" strokeWidth="2" />
                                     )}
-                                    {visibleWaves.expense && (d.tongTienKhoanChi > 0 || hoveredIdx === i) && (
-                                        <circle cx={x} cy={pointsExpense[i].y} r={hoveredIdx === i ? 5 : 3} fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                                    {visibleWaves.expense && (d.tongTienKhoanChi > 0 || isHovered) && (
+                                        <circle cx={x} cy={pointsExpense[i].y} r={isHovered ? 5.5 : 3} fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
                                     )}
                                 </g>
                             );
@@ -1113,26 +1279,27 @@ function DoanhThu() {
                 {/* Floating Tooltip Card on Hover */}
                 {hoveredData && hoveredX !== null && (
                     <Paper
-                        elevation={4}
+                        elevation={6}
                         sx={{
                             position: 'absolute',
                             top: 8,
-                            left: Math.min(Math.max(hoveredX - 100, 20), width - 220),
-                            zIndex: 10,
-                            p: 1.5,
-                            borderRadius: '12px',
-                            bgcolor: 'rgba(15, 23, 42, 0.92)',
+                            left: Math.min(Math.max(hoveredX - 110, 20), width - 240),
+                            zIndex: 20,
+                            p: 1.8,
+                            borderRadius: '16px',
+                            bgcolor: 'rgba(15, 23, 42, 0.94)',
                             color: '#ffffff',
-                            backdropFilter: 'blur(8px)',
+                            backdropFilter: 'blur(12px)',
                             pointerEvents: 'none',
-                            minWidth: 200,
-                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)'
+                            minWidth: 220,
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            boxShadow: '0 20px 30px -10px rgba(0,0,0,0.45)'
                         }}
                     >
-                        <Typography variant="caption" sx={{ fontWeight: 800, color: '#93c5fd', display: 'block', mb: 0.8, borderBottom: '1px solid rgba(255,255,255,0.15)', pb: 0.4 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: '#93c5fd', display: 'block', mb: 1, borderBottom: '1px solid rgba(255,255,255,0.15)', pb: 0.6 }}>
                             📅 {hoveredData.subLabel ? `Ngày ${hoveredData.subLabel}` : hoveredData.label} ({hoveredData.soLuongHopDong || 0} HĐ ký)
                         </Typography>
-                        <Stack spacing={0.4}>
+                        <Stack spacing={0.6}>
                             <Box display="flex" justifyContent="space-between" alignItems="center">
                                 <Typography variant="caption" sx={{ color: '#86efac', fontWeight: 600 }}>● Doanh số ký:</Typography>
                                 <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.tongTienHopDong)}</Typography>
@@ -1142,13 +1309,16 @@ function DoanhThu() {
                                 <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.tongDoanhSoTheoLich || 0)} ({hoveredData.soLuongHopDongTheoLich || 0} HĐ)</Typography>
                             </Box>
                             <Box display="flex" justifyContent="space-between" alignItems="center">
-                                <Typography variant="caption" sx={{ color: '#7dd3fc', fontWeight: 600 }}>● Đã thu:</Typography>
+                                <Typography variant="caption" sx={{ color: '#7dd3fc', fontWeight: 600 }}>● Đã thu thực tế:</Typography>
                                 <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.soTienDaThu)}</Typography>
-                                                       <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.tongTienKhoanChi)}</Typography>
                             </Box>
-                            <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ borderTop: '1px dashed rgba(255,255,255,0.2)', pt: 0.4, mt: 0.2 }}>
-                                <Typography variant="caption" sx={{ color: '#c4b5fd', fontWeight: 700 }}>● Lãi ròng:</Typography>
-                                <Typography variant="caption" sx={{ fontWeight: 800, color: '#e9d5ff' }}>{formatCurrency(hoveredData.laiRong)}</Typography>
+                            <Box display="flex" justifyContent="space-between" alignItems="center">
+                                <Typography variant="caption" sx={{ color: '#fca5a5', fontWeight: 600 }}>● Tổng tiền chi:</Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 800, color: '#ffffff' }}>{formatCurrency(hoveredData.tongTienKhoanChi)}</Typography>
+                            </Box>
+                            <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ borderTop: '1px dashed rgba(255,255,255,0.2)', pt: 0.6, mt: 0.4 }}>
+                                <Typography variant="caption" sx={{ color: '#c4b5fd', fontWeight: 750 }}>● Lãi ròng:</Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 850, color: '#e9d5ff' }}>{formatCurrency(hoveredData.laiRong)}</Typography>
                             </Box>
                         </Stack>
                     </Paper>
@@ -1156,6 +1326,313 @@ function DoanhThu() {
             </Box>
         );
     };
+
+    // Detail Modal State & Handlers
+    const [detailModal, setDetailModal] = useState({
+        open: false,
+        loading: false,
+        type: 'contracts', // 'contracts', 'revenue', 'scheduled', 'collected', 'debt', 'expenses', 'profit'
+        title: '',
+        icon: null,
+        data: [],
+        periodLabel: ''
+    });
+    const [modalSearch, setModalSearch] = useState('');
+
+    const openDetailDialog = async (type) => {
+        const periodLabel = selectedPeriod.currentRange?.label || 'Kỳ này';
+        let title = '';
+        let icon = null;
+
+        switch (type) {
+            case 'contracts':
+                title = 'Danh Sách Hợp Đồng Ký Trong Kỳ';
+                icon = <AssignmentIcon sx={{ color: '#2563eb' }} />;
+                break;
+            case 'revenue':
+                title = 'Chi Tiết Doanh Số & Hợp Đồng Ký Trong Kỳ';
+                icon = <MonetizationOnIcon sx={{ color: '#16a34a' }} />;
+                break;
+            case 'scheduled':
+                title = 'Danh Sách Hợp Đồng & Doanh Số Theo Lịch Phục Vụ';
+                icon = <EventAvailableIcon sx={{ color: '#8b5cf6' }} />;
+                break;
+            case 'collected':
+                title = 'Danh Sách Hợp Đồng Đã Thu Tiền Trong Kỳ';
+                icon = <AccountBalanceWalletIcon sx={{ color: '#0891b2' }} />;
+                break;
+            case 'debt':
+                title = 'Danh Sách Khách Hàng Còn Nợ (HĐ Ký Trong Kỳ)';
+                icon = <PendingActionsIcon sx={{ color: '#ea580c' }} />;
+                break;
+            case 'expenses':
+                title = 'Danh Sách Các Khoản Chi Phí Trong Kỳ';
+                icon = <ReceiptLongIcon sx={{ color: '#dc2626' }} />;
+                break;
+            case 'profit':
+                title = 'Tổng Hợp Lãi Ròng & Danh Sách Hợp Đồng Trong Kỳ';
+                icon = <SavingsIcon sx={{ color: '#6366f1' }} />;
+                break;
+            default:
+                title = 'Danh Sách Chi Tiết';
+        }
+
+        // Open modal with loading state immediately
+        setDetailModal({
+            open: true,
+            loading: true,
+            type,
+            title,
+            icon,
+            data: [],
+            periodLabel
+        });
+        setModalSearch('');
+
+        // Get current period range dates
+        const curRange = selectedPeriod.currentRange || {};
+        let startDate = curRange.startDate ? new Date(curRange.startDate) : null;
+        let endDate = curRange.endDate ? new Date(curRange.endDate) : null;
+
+        if (!startDate || !endDate) {
+            const nowRef = new Date();
+            const fallbackMonth = getMonthRangeClient(nowRef, 0);
+            startDate = fallbackMonth.startDate;
+            endDate = fallbackMonth.endDate;
+        }
+
+        try {
+            if (type === 'expenses') {
+                // Request ChiTieu from backend
+                const resCT = await otherService.LIST_CHITIEU({});
+                const rawCTs = resCT?.data?.chiTieu || resCT?.chiTieu || [];
+                const filtered = rawCTs.filter(ct => {
+                    if (!ct.date) return false;
+                    const d = new Date(ct.date);
+                    return d >= startDate && d <= endDate;
+                });
+                filtered.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+                setDetailModal(prev => ({
+                    ...prev,
+                    loading: false,
+                    data: filtered
+                }));
+            } else {
+                // Request HopDong from backend
+                const resHD = await otherService.LIST_HOPDONG({});
+                const rawHDs = resHD?.data?.hopDong || resHD?.hopDong || [];
+                
+                let resultContracts = [];
+
+                if (type === 'scheduled') {
+                    rawHDs.forEach(hd => {
+                        if (hd.maHopDong === 'CH-CHUNG') return;
+                        const matched = extractMatchedSchedulesClient(hd, startDate, endDate);
+                        if (matched.length > 0) {
+                            resultContracts.push({
+                                ...hd,
+                                matchedSchedules: matched
+                            });
+                        }
+                    });
+                    resultContracts.sort((a, b) => {
+                        const dateA = a.matchedSchedules?.[0]?.date ? new Date(a.matchedSchedules[0].date).getTime() : 0;
+                        const dateB = b.matchedSchedules?.[0]?.date ? new Date(b.matchedSchedules[0].date).getTime() : 0;
+                        return dateA - dateB;
+                    });
+                } else {
+                    const signedContracts = rawHDs.filter(hd => {
+                        if (hd.maHopDong === 'CH-CHUNG' || !hd.ngayHopDong) return false;
+                        const d = new Date(hd.ngayHopDong);
+                        return d >= startDate && d <= endDate;
+                    });
+
+                    if (type === 'collected') {
+                        resultContracts = signedContracts.filter(hd => Number(hd.thanhToan?.khachHangDaThanhToan || 0) > 0);
+                    } else if (type === 'debt') {
+                        resultContracts = signedContracts.filter(hd => {
+                            const val = Number(hd.thanhToan?.tongGiaTriSauGiam ?? hd.thanhToan?.tongGiaTri ?? hd.tongTien ?? hd.giaTriHopDong ?? 0);
+                            const paid = Number(hd.thanhToan?.khachHangDaThanhToan ?? 0);
+                            const debt = Number(hd.thanhToan?.conLai ?? Math.max(0, val - paid));
+                            return debt > 0;
+                        });
+                        resultContracts.sort((a, b) => {
+                            const debtA = Number(a.thanhToan?.conLai || 0);
+                            const debtB = Number(b.thanhToan?.conLai || 0);
+                            return debtB - debtA;
+                        });
+                    } else {
+                        resultContracts = signedContracts;
+                        resultContracts.sort((a, b) => new Date(b.ngayHopDong || 0) - new Date(a.ngayHopDong || 0));
+                    }
+                }
+
+                setDetailModal(prev => ({
+                    ...prev,
+                    loading: false,
+                    data: resultContracts
+                }));
+            }
+        } catch (err) {
+            console.warn("Lỗi khi gửi request lấy danh sách từ server, chuyển sang fallback dữ liệu...", err);
+            
+            // Fallback to local computed data
+            let fallbackData = [];
+            if (type === 'expenses') {
+                fallbackData = currentMetrics.filteredExpenses || [];
+            } else if (type === 'scheduled') {
+                fallbackData = currentMetrics.scheduledContracts || [];
+            } else if (type === 'collected') {
+                fallbackData = (currentMetrics.filteredContracts || []).filter(hd => Number(hd.thanhToan?.khachHangDaThanhToan || 0) > 0);
+            } else if (type === 'debt') {
+                fallbackData = (currentMetrics.filteredContracts || []).filter(hd => {
+                    const val = Number(hd.thanhToan?.tongGiaTriSauGiam ?? hd.thanhToan?.tongGiaTri ?? hd.tongTien ?? hd.giaTriHopDong ?? 0);
+                    const paid = Number(hd.thanhToan?.khachHangDaThanhToan ?? 0);
+                    const debt = Number(hd.thanhToan?.conLai ?? Math.max(0, val - paid));
+                    return debt > 0;
+                });
+            } else {
+                fallbackData = currentMetrics.filteredContracts || [];
+            }
+
+            setDetailModal(prev => ({
+                ...prev,
+                loading: false,
+                data: fallbackData
+            }));
+        }
+    };
+
+    const closeDetailDialog = () => {
+        setDetailModal(prev => ({ ...prev, open: false }));
+        setModalSearch('');
+    };
+
+    const filteredModalData = useMemo(() => {
+        if (!detailModal.data || detailModal.data.length === 0) return [];
+        if (!modalSearch.trim()) return detailModal.data;
+
+        const term = modalSearch.toLowerCase().trim();
+
+        if (detailModal.type === 'expenses') {
+            return detailModal.data.filter(ct => 
+                (ct.content || '').toLowerCase().includes(term) ||
+                (ct.category || '').toLowerCase().includes(term) ||
+                (ct.person || '').toLowerCase().includes(term) ||
+                (ct.note || '').toLowerCase().includes(term)
+            );
+        }
+
+        return detailModal.data.filter(hd => 
+            (hd.maHopDong || '').toLowerCase().includes(term) ||
+            (hd.thongTinCoDauChuRe?.tenCoDau || '').toLowerCase().includes(term) ||
+            (hd.thongTinCoDauChuRe?.tenChuRe || '').toLowerCase().includes(term) ||
+            (hd.thongTinCoDauChuRe?.soDienThoaiCoDau || '').includes(term) ||
+            (hd.thongTinCoDauChuRe?.soDienThoaiChuRe || '').includes(term) ||
+            (hd.nguoiPhucVu?.banHang || '').toLowerCase().includes(term) ||
+            (hd.nguoiPhucVu?.chupAnh || '').toLowerCase().includes(term) ||
+            (hd.tenGoiDichVu || '').toLowerCase().includes(term)
+        );
+    }, [detailModal.data, detailModal.type, modalSearch]);
+
+    const modalSummaryStats = useMemo(() => {
+        if (detailModal.type === 'expenses') {
+            const totalAmount = filteredModalData.reduce((sum, ct) => sum + (Number(ct.amount) || 0), 0);
+            return {
+                totalCount: filteredModalData.length,
+                totalExpense: totalAmount
+            };
+        }
+
+        let totalRevenue = 0;
+        let totalPaid = 0;
+        let totalDebt = 0;
+
+        filteredModalData.forEach(hd => {
+            const val = Number(hd.thanhToan?.tongGiaTriSauGiam ?? hd.thanhToan?.tongGiaTri ?? hd.tongTien ?? hd.giaTriHopDong ?? 0);
+            const paid = Number(hd.thanhToan?.khachHangDaThanhToan ?? 0);
+            const debt = Number(hd.thanhToan?.conLai ?? Math.max(0, val - paid));
+            totalRevenue += val;
+            totalPaid += paid;
+            totalDebt += debt;
+        });
+
+        return {
+            totalCount: filteredModalData.length,
+            totalRevenue,
+            totalPaid,
+            totalDebt
+        };
+    }, [filteredModalData, detailModal.type]);
+
+    const exportModalToExcel = () => {
+        try {
+            const timestamp = new Date().toISOString().slice(0, 10);
+            let exportRows = [];
+            let sheetName = "Danh Sách Chi Tiết";
+            let fileName = `Bao_Cao_${detailModal.type}_${timestamp}.xlsx`;
+
+            if (detailModal.type === 'expenses') {
+                sheetName = "Danh Sách Chi Phí";
+                exportRows = filteredModalData.map((item, index) => ({
+                    "STT": index + 1,
+                    "Ngày Chi": item.date ? formatDateOnly(item.date) : '-',
+                    "Nội Dung Chi": item.content || item.noiDung || '-',
+                    "Hạng Mục": item.category || item.loaiChi || 'Chi phí chung',
+                    "Người Chi / Đơn Vị": item.person || item.nguoiChi || '-',
+                    "Số Tiền Chi (VNĐ)": Number(item.amount) || 0,
+                    "Ghi Chú": item.note || item.ghiChu || ''
+                }));
+            } else {
+                sheetName = "Danh Sách Hợp Đồng";
+                exportRows = filteredModalData.map((hd, index) => {
+                    const val = Number(hd.thanhToan?.tongGiaTriSauGiam ?? hd.thanhToan?.tongGiaTri ?? hd.tongTien ?? hd.giaTriHopDong ?? 0);
+                    const paid = Number(hd.thanhToan?.khachHangDaThanhToan ?? 0);
+                    const debt = Number(hd.thanhToan?.conLai ?? Math.max(0, val - paid));
+                    const schedulesStr = (hd.matchedSchedules || []).map(s => `${s.label}: ${formatDateOnly(s.date)}`).join('; ');
+
+                    return {
+                        "STT": index + 1,
+                        "Mã Hợp Đồng": hd.maHopDong || '-',
+                        "Ngày Ký": hd.ngayHopDong ? formatDateOnly(hd.ngayHopDong) : '-',
+                        "Tên Cô Dâu": hd.thongTinCoDauChuRe?.tenCoDau || '-',
+                        "SĐT Cô Dâu": hd.thongTinCoDauChuRe?.soDienThoaiCoDau || '-',
+                        "Tên Chú Rể": hd.thongTinCoDauChuRe?.tenChuRe || '-',
+                        "SĐT Chú Rể": hd.thongTinCoDauChuRe?.soDienThoaiChuRe || '-',
+                        "Gói Dịch Vụ": hd.tenGoiDichVu || hd.chiTietHopDong?.tenGoi || '-',
+                        "Lịch Trong Kỳ": schedulesStr || '-',
+                        "Tổng Giá Trị (VNĐ)": val,
+                        "Đã Thanh Toán (VNĐ)": paid,
+                        "Còn Nợ (VNĐ)": debt,
+                        "Nhân Viên Bán Hàng": hd.nguoiPhucVu?.banHang || 'Chưa phân công',
+                        "Thợ Chụp Ảnh": hd.nguoiPhucVu?.chupAnh || '-',
+                        "Trạng Thái Thanh Toán": debt === 0 ? 'Đã thanh toán đủ' : paid > 0 ? 'Đang thanh toán' : 'Chưa thanh toán'
+                    };
+                });
+            }
+
+            const ws = XLSX.utils.json_to_sheet(exportRows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            XLSX.writeFile(wb, fileName);
+            toast.success(`Đã xuất file Excel thành công (${exportRows.length} dòng)!`);
+        } catch (err) {
+            console.error("Lỗi xuất Excel:", err);
+            toast.error("Không thể xuất file Excel: " + (err.message || "Lỗi không xác định"));
+        }
+    };
+
+    // Calculate dynamic sub-metrics for KPI cards
+    const collectionPercent = currentMetrics.tongTienHopDong > 0 
+        ? ((currentMetrics.soTienDaThu / currentMetrics.tongTienHopDong) * 100).toFixed(1) 
+        : '0.0';
+    const debtPercent = currentMetrics.tongTienHopDong > 0 
+        ? ((currentMetrics.soTienConNo / currentMetrics.tongTienHopDong) * 100).toFixed(1) 
+        : '0.0';
+    const costPercent = currentMetrics.tongTienHopDong > 0 
+        ? ((currentMetrics.tongTienKhoanChi / currentMetrics.tongTienHopDong) * 100).toFixed(1) 
+        : '0.0';
 
     return (
         <div className="DoanhThu-container">
@@ -1280,10 +1757,10 @@ function DoanhThu() {
                 </div>
             </div>
 
-            {/* 7 MAIN FINANCIAL METRIC CARDS FOR SELECTED PERIOD */}
-            <div className="metrics-grid-7">
+            {/* 3 CORE FINANCIAL METRIC CARDS FOR SELECTED PERIOD */}
+            <div className="metrics-grid-3">
                 {/* 1. TỔNG SỐ HỢP ĐỒNG KÝ */}
-                <div className="metric-card metric-contracts">
+                <div className="metric-card metric-contracts" onClick={() => openDetailDialog('contracts')} title="Bấm để xem danh sách chi tiết hợp đồng ký">
                     <div className="metric-card-header">
                         <div className="metric-icon-box">
                             <AssignmentIcon />
@@ -1291,7 +1768,7 @@ function DoanhThu() {
                         {renderGrowthBadge(comparison.soLuongHopDong)}
                     </div>
                     <div>
-                        <p className="metric-title">Hợp Đồng Ký Trong Kỳ</p>
+                        <p className="metric-title">Tổng Hợp Đồng Được Ký</p>
                         <h2 className="metric-value" style={{ color: '#2563eb' }}>
                             {currentMetrics.soLuongHopDong || 0} <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>HĐ</span>
                         </h2>
@@ -1304,81 +1781,50 @@ function DoanhThu() {
                             </strong>
                         </span>
                     </div>
-                </div>
-
-                {/* 2. TỔNG DOANH SỐ HỢP ĐỒNG KÝ */}
-                <div className="metric-card metric-contract-value">
-                    <div className="metric-card-header">
-                        <div className="metric-icon-box">
-                            <MonetizationOnIcon />
-                        </div>
-                        {renderGrowthBadge(comparison.tongTienHopDong)}
-                    </div>
-                    <div>
-                        <p className="metric-title">Doanh Số Ký Trong Kỳ</p>
-                        <h2 className="metric-value" style={{ color: '#16a34a' }}>
-                            {formatCurrency(currentMetrics.tongTienHopDong)}
-                        </h2>
-                    </div>
-                    <div className="metric-sub-detail">
-                        <span>Kỳ trước: <strong>{formatShortCurrency(previousMetrics.tongTienHopDong)}</strong></span>
-                        <span>
-                            Lệch: <strong style={{ color: (comparison.tongTienHopDong?.diff || 0) >= 0 ? '#16a34a' : '#dc2626' }}>
-                                {(comparison.tongTienHopDong?.diff || 0) > 0 ? '+' : ''}{formatShortCurrency(comparison.tongTienHopDong?.diff)}
-                            </strong>
-                        </span>
+                    <div className="metric-click-hint">
+                        <VisibilityIcon sx={{ fontSize: '0.82rem' }} /> Bấm xem {currentMetrics.soLuongHopDong || 0} hợp đồng
                     </div>
                 </div>
 
-                {/* 3. DOANH SỐ THEO LỊCH TRONG KỲ (HỢP ĐỒNG CÓ LỊCH) */}
-                <div className="metric-card metric-scheduled">
-                    <div className="metric-card-header">
-                        <div className="metric-icon-box">
-                            <EventAvailableIcon />
-                        </div>
-                        {renderGrowthBadge(comparison.tongDoanhSoTheoLich)}
-                    </div>
-                    <div>
-                        <p className="metric-title">Doanh Số Theo Lịch Trong Kỳ</p>
-                        <h2 className="metric-value" style={{ color: '#9333ea' }}>
-                            {formatCurrency(currentMetrics.tongDoanhSoTheoLich)}
-                        </h2>
-                    </div>
-                    <div className="metric-sub-detail">
-                        <span>HĐ có lịch: <strong>{currentMetrics.soLuongHopDongTheoLich || 0} HĐ</strong></span>
-                        <span>
-                            Kỳ trước: <strong>{formatShortCurrency(previousMetrics.tongDoanhSoTheoLich)}</strong>
-                        </span>
-                    </div>
-                </div>
-
-                {/* 4. TỔNG TIỀN ĐÃ THU */}
-                <div className="metric-card metric-collected">
+                {/* 2. SỐ TIỀN KHÁCH HÀNG THANH TOÁN */}
+                <div className="metric-card metric-collected" onClick={() => openDetailDialog('collected')} title="Bấm để xem danh sách hợp đồng đã thu tiền">
                     <div className="metric-card-header">
                         <div className="metric-icon-box">
                             <AccountBalanceWalletIcon />
                         </div>
+                        <span className="metric-badge-growth badge-growth-up">
+                            {collectionPercent}% thu hồi
+                        </span>
                     </div>
                     <div>
-                        <p className="metric-title">Tổng Tiền Đã Thu</p>
+                        <p className="metric-title">Số Tiền Khách Hàng Thanh Toán</p>
                         <h2 className="metric-value" style={{ color: '#0891b2' }}>
                             {formatCurrency(currentMetrics.soTienDaThu)}
                         </h2>
                     </div>
+                    <div className="metric-mini-indicator">
+                        <div className="metric-mini-bar-bg">
+                            <div className="metric-mini-bar-fill" style={{ width: `${Math.min(100, Number(collectionPercent))}%`, background: 'linear-gradient(90deg, #06b6d4, #0891b2)' }} />
+                        </div>
+                    </div>
                     <div className="metric-sub-detail">
                         <span>Kỳ trước: <strong>{formatShortCurrency(previousMetrics.soTienDaThu)}</strong></span>
-                        <span>
-                            Tỷ lệ: <strong>{currentMetrics.tongTienHopDong > 0 ? ((currentMetrics.soTienDaThu / currentMetrics.tongTienHopDong) * 100).toFixed(1) : 0}%</strong>
-                        </span>
+                        <span>Tỷ lệ: <strong style={{ color: '#0891b2' }}>{collectionPercent}%</strong></span>
+                    </div>
+                    <div className="metric-click-hint">
+                        <VisibilityIcon sx={{ fontSize: '0.82rem' }} /> Bấm xem danh sách đã thu
                     </div>
                 </div>
 
-                {/* 5. TỔNG TIỀN KHÁCH HÀNG CÒN NỢ */}
-                <div className="metric-card metric-debt">
+                {/* 3. KHÁCH HÀNG CÒN NỢ */}
+                <div className="metric-card metric-debt" onClick={() => openDetailDialog('debt')} title="Bấm để xem danh sách khách hàng còn nợ">
                     <div className="metric-card-header">
                         <div className="metric-icon-box">
                             <PendingActionsIcon />
                         </div>
+                        <span className="metric-badge-growth badge-growth-down">
+                            {debtPercent}% nợ
+                        </span>
                     </div>
                     <div>
                         <p className="metric-title">Khách Hàng Còn Nợ</p>
@@ -1386,73 +1832,73 @@ function DoanhThu() {
                             {formatCurrency(currentMetrics.soTienConNo)}
                         </h2>
                     </div>
+                    <div className="metric-mini-indicator">
+                        <div className="metric-mini-bar-bg">
+                            <div className="metric-mini-bar-fill" style={{ width: `${Math.min(100, Number(debtPercent))}%`, background: 'linear-gradient(90deg, #f59e0b, #ea580c)' }} />
+                        </div>
+                    </div>
                     <div className="metric-sub-detail">
-                        <span>Tỷ lệ nợ: <strong>{currentMetrics.tongTienHopDong > 0 ? ((currentMetrics.soTienConNo / currentMetrics.tongTienHopDong) * 100).toFixed(1) : 0}%</strong></span>
+                        <span>Tỷ lệ nợ: <strong style={{ color: '#ea580c' }}>{debtPercent}%</strong></span>
                         <span>Nợ HT: <strong>{formatShortCurrency(systemStats.systemTotalReceivable)}</strong></span>
                     </div>
-                </div>
-
-                {/* 6. TỔNG TIỀN CHI */}
-                <div className="metric-card metric-expenses">
-                    <div className="metric-card-header">
-                        <div className="metric-icon-box">
-                            <ReceiptLongIcon />
-                        </div>
-                        {renderGrowthBadge(comparison.tongTienKhoanChi, true)}
-                    </div>
-                    <div>
-                        <p className="metric-title">Tổng Tiền Chi</p>
-                        <h2 className="metric-value" style={{ color: '#dc2626' }}>
-                            {formatCurrency(currentMetrics.tongTienKhoanChi)}
-                        </h2>
-                    </div>
-                    <div className="metric-sub-detail">
-                        <span>Kỳ trước: <strong>{formatShortCurrency(previousMetrics.tongTienKhoanChi)}</strong></span>
-                        <span>
-                            Lệch: <strong style={{ color: (comparison.tongTienKhoanChi?.diff || 0) <= 0 ? '#16a34a' : '#dc2626' }}>
-                                {(comparison.tongTienKhoanChi?.diff || 0) > 0 ? '+' : ''}{formatShortCurrency(comparison.tongTienKhoanChi?.diff)}
-                            </strong>
-                        </span>
-                    </div>
-                </div>
-
-                {/* 7. LÃI RÒNG */}
-                <div className="metric-card metric-profit">
-                    <div className="metric-card-header">
-                        <div className="metric-icon-box">
-                            <SavingsIcon />
-                        </div>
-                        {renderGrowthBadge(comparison.laiRong)}
-                    </div>
-                    <div>
-                        <p className="metric-title">Lãi Ròng (Doanh Số Ký - Chi)</p>
-                        <h2 className="metric-value" style={{ color: '#7c3aed' }}>
-                            {formatCurrency(currentMetrics.laiRong)}
-                        </h2>
-                    </div>
-                    <div className="metric-sub-detail">
-                        <span>Tỷ suất: <strong>{currentMetrics.tySuatLaiRong || 0}%</strong></span>
-                        <span>
-                            Kỳ trước: <strong>{formatShortCurrency(previousMetrics.laiRong)}</strong>
-                        </span>
+                    <div className="metric-click-hint">
+                        <VisibilityIcon sx={{ fontSize: '0.82rem' }} /> Bấm xem danh sách còn nợ
                     </div>
                 </div>
             </div>
 
             {/* NAVIGATION TABS */}
-            <Paper sx={{ borderRadius: '16px', mb: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+            <Paper 
+                elevation={0}
+                sx={{ 
+                    borderRadius: '18px', 
+                    mb: 3, 
+                    border: '1px solid rgba(226, 232, 240, 0.9)', 
+                    bgcolor: '#ffffff',
+                    p: 0.6,
+                    boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.03)'
+                }}
+            >
                 <Tabs
                     value={activeTab}
                     onChange={(e, val) => setActiveTab(val)}
                     variant={isMobile ? "scrollable" : "standard"}
                     scrollButtons="auto"
-                    sx={{ px: 2, '& .MuiTab-root': { fontWeight: 700, py: 1.6 } }}
+                    sx={{ 
+                        px: 1, 
+                        minHeight: 46,
+                        '& .MuiTabs-indicator': {
+                            height: 3,
+                            borderRadius: '3px',
+                            background: 'linear-gradient(90deg, #0284c7, #3b82f6)'
+                        },
+                        '& .MuiTab-root': { 
+                            fontWeight: 750, 
+                            fontSize: '0.88rem',
+                            py: 1.4,
+                            px: 2,
+                            minHeight: 46,
+                            color: '#64748b',
+                            textTransform: 'none',
+                            borderRadius: '12px',
+                            transition: 'all 0.2s ease',
+                            '&.Mui-selected': {
+                                color: '#0284c7',
+                                bgcolor: '#f0f9ff'
+                            },
+                            '&:hover': {
+                                bgcolor: '#f8fafc',
+                                color: '#0f172a'
+                            }
+                        } 
+                    }}
                 >
-                    <Tab icon={<BarChartIcon />} iconPosition="start" label="Biểu đồ & Cơ cấu tài chính" />
-                    <Tab icon={<EventAvailableIcon />} iconPosition="start" label={`Hợp Đồng & Doanh Số Theo Lịch (${currentMetrics.soLuongHopDongTheoLich || 0})`} />
-                    <Tab icon={<CompareArrowsIcon />} iconPosition="start" label="Bảng So Sánh 4 Chu Kỳ (Tuần/Tháng/Quý/Năm)" />
-                    <Tab icon={<EmojiEventsIcon />} iconPosition="start" label="Xếp Hạng Doanh Số Nhân Viên" />
-                    <Tab icon={<DiamondIcon />} iconPosition="start" label="Khách Hàng Sử Dụng Dịch Vụ Nhiều Nhất" />
+                    <Tab icon={<BarChartIcon fontSize="small" />} iconPosition="start" label="Biểu đồ & Cơ cấu tài chính" />
+                    <Tab icon={<EventAvailableIcon fontSize="small" />} iconPosition="start" label={`Hợp Đồng & Doanh Số Theo Lịch (${currentMetrics.soLuongHopDongTheoLich || 0})`} />
+                    <Tab icon={<CompareArrowsIcon fontSize="small" />} iconPosition="start" label="Bảng So Sánh 4 Chu Kỳ (Tuần/Tháng/Quý/Năm)" />
+                    <Tab icon={<EmojiEventsIcon fontSize="small" />} iconPosition="start" label="Xếp Hạng Doanh Số Nhân Viên" />
+                    <Tab icon={<DiamondIcon fontSize="small" />} iconPosition="start" label="Khách Hàng Sử Dụng Dịch Vụ Nhiều Nhất" />
+                    <Tab icon={<ReceiptLongIcon fontSize="small" />} iconPosition="start" label={`Lịch Sử Khách Hàng Đã Thanh Toán (${allPaymentHistory.length})`} />
                 </Tabs>
             </Paper>
 
@@ -1462,78 +1908,115 @@ function DoanhThu() {
                     {/* Timeline Spline Wave Chart */}
                     <Grid item xs={12} lg={8}>
                         <div className="dashboard-section-card" style={{ height: '100%' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                                <h3 className="section-header-title" style={{ margin: 0 }}>
-                                    🌊 Biểu Đồ Sóng Tài Chính ({selectedPeriod.currentRange?.label || 'Kỳ này'})
-                                </h3>
-                                <Stack direction="row" spacing={1} flexWrap="wrap">
-                                    <Chip
-                                        size="small"
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
+                                <div>
+                                    <h3 className="section-header-title" style={{ margin: 0 }}>
+                                        🌊 Biểu Đồ Sóng Tài Chính ({selectedPeriod.currentRange?.label || 'Kỳ này'})
+                                    </h3>
+                                    <Typography variant="caption" color="#64748b">
+                                        Trực quan hóa xu hướng ký kết, thực hiện lịch, dòng tiền thu, chi phí và lợi nhuận từng mốc ngày
+                                    </Typography>
+                                </div>
+
+                                <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
+                                    {/* Wave Toggle Pills */}
+                                    <div
+                                        className="wave-legend-pill"
                                         onClick={() => toggleWave('revenue')}
-                                        sx={{
-                                            bgcolor: visibleWaves.revenue ? '#dcfce7' : '#f1f5f9',
-                                            color: visibleWaves.revenue ? '#15803d' : '#94a3b8',
-                                            fontWeight: 700,
-                                            cursor: 'pointer',
-                                            border: visibleWaves.revenue ? '1px solid #86efac' : '1px solid #e2e8f0',
+                                        style={{
+                                            backgroundColor: visibleWaves.revenue ? '#ecfdf5' : '#f1f5f9',
+                                            color: visibleWaves.revenue ? '#059669' : '#94a3b8',
+                                            borderColor: visibleWaves.revenue ? '#a7f3d0' : '#e2e8f0',
                                             opacity: visibleWaves.revenue ? 1 : 0.6
                                         }}
-                                        label="● Doanh số ký"
-                                    />
-                                    <Chip
-                                        size="small"
+                                    >
+                                        <span className="wave-dot" style={{ backgroundColor: '#10b981' }} />
+                                        Doanh số ký
+                                    </div>
+
+                                    <div
+                                        className="wave-legend-pill"
                                         onClick={() => toggleWave('scheduled')}
-                                        sx={{
-                                            bgcolor: visibleWaves.scheduled ? '#f3e8ff' : '#f1f5f9',
-                                            color: visibleWaves.scheduled ? '#7e22ce' : '#94a3b8',
-                                            fontWeight: 700,
-                                            cursor: 'pointer',
-                                            border: visibleWaves.scheduled ? '1px solid #d8b4fe' : '1px solid #e2e8f0',
+                                        style={{
+                                            backgroundColor: visibleWaves.scheduled ? '#faf5ff' : '#f1f5f9',
+                                            color: visibleWaves.scheduled ? '#7c3aed' : '#94a3b8',
+                                            borderColor: visibleWaves.scheduled ? '#e9d5ff' : '#e2e8f0',
                                             opacity: visibleWaves.scheduled ? 1 : 0.6
                                         }}
-                                        label="● Doanh số theo lịch"
-                                    />
-                                    <Chip
-                                        size="small"
+                                    >
+                                        <span className="wave-dot" style={{ backgroundColor: '#8b5cf6' }} />
+                                        Doanh số lịch
+                                    </div>
+
+                                    <div
+                                        className="wave-legend-pill"
                                         onClick={() => toggleWave('collected')}
-                                        sx={{
-                                            bgcolor: visibleWaves.collected ? '#e0f2fe' : '#f1f5f9',
-                                            color: visibleWaves.collected ? '#0369a1' : '#94a3b8',
-                                            fontWeight: 700,
-                                            cursor: 'pointer',
-                                            border: visibleWaves.collected ? '1px solid #7dd3fc' : '1px solid #e2e8f0',
+                                        style={{
+                                            backgroundColor: visibleWaves.collected ? '#ecfeff' : '#f1f5f9',
+                                            color: visibleWaves.collected ? '#0891b2' : '#94a3b8',
+                                            borderColor: visibleWaves.collected ? '#a5f3fc' : '#e2e8f0',
                                             opacity: visibleWaves.collected ? 1 : 0.6
                                         }}
-                                        label="● Đã thu"
-                                    />
-                                    <Chip
-                                        size="small"
+                                    >
+                                        <span className="wave-dot" style={{ backgroundColor: '#0284c7' }} />
+                                        Đã thu
+                                    </div>
+
+                                    <div
+                                        className="wave-legend-pill"
                                         onClick={() => toggleWave('expense')}
-                                        sx={{
-                                            bgcolor: visibleWaves.expense ? '#fee2e2' : '#f1f5f9',
-                                            color: visibleWaves.expense ? '#b91c1c' : '#94a3b8',
-                                            fontWeight: 700,
-                                            cursor: 'pointer',
-                                            border: visibleWaves.expense ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                                        style={{
+                                            backgroundColor: visibleWaves.expense ? '#fff1f2' : '#f1f5f9',
+                                            color: visibleWaves.expense ? '#e11d48' : '#94a3b8',
+                                            borderColor: visibleWaves.expense ? '#fecdd3' : '#e2e8f0',
                                             opacity: visibleWaves.expense ? 1 : 0.6
                                         }}
-                                        label="● Tiền chi"
-                                    />
-                                    <Chip
-                                        size="small"
+                                    >
+                                        <span className="wave-dot" style={{ backgroundColor: '#ef4444' }} />
+                                        Tiền chi
+                                    </div>
+
+                                    <div
+                                        className="wave-legend-pill"
                                         onClick={() => toggleWave('profit')}
-                                        sx={{
-                                            bgcolor: visibleWaves.profit ? '#f5f3ff' : '#f1f5f9',
-                                            color: visibleWaves.profit ? '#7c3aed' : '#94a3b8',
-                                            fontWeight: 700,
-                                            cursor: 'pointer',
-                                            border: visibleWaves.profit ? '1px solid #c4b5fd' : '1px solid #e2e8f0',
+                                        style={{
+                                            backgroundColor: visibleWaves.profit ? '#eef2ff' : '#f1f5f9',
+                                            color: visibleWaves.profit ? '#4f46e5' : '#94a3b8',
+                                            borderColor: visibleWaves.profit ? '#c7d2fe' : '#e2e8f0',
                                             opacity: visibleWaves.profit ? 1 : 0.6
                                         }}
-                                        label="● Lãi ròng"
-                                    />
+                                    >
+                                        <span className="wave-dot" style={{ backgroundColor: '#6366f1' }} />
+                                        Lãi ròng
+                                    </div>
                                 </Stack>
                             </div>
+
+                            {/* Preset Buttons Bar */}
+                            <Box display="flex" justifyContent="flex-end" mb={1} gap={1}>
+                                <Button
+                                    size="small"
+                                    onClick={() => setWavePreset('all')}
+                                    sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'none', py: 0.3 }}
+                                >
+                                    Toàn bộ sóng
+                                </Button>
+                                <Button
+                                    size="small"
+                                    onClick={() => setWavePreset('rev_profit')}
+                                    sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'none', py: 0.3 }}
+                                >
+                                    Doanh số & Lãi
+                                </Button>
+                                <Button
+                                    size="small"
+                                    onClick={() => setWavePreset('cashflow')}
+                                    sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'none', py: 0.3 }}
+                                >
+                                    Dòng tiền Thu - Chi
+                                </Button>
+                            </Box>
+
                             {renderTimelineChart()}
                         </div>
                     </Grid>
@@ -1541,111 +2024,165 @@ function DoanhThu() {
                     {/* Financial Health & Structure Breakdown */}
                     <Grid item xs={12} lg={4}>
                         <div className="dashboard-section-card" style={{ height: '100%' }}>
-                            <h3 className="section-header-title">
-                                🎯 Phân Bổ Dòng Tiền & Hiệu Quả
-                            </h3>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <h3 className="section-header-title" style={{ margin: 0 }}>
+                                    🎯 Phân Bổ Dòng Tiền & Hiệu Quả
+                                </h3>
+                                <Chip 
+                                    label={`Lãi: ${currentMetrics.tySuatLaiRong || 0}%`} 
+                                    size="small" 
+                                    sx={{ fontWeight: 800, bgcolor: '#eef2ff', color: '#4f46e5', border: '1px solid #c7d2fe' }} 
+                                />
+                            </div>
 
-                            <Stack spacing={3}>
-                                {/* 1. Thu hồi vốn */}
-                                <div>
-                                    <Box display="flex" justifyContent="space-between" mb={0.8}>
-                                        <Typography variant="body2" fontWeight={700} color="#334155">
-                                            Tỷ lệ thu hồi dòng tiền (HĐ Ký)
-                                        </Typography>
-                                        <Typography variant="body2" fontWeight={800} color="#0284c7">
-                                            {currentMetrics.tongTienHopDong > 0 ? ((currentMetrics.soTienDaThu / currentMetrics.tongTienHopDong) * 100).toFixed(1) : 0}%
-                                        </Typography>
-                                    </Box>
-                                    <LinearProgress
-                                        variant="determinate"
-                                        value={Math.min(100, currentMetrics.tongTienHopDong > 0 ? (currentMetrics.soTienDaThu / currentMetrics.tongTienHopDong) * 100 : 0)}
-                                        sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: '#0284c7' } }}
-                                    />
-                                    <Typography variant="caption" color="#64748b" display="block" mt={0.5}>
-                                        Đã thu {formatShortCurrency(currentMetrics.soTienDaThu)} / {formatShortCurrency(currentMetrics.tongTienHopDong)} doanh số ký
-                                    </Typography>
+                            <Stack spacing={2}>
+                                {/* 1. Thu hồi vốn HĐ ký */}
+                                <div className="health-meter-card" onClick={() => openDetailDialog('collected')} title="Bấm để xem danh sách HĐ đã thu tiền" style={{ cursor: 'pointer' }}>
+                                    <div className="health-meter-header">
+                                        <span className="health-meter-title">
+                                            📥 Thu hồi dòng tiền (HĐ Ký)
+                                        </span>
+                                        <span className="health-meter-percent" style={{ bgcolor: '#ecfeff', color: '#0891b2' }}>
+                                            {collectionPercent}%
+                                        </span>
+                                    </div>
+                                    <div className="health-meter-bar">
+                                        <div 
+                                            className="health-meter-fill" 
+                                            style={{ 
+                                                width: `${Math.min(100, Number(collectionPercent))}%`, 
+                                                background: 'linear-gradient(90deg, #0284c7, #38bdf8)' 
+                                            }} 
+                                        />
+                                    </div>
+                                    <div className="health-meter-caption">
+                                        <span>Đã thu: <strong>{formatShortCurrency(currentMetrics.soTienDaThu)}</strong></span>
+                                        <span>Tổng ký: <strong>{formatShortCurrency(currentMetrics.tongTienHopDong)}</strong></span>
+                                    </div>
                                 </div>
 
                                 {/* 2. Thu hồi vốn của HĐ có lịch */}
-                                <div>
-                                    <Box display="flex" justifyContent="space-between" mb={0.8}>
-                                        <Typography variant="body2" fontWeight={700} color="#334155">
-                                            Tỷ lệ thu hồi HĐ Có Lịch Trong Kỳ
-                                        </Typography>
-                                        <Typography variant="body2" fontWeight={800} color="#9333ea">
+                                <div className="health-meter-card" onClick={() => openDetailDialog('scheduled')} title="Bấm để xem danh sách HĐ có lịch phục vụ" style={{ cursor: 'pointer' }}>
+                                    <div className="health-meter-header">
+                                        <span className="health-meter-title">
+                                            📅 Thu hồi HĐ Có Lịch Trong Kỳ
+                                        </span>
+                                        <span className="health-meter-percent" style={{ bgcolor: '#faf5ff', color: '#7c3aed' }}>
                                             {currentMetrics.tyLeThuHoiTheoLich || 0}%
-                                        </Typography>
-                                    </Box>
-                                    <LinearProgress
-                                        variant="determinate"
-                                        value={Math.min(100, currentMetrics.tyLeThuHoiTheoLich || 0)}
-                                        sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: '#9333ea' } }}
-                                    />
-                                    <Typography variant="caption" color="#64748b" display="block" mt={0.5}>
-                                        Đã thu {formatShortCurrency(currentMetrics.daThuTheoLich || 0)} / {formatShortCurrency(currentMetrics.tongDoanhSoTheoLich || 0)} doanh số lịch
-                                    </Typography>
+                                        </span>
+                                    </div>
+                                    <div className="health-meter-bar">
+                                        <div 
+                                            className="health-meter-fill" 
+                                            style={{ 
+                                                width: `${Math.min(100, Number(currentMetrics.tyLeThuHoiTheoLich || 0))}%`, 
+                                                background: 'linear-gradient(90deg, #8b5cf6, #c084fc)' 
+                                            }} 
+                                        />
+                                    </div>
+                                    <div className="health-meter-caption">
+                                        <span>Đã thu: <strong>{formatShortCurrency(currentMetrics.daThuTheoLich || 0)}</strong></span>
+                                        <span>Tổng lịch: <strong>{formatShortCurrency(currentMetrics.tongDoanhSoTheoLich || 0)}</strong></span>
+                                    </div>
                                 </div>
 
                                 {/* 3. Công nợ khách hàng */}
-                                <div>
-                                    <Box display="flex" justifyContent="space-between" mb={0.8}>
-                                        <Typography variant="body2" fontWeight={700} color="#334155">
-                                            Tỷ lệ công nợ còn lại (HĐ Ký)
-                                        </Typography>
-                                        <Typography variant="body2" fontWeight={800} color="#ea580c">
-                                            {currentMetrics.tongTienHopDong > 0 ? ((currentMetrics.soTienConNo / currentMetrics.tongTienHopDong) * 100).toFixed(1) : 0}%
-                                        </Typography>
-                                    </Box>
-                                    <LinearProgress
-                                        variant="determinate"
-                                        value={Math.min(100, currentMetrics.tongTienHopDong > 0 ? (currentMetrics.soTienConNo / currentMetrics.tongTienHopDong) * 100 : 0)}
-                                        sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: '#ea580c' } }}
-                                    />
-                                    <Typography variant="caption" color="#64748b" display="block" mt={0.5}>
-                                        Còn nợ {formatShortCurrency(currentMetrics.soTienConNo)} (Toàn HT: {formatShortCurrency(systemStats.systemTotalReceivable)})
-                                    </Typography>
+                                <div className="health-meter-card" onClick={() => openDetailDialog('debt')} title="Bấm để xem danh sách khách hàng còn nợ" style={{ cursor: 'pointer' }}>
+                                    <div className="health-meter-header">
+                                        <span className="health-meter-title">
+                                            ⚠️ Tỷ lệ công nợ còn lại
+                                        </span>
+                                        <span className="health-meter-percent" style={{ bgcolor: '#fff7ed', color: '#d97706' }}>
+                                            {debtPercent}%
+                                        </span>
+                                    </div>
+                                    <div className="health-meter-bar">
+                                        <div 
+                                            className="health-meter-fill" 
+                                            style={{ 
+                                                width: `${Math.min(100, Number(debtPercent))}%`, 
+                                                background: 'linear-gradient(90deg, #f59e0b, #fbbf24)' 
+                                            }} 
+                                        />
+                                    </div>
+                                    <div className="health-meter-caption">
+                                        <span>Còn nợ: <strong>{formatShortCurrency(currentMetrics.soTienConNo)}</strong></span>
+                                        <span>Toàn HT: <strong>{formatShortCurrency(systemStats.systemTotalReceivable)}</strong></span>
+                                    </div>
                                 </div>
 
                                 {/* 4. Tỷ suất chi phí / Doanh số */}
-                                <div>
-                                    <Box display="flex" justifyContent="space-between" mb={0.8}>
-                                        <Typography variant="body2" fontWeight={700} color="#334155">
-                                            Tỷ suất chi phí / Doanh số
-                                        </Typography>
-                                        <Typography variant="body2" fontWeight={800} color="#dc2626">
-                                            {currentMetrics.tongTienHopDong > 0 ? ((currentMetrics.tongTienKhoanChi / currentMetrics.tongTienHopDong) * 100).toFixed(1) : 0}%
-                                        </Typography>
-                                    </Box>
-                                    <LinearProgress
-                                        variant="determinate"
-                                        value={Math.min(100, currentMetrics.tongTienHopDong > 0 ? (currentMetrics.tongTienKhoanChi / currentMetrics.tongTienHopDong) * 100 : 0)}
-                                        sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: '#dc2626' } }}
-                                    />
-                                    <Typography variant="caption" color="#64748b" display="block" mt={0.5}>
-                                        Đã chi {formatShortCurrency(currentMetrics.tongTienKhoanChi)} trong kỳ
-                                    </Typography>
+                                <div className="health-meter-card" onClick={() => openDetailDialog('expenses')} title="Bấm để xem danh sách các khoản chi phí" style={{ cursor: 'pointer' }}>
+                                    <div className="health-meter-header">
+                                        <span className="health-meter-title">
+                                            💸 Tỷ suất chi phí / Doanh số
+                                        </span>
+                                        <span className="health-meter-percent" style={{ bgcolor: '#fff1f2', color: '#e11d48' }}>
+                                            {costPercent}%
+                                        </span>
+                                    </div>
+                                    <div className="health-meter-bar">
+                                        <div 
+                                            className="health-meter-fill" 
+                                            style={{ 
+                                                width: `${Math.min(100, Number(costPercent))}%`, 
+                                                background: 'linear-gradient(90deg, #f43f5e, #fb7185)' 
+                                            }} 
+                                        />
+                                    </div>
+                                    <div className="health-meter-caption">
+                                        <span>Đã chi: <strong>{formatShortCurrency(currentMetrics.tongTienKhoanChi)}</strong></span>
+                                        <span>Mức kiểm soát: <strong>Tốt (&lt; 35%)</strong></span>
+                                    </div>
                                 </div>
 
                                 {/* 5. Tỷ suất Lãi Ròng / Doanh số */}
-                                <div>
-                                    <Box display="flex" justifyContent="space-between" mb={0.8}>
-                                        <Typography variant="body2" fontWeight={700} color="#334155">
-                                            Tỷ suất Lãi Ròng / Doanh số
-                                        </Typography>
-                                        <Typography variant="body2" fontWeight={800} color="#7c3aed">
+                                <div className="health-meter-card" onClick={() => openDetailDialog('profit')} title="Bấm để xem phân bổ lợi nhuận & hợp đồng" style={{ border: '1px solid #c7d2fe', background: 'linear-gradient(135deg, #f8faff 0%, #f5f3ff 100%)', cursor: 'pointer' }}>
+                                    <div className="health-meter-header">
+                                        <span className="health-meter-title" style={{ color: '#4f46e5', fontWeight: 800 }}>
+                                            💎 Biên Lợi Nhuận Ròng
+                                        </span>
+                                        <span className="health-meter-percent" style={{ bgcolor: '#e0e7ff', color: '#4338ca' }}>
                                             {currentMetrics.tySuatLaiRong || 0}%
-                                        </Typography>
-                                    </Box>
-                                    <LinearProgress
-                                        variant="determinate"
-                                        value={Math.max(0, Math.min(100, currentMetrics.tySuatLaiRong || 0))}
-                                        sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: '#7c3aed' } }}
-                                    />
-                                    <Typography variant="caption" color="#64748b" display="block" mt={0.5}>
-                                        Lãi ròng {formatShortCurrency(currentMetrics.laiRong)} ({currentMetrics.tySuatLaiRong || 0}% doanh số)
-                                    </Typography>
+                                        </span>
+                                    </div>
+                                    <div className="health-meter-bar">
+                                        <div 
+                                            className="health-meter-fill" 
+                                            style={{ 
+                                                width: `${Math.max(0, Math.min(100, Number(currentMetrics.tySuatLaiRong || 0)))}%`, 
+                                                background: 'linear-gradient(90deg, #6366f1, #a855f7)' 
+                                            }} 
+                                        />
+                                    </div>
+                                    <div className="health-meter-caption">
+                                        <span>Lãi ròng: <strong>{formatShortCurrency(currentMetrics.laiRong)}</strong></span>
+                                        <span style={{ color: '#4f46e5', fontWeight: 700 }}>Đạt hiệu quả cao</span>
+                                    </div>
                                 </div>
                             </Stack>
+
+                            {/* 3 Quick Health Summary Boxes */}
+                            <div className="health-summary-grid">
+                                <div className="health-summary-item">
+                                    <div className="health-summary-label">Đã Thu</div>
+                                    <div className="health-summary-value" style={{ color: '#0891b2' }}>
+                                        {formatShortCurrency(currentMetrics.soTienDaThu)}
+                                    </div>
+                                </div>
+                                <div className="health-summary-item">
+                                    <div className="health-summary-label">Còn Nợ</div>
+                                    <div className="health-summary-value" style={{ color: '#ea580c' }}>
+                                        {formatShortCurrency(currentMetrics.soTienConNo)}
+                                    </div>
+                                </div>
+                                <div className="health-summary-item">
+                                    <div className="health-summary-label">Lãi Ròng</div>
+                                    <div className="health-summary-value" style={{ color: '#6366f1' }}>
+                                        {formatShortCurrency(currentMetrics.laiRong)}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </Grid>
                 </Grid>
@@ -2552,6 +3089,664 @@ function DoanhThu() {
                     )}
                 </div>
             )}
+
+            {/* TAB 5: DANH SÁCH LỊCH SỬ KHÁCH HÀNG ĐÃ THANH TOÁN */}
+            {activeTab === 5 && (
+                <div className="dashboard-section-card">
+                    {/* Header bar */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+                        <div>
+                            <h3 className="section-header-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <ReceiptLongIcon style={{ color: '#0891b2', fontSize: '1.6rem' }} />
+                                Danh Sách Lịch Sử Khách Hàng Đã Thanh Toán
+                            </h3>
+                            <p style={{ color: '#64748b', fontSize: '0.88rem', margin: '4px 0 0 0' }}>
+                                Toàn bộ các đợt thanh toán, đặt cọc và quyết toán của khách hàng theo thời gian thực
+                            </p>
+                        </div>
+
+                        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+                            {/* Scope filter: All time vs Selected Period */}
+                            <ToggleButtonGroup
+                                value={paymentScope}
+                                exclusive
+                                onChange={(e, val) => val && setPaymentScope(val)}
+                                size="small"
+                                sx={{ bgcolor: '#f1f5f9', borderRadius: '10px' }}
+                            >
+                                <ToggleButton value="all" sx={{ fontWeight: 700, px: 1.5, py: 0.5, borderRadius: '8px !important' }}>
+                                    Tất cả thời gian
+                                </ToggleButton>
+                                <ToggleButton value="period" sx={{ fontWeight: 700, px: 1.5, py: 0.5, borderRadius: '8px !important' }}>
+                                    Trong kỳ đang chọn
+                                </ToggleButton>
+                            </ToggleButtonGroup>
+
+                            {/* Export Excel */}
+                            <Button
+                                variant="outlined"
+                                startIcon={<FileDownloadIcon />}
+                                onClick={exportPaymentHistoryToExcel}
+                                disabled={filteredPaymentHistory.length === 0}
+                                sx={{
+                                    borderRadius: '10px',
+                                    textTransform: 'none',
+                                    fontWeight: 750,
+                                    color: '#16a34a',
+                                    borderColor: '#86efac',
+                                    bgcolor: '#f0fdf4',
+                                    '&:hover': { bgcolor: '#dcfce7', borderColor: '#4ade80' }
+                                }}
+                            >
+                                Xuất Excel ({filteredPaymentHistory.length})
+                            </Button>
+                        </Stack>
+                    </div>
+
+                    {/* Summary 4 Stat Cards Strip */}
+                    <Grid container spacing={2} sx={{ mb: 2.5 }}>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <div className="payment-stat-card">
+                                <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: '#e0f2fe', color: '#0284c7', display: 'flex' }}>
+                                    <ReceiptLongIcon fontSize="medium" />
+                                </Box>
+                                <div>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                                        Tổng Lượt Thu
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
+                                        {paymentStats.totalCount} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>lượt</span>
+                                    </Typography>
+                                </div>
+                            </div>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <div className="payment-stat-card">
+                                <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: '#dcfce7', color: '#16a34a', display: 'flex' }}>
+                                    <MonetizationOnIcon fontSize="medium" />
+                                </Box>
+                                <div>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                                        Tổng Tiền Thu Được
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#16a34a', lineHeight: 1.2 }}>
+                                        {formatCurrency(paymentStats.totalAmount)}
+                                    </Typography>
+                                </div>
+                            </div>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <div className="payment-stat-card">
+                                <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: '#eff6ff', color: '#2563eb', display: 'flex' }}>
+                                    <AccountBalanceWalletIcon fontSize="medium" />
+                                </Box>
+                                <div>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                                        Thu Chuyển Khoản
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#2563eb', lineHeight: 1.2 }}>
+                                        {formatCurrency(paymentStats.bankAmount)}
+                                    </Typography>
+                                </div>
+                            </div>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <div className="payment-stat-card">
+                                <Box sx={{ p: 1.2, borderRadius: '12px', bgcolor: '#fef3c7', color: '#d97706', display: 'flex' }}>
+                                    <SavingsIcon fontSize="medium" />
+                                </Box>
+                                <div>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                                        Thu Tiền Mặt
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#d97706', lineHeight: 1.2 }}>
+                                        {formatCurrency(paymentStats.cashAmount)}
+                                    </Typography>
+                                </div>
+                            </div>
+                        </Grid>
+                    </Grid>
+
+                    {/* Filter & Search Toolbar */}
+                    <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1.5} sx={{ mb: 2 }}>
+                        <TextField
+                            size="small"
+                            placeholder="Tìm theo mã HĐ, tên khách hàng, SĐT, nội dung thanh toán, nhân viên..."
+                            value={paymentSearch}
+                            onChange={(e) => {
+                                setPaymentSearch(e.target.value);
+                                setPaymentPage(0);
+                            }}
+                            sx={{
+                                flex: 1,
+                                minWidth: 280,
+                                bgcolor: '#ffffff',
+                                borderRadius: '12px',
+                                '& .MuiOutlinedInput-root': { borderRadius: '12px' }
+                            }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon sx={{ color: '#94a3b8' }} />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: paymentSearch ? (
+                                    <InputAdornment position="end">
+                                        <IconButton size="small" onClick={() => { setPaymentSearch(''); setPaymentPage(0); }}>
+                                            <ClearIcon fontSize="small" />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ) : null
+                            }}
+                        />
+
+                        {/* Payment Method Selector */}
+                        <FormControl size="small" sx={{ minWidth: 160 }}>
+                            <Select
+                                value={paymentMethodFilter}
+                                onChange={(e) => {
+                                    setPaymentMethodFilter(e.target.value);
+                                    setPaymentPage(0);
+                                }}
+                                sx={{ borderRadius: '12px', fontWeight: 700 }}
+                            >
+                                <MenuItem value="all">Tất cả phương thức</MenuItem>
+                                <MenuItem value="Tiền mặt">💵 Tiền mặt</MenuItem>
+                                <MenuItem value="Chuyển khoản">💳 Chuyển khoản</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Box>
+
+                    {/* Payment Table */}
+                    {filteredPaymentHistory.length === 0 ? (
+                        <Box sx={{ py: 8, textAlign: 'center', color: '#94a3b8' }}>
+                            <ReceiptLongIcon sx={{ fontSize: '3.5rem', color: '#cbd5e1', mb: 1 }} />
+                            <Typography variant="body1" sx={{ fontWeight: 700, color: '#64748b' }}>
+                                {paymentSearch ? 'Không tìm thấy lượt thanh toán nào phù hợp' : 'Chưa có dữ liệu thanh toán'}
+                            </Typography>
+                            {paymentSearch && (
+                                <Button size="small" onClick={() => { setPaymentSearch(''); setPaymentPage(0); }} sx={{ mt: 1, textTransform: 'none' }}>
+                                    Xóa tìm kiếm
+                                </Button>
+                            )}
+                        </Box>
+                    ) : (
+                        <>
+                            <TableContainer component={Paper} elevation={0} sx={{ borderRadius: '16px', border: '1px solid #e2e8f0', maxHeight: '60vh' }} className="custom-scroll">
+                                <Table stickyHeader size="small">
+                                    <TableHead>
+                                        <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 800, color: '#475569', py: 1.2 } }}>
+                                            <TableCell align="center" width={50}>STT</TableCell>
+                                            <TableCell width={120}>Mã HĐ</TableCell>
+                                            <TableCell width={180}>Khách Hàng</TableCell>
+                                            <TableCell width={140}>Ngày Thu</TableCell>
+                                            <TableCell align="right" width={140}>Số Tiền Thu</TableCell>
+                                            <TableCell width={130} align="center">Phương Thức</TableCell>
+                                            <TableCell>Nội Dung / Đợt Thu</TableCell>
+                                            <TableCell width={130}>Người Thu</TableCell>
+                                            <TableCell width={140} align="center">Trạng Thái HĐ</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {filteredPaymentHistory
+                                            .slice(paymentPage * paymentRowsPerPage, paymentPage * paymentRowsPerPage + paymentRowsPerPage)
+                                            .map((item, idx) => {
+                                                const globalIdx = paymentPage * paymentRowsPerPage + idx + 1;
+                                                const isBank = (item.phuongThuc || '').toLowerCase().includes('chuyển khoản') || (item.phuongThuc || '').toLowerCase().includes('ck');
+                                                const isPaidFull = item.trangThaiHD === 'Đã thanh toán đủ' || item.conLaiHD === 0;
+
+                                                return (
+                                                    <TableRow key={item.id || idx} sx={{ '&:hover': { bgcolor: '#f8fafc' } }}>
+                                                        <TableCell align="center" sx={{ color: '#94a3b8', fontWeight: 600 }}>
+                                                            {globalIdx}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography variant="body2" sx={{ fontWeight: 800, color: '#0284c7' }}>
+                                                                {item.maHopDong}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography variant="body2" sx={{ fontWeight: 750, color: '#0f172a' }}>
+                                                                {item.khachHang}
+                                                            </Typography>
+                                                            <Typography variant="caption" sx={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                                <CallIcon sx={{ fontSize: '0.72rem' }} /> {item.soDienThoai}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell sx={{ fontWeight: 600, color: '#334155' }}>
+                                                            {item.ngayThanhToan ? (
+                                                                <>
+                                                                    <div>{new Date(item.ngayThanhToan).toLocaleDateString('vi-VN')}</div>
+                                                                    <Typography variant="caption" color="#94a3b8">
+                                                                        {new Date(item.ngayThanhToan).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                                                    </Typography>
+                                                                </>
+                                                            ) : '-'}
+                                                        </TableCell>
+                                                        <TableCell align="right" sx={{ fontWeight: 800, color: '#16a34a', fontSize: '0.92rem' }}>
+                                                            {formatCurrency(item.soTien)}
+                                                        </TableCell>
+                                                        <TableCell align="center">
+                                                            <Chip
+                                                                label={item.phuongThuc}
+                                                                size="small"
+                                                                className={`payment-method-chip ${isBank ? 'payment-method-ck' : 'payment-method-tm'}`}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell sx={{ fontWeight: 600, color: '#1e293b' }}>
+                                                            {item.noiDung}
+                                                        </TableCell>
+                                                        <TableCell sx={{ color: '#475569', fontWeight: 600 }}>
+                                                            {item.nhanVien}
+                                                        </TableCell>
+                                                        <TableCell align="center">
+                                                            <Chip
+                                                                label={item.trangThaiHD}
+                                                                size="small"
+                                                                sx={{
+                                                                    fontWeight: 750,
+                                                                    fontSize: '0.74rem',
+                                                                    bgcolor: isPaidFull ? '#dcfce7' : '#fef3c7',
+                                                                    color: isPaidFull ? '#15803d' : '#b45309',
+                                                                    border: `1px solid ${isPaidFull ? '#bbf7d0' : '#fde68a'}`
+                                                                }}
+                                                            />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+
+                            <TablePagination
+                                component="div"
+                                count={filteredPaymentHistory.length}
+                                page={paymentPage}
+                                onPageChange={(e, newPage) => setPaymentPage(newPage)}
+                                rowsPerPage={paymentRowsPerPage}
+                                onRowsPerPageChange={(e) => {
+                                    setPaymentRowsPerPage(parseInt(e.target.value, 10));
+                                    setPaymentPage(0);
+                                }}
+                                rowsPerPageOptions={[10, 20, 50, 100]}
+                                labelRowsPerPage="Số dòng:"
+                                labelDisplayedRows={({ from, to, count }) => `${from}-${to} trong ${count}`}
+                                sx={{ borderTop: '1px solid #e2e8f0', mt: 1 }}
+                            />
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* DETAIL DRILL-DOWN MODAL FOR STATISTICAL CARDS */}
+            <Dialog
+                open={detailModal.open}
+                onClose={closeDetailDialog}
+                maxWidth="lg"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '24px',
+                        p: 1,
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        maxHeight: '90vh'
+                    }
+                }}
+            >
+                {/* Modal Header */}
+                <DialogTitle sx={{ pb: 1, pt: 2, px: 3 }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                            <Box
+                                sx={{
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: '14px',
+                                    bgcolor: '#eff6ff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '1.4rem'
+                                }}
+                            >
+                                {detailModal.icon || <AssignmentIcon sx={{ color: '#2563eb' }} />}
+                            </Box>
+                            <div>
+                                <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>
+                                    {detailModal.title}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 0.8, mt: 0.3 }}>
+                                    <span>📅 Chu kỳ: <strong style={{ color: '#0284c7' }}>{detailModal.periodLabel}</strong></span>
+                                    <span>•</span>
+                                    <span>
+                                        {detailModal.loading 
+                                            ? <span style={{ color: '#0284c7' }}>Đang tải từ máy chủ...</span> 
+                                            : <>Tìm thấy <strong style={{ color: '#16a34a' }}>{filteredModalData.length}</strong> kết quả</>
+                                        }
+                                    </span>
+                                </Typography>
+                            </div>
+                        </Box>
+
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Tooltip title="Tải lại dữ liệu từ máy chủ">
+                                <IconButton 
+                                    onClick={() => openDetailDialog(detailModal.type)} 
+                                    disabled={detailModal.loading}
+                                    size="small"
+                                    sx={{ color: '#64748b', '&:hover': { color: '#0284c7', bgcolor: '#f0f9ff' } }}
+                                >
+                                    <RefreshIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                            <IconButton onClick={closeDetailDialog} sx={{ color: '#94a3b8', '&:hover': { color: '#0f172a', bgcolor: '#f1f5f9' } }}>
+                                <CloseIcon />
+                            </IconButton>
+                        </Stack>
+                    </Box>
+
+                    {/* Summary Quick Badges */}
+                    <Box sx={{ mt: 2, p: 1.5, bgcolor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+                        {detailModal.type === 'expenses' ? (
+                            <>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>Tổng phiếu chi:</Typography>
+                                    <Chip label={`${modalSummaryStats.totalCount} phiếu`} size="small" sx={{ fontWeight: 800, bgcolor: '#fee2e2', color: '#b91c1c' }} />
+                                </Box>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>Tổng tiền đã chi:</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 800, color: '#dc2626' }}>{formatCurrency(modalSummaryStats.totalExpense)}</Typography>
+                                </Box>
+                            </>
+                        ) : (
+                            <>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>Số lượng HĐ:</Typography>
+                                    <Chip label={`${modalSummaryStats.totalCount} HĐ`} size="small" sx={{ fontWeight: 800, bgcolor: '#eff6ff', color: '#1d4ed8' }} />
+                                </Box>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>Tổng doanh số:</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 800, color: '#16a34a' }}>{formatCurrency(modalSummaryStats.totalRevenue)}</Typography>
+                                </Box>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>Đã thu:</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 800, color: '#0891b2' }}>{formatCurrency(modalSummaryStats.totalPaid)}</Typography>
+                                </Box>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700 }}>Còn nợ:</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 800, color: '#ea580c' }}>{formatCurrency(modalSummaryStats.totalDebt)}</Typography>
+                                </Box>
+                            </>
+                        )}
+                    </Box>
+                </DialogTitle>
+
+                {/* Modal Content */}
+                <DialogContent sx={{ px: 3, py: 1 }}>
+                    {/* Search & Export Toolbar */}
+                    <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1.5} sx={{ mb: 2, mt: 1 }}>
+                        <TextField
+                            size="small"
+                            placeholder={detailModal.type === 'expenses' ? "Tìm theo nội dung, loại chi, người chi, ghi chú..." : "Tìm theo mã HĐ, tên cô dâu, chú rể, SĐT, gói chụp, nhân viên..."}
+                            value={modalSearch}
+                            onChange={(e) => setModalSearch(e.target.value)}
+                            sx={{
+                                flex: 1,
+                                minWidth: 260,
+                                bgcolor: '#ffffff',
+                                borderRadius: '12px',
+                                '& .MuiOutlinedInput-root': { borderRadius: '12px' }
+                            }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon sx={{ color: '#94a3b8' }} />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: modalSearch ? (
+                                    <InputAdornment position="end">
+                                        <IconButton size="small" onClick={() => setModalSearch('')}>
+                                            <ClearIcon fontSize="small" />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ) : null
+                            }}
+                        />
+
+                        <Button
+                            variant="outlined"
+                            startIcon={<FileDownloadIcon />}
+                            onClick={exportModalToExcel}
+                            disabled={detailModal.loading || filteredModalData.length === 0}
+                            sx={{
+                                borderRadius: '12px',
+                                textTransform: 'none',
+                                fontWeight: 750,
+                                color: '#16a34a',
+                                borderColor: '#86efac',
+                                bgcolor: '#f0fdf4',
+                                '&:hover': { bgcolor: '#dcfce7', borderColor: '#4ade80' }
+                            }}
+                        >
+                            Xuất Excel ({filteredModalData.length})
+                        </Button>
+                    </Box>
+
+                    {/* Table View or Loading */}
+                    {detailModal.loading ? (
+                        <Box sx={{ py: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                            <CircularProgress size={42} thickness={4} sx={{ color: '#0284c7' }} />
+                            <Typography variant="body2" sx={{ color: '#475569', fontWeight: 700 }}>
+                                Đang gửi yêu cầu và lấy dữ liệu mới nhất từ máy chủ...
+                            </Typography>
+                        </Box>
+                    ) : filteredModalData.length === 0 ? (
+                        <Box sx={{ py: 8, textAlign: 'center', color: '#94a3b8' }}>
+                            <AssignmentIcon sx={{ fontSize: '3.5rem', color: '#cbd5e1', mb: 1 }} />
+                            <Typography variant="body1" sx={{ fontWeight: 700, color: '#64748b' }}>
+                                {modalSearch ? 'Không tìm thấy kết quả phù hợp với từ khóa' : 'Chưa có dữ liệu thống kê trong chu kỳ này'}
+                            </Typography>
+                            {modalSearch && (
+                                <Button size="small" onClick={() => setModalSearch('')} sx={{ mt: 1, textTransform: 'none' }}>
+                                    Xóa bộ lọc tìm kiếm
+                                </Button>
+                            )}
+                        </Box>
+                    ) : detailModal.type === 'expenses' ? (
+                        /* Expenses Table */
+                        <TableContainer component={Paper} elevation={0} sx={{ borderRadius: '16px', border: '1px solid #e2e8f0', maxHeight: '52vh' }}>
+                            <Table stickyHeader size="small">
+                                <TableHead>
+                                    <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 800, color: '#475569', py: 1.2 } }}>
+                                        <TableCell align="center" width={50}>STT</TableCell>
+                                        <TableCell width={110}>Ngày chi</TableCell>
+                                        <TableCell>Nội dung khoản chi</TableCell>
+                                        <TableCell width={140}>Hạng mục / Loại</TableCell>
+                                        <TableCell width={140}>Người chi / Nhận</TableCell>
+                                        <TableCell align="right" width={130}>Số tiền chi</TableCell>
+                                        <TableCell width={140}>Ghi chú</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {filteredModalData.map((item, idx) => (
+                                        <TableRow key={item._id || idx} sx={{ '&:hover': { bgcolor: '#fff1f2' } }}>
+                                            <TableCell align="center" sx={{ color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</TableCell>
+                                            <TableCell sx={{ fontWeight: 600, color: '#334155' }}>
+                                                {item.date ? formatDateOnly(item.date) : '-'}
+                                            </TableCell>
+                                            <TableCell sx={{ fontWeight: 750, color: '#0f172a' }}>
+                                                {item.content || item.noiDung || '-'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={item.category || item.loaiChi || 'Chi phí chung'}
+                                                    size="small"
+                                                    sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 700, fontSize: '0.72rem' }}
+                                                />
+                                            </TableCell>
+                                            <TableCell sx={{ color: '#475569', fontWeight: 600 }}>
+                                                {item.person || item.nguoiChi || '-'}
+                                            </TableCell>
+                                            <TableCell align="right" sx={{ fontWeight: 800, color: '#dc2626' }}>
+                                                {formatCurrency(item.amount)}
+                                            </TableCell>
+                                            <TableCell sx={{ color: '#64748b', fontSize: '0.8rem' }}>
+                                                {item.note || item.ghiChu || '-'}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    ) : (
+                        /* Contracts Table */
+                        <TableContainer component={Paper} elevation={0} sx={{ borderRadius: '16px', border: '1px solid #e2e8f0', maxHeight: '52vh' }}>
+                            <Table stickyHeader size="small">
+                                <TableHead>
+                                    <TableRow sx={{ '& th': { bgcolor: '#f8fafc', fontWeight: 800, color: '#475569', py: 1.2 } }}>
+                                        <TableCell align="center" width={50}>STT</TableCell>
+                                        <TableCell width={120}>Mã HĐ</TableCell>
+                                        <TableCell width={170}>Khách hàng</TableCell>
+                                        <TableCell width={160}>Gói dịch vụ</TableCell>
+                                        {detailModal.type === 'scheduled' && <TableCell width={180}>Lịch trong kỳ</TableCell>}
+                                        <TableCell align="right" width={130}>Doanh số</TableCell>
+                                        <TableCell align="right" width={120}>Đã thu</TableCell>
+                                        <TableCell align="right" width={120}>Còn nợ</TableCell>
+                                        <TableCell width={130}>Nhân viên</TableCell>
+                                        <TableCell align="center" width={130}>Trạng thái</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {filteredModalData.map((hd, idx) => {
+                                        const val = Number(hd.thanhToan?.tongGiaTriSauGiam ?? hd.thanhToan?.tongGiaTri ?? hd.tongTien ?? hd.giaTriHopDong ?? 0);
+                                        const paid = Number(hd.thanhToan?.khachHangDaThanhToan ?? 0);
+                                        const debt = Number(hd.thanhToan?.conLai ?? Math.max(0, val - paid));
+                                        const isDebt = debt > 0;
+                                        const isPaidFull = debt === 0 && val > 0;
+
+                                        return (
+                                            <TableRow key={hd._id || hd.maHopDong || idx} sx={{ '&:hover': { bgcolor: '#f8fafc' } }}>
+                                                <TableCell align="center" sx={{ color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2" sx={{ fontWeight: 800, color: '#2563eb' }}>
+                                                        {hd.maHopDong}
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
+                                                        {hd.ngayHopDong ? formatDateOnly(hd.ngayHopDong) : '-'}
+                                                    </Typography>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2" sx={{ fontWeight: 750, color: '#0f172a' }}>
+                                                        {hd.thongTinCoDauChuRe?.tenCoDau && hd.thongTinCoDauChuRe?.tenChuRe 
+                                                            ? `${hd.thongTinCoDauChuRe.tenCoDau} & ${hd.thongTinCoDauChuRe.tenChuRe}`
+                                                            : hd.thongTinCoDauChuRe?.tenCoDau || hd.thongTinCoDauChuRe?.tenChuRe || hd.tenKhachHang || 'Khách hàng'}
+                                                    </Typography>
+                                                    {(hd.thongTinCoDauChuRe?.soDienThoaiCoDau || hd.thongTinCoDauChuRe?.soDienThoaiChuRe) && (
+                                                        <Typography variant="caption" sx={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                                                            <CallIcon sx={{ fontSize: '0.75rem', color: '#0284c7' }} />
+                                                            {hd.thongTinCoDauChuRe?.soDienThoaiCoDau || hd.thongTinCoDauChuRe?.soDienThoaiChuRe}
+                                                        </Typography>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                                                        {hd.tenGoiDichVu || hd.chiTietHopDong?.tenGoi || 'Dịch vụ cưới'}
+                                                    </Typography>
+                                                </TableCell>
+                                                {detailModal.type === 'scheduled' && (
+                                                    <TableCell>
+                                                        <Stack spacing={0.4}>
+                                                            {(hd.matchedSchedules || []).map((s, sIdx) => (
+                                                                <Chip
+                                                                    key={sIdx}
+                                                                    label={`${s.label}: ${formatDateOnly(s.date)}`}
+                                                                    size="small"
+                                                                    sx={{
+                                                                        fontSize: '0.7rem',
+                                                                        height: '22px',
+                                                                        bgcolor: '#faf5ff',
+                                                                        color: '#7c3aed',
+                                                                        fontWeight: 750,
+                                                                        border: '1px solid #e9d5ff'
+                                                                    }}
+                                                                />
+                                                            ))}
+                                                        </Stack>
+                                                    </TableCell>
+                                                )}
+                                                <TableCell align="right" sx={{ fontWeight: 800, color: '#16a34a' }}>
+                                                    {formatCurrency(val)}
+                                                </TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 700, color: '#0891b2' }}>
+                                                    {formatCurrency(paid)}
+                                                </TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 800, color: isDebt ? '#ea580c' : '#16a34a' }}>
+                                                    {formatCurrency(debt)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="caption" sx={{ fontWeight: 650, color: '#334155', display: 'block' }}>
+                                                        {hd.nguoiPhucVu?.banHang ? `Sale: ${hd.nguoiPhucVu.banHang}` : 'Sale: -'}
+                                                    </Typography>
+                                                    {hd.nguoiPhucVu?.chupAnh && (
+                                                        <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
+                                                            Thợ: {hd.nguoiPhucVu.chupAnh}
+                                                        </Typography>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    <Chip
+                                                        label={isPaidFull ? 'Đã thanh toán đủ' : paid > 0 ? 'Đang thanh toán' : 'Chưa thanh toán'}
+                                                        size="small"
+                                                        sx={{
+                                                            fontSize: '0.72rem',
+                                                            fontWeight: 750,
+                                                            bgcolor: isPaidFull ? '#ecfdf5' : paid > 0 ? '#fff7ed' : '#fef2f2',
+                                                            color: isPaidFull ? '#059669' : paid > 0 ? '#c2410c' : '#dc2626',
+                                                            border: isPaidFull ? '1px solid #a7f3d0' : paid > 0 ? '1px solid #fed7aa' : '1px solid #fecaca'
+                                                        }}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
+                </DialogContent>
+
+                {/* Modal Footer Actions */}
+                <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" color="#94a3b8">
+                        * Nhấp vào ô tìm kiếm hoặc xuất file Excel để lưu trữ dữ liệu chi tiết
+                    </Typography>
+                    <Stack direction="row" spacing={1.5}>
+                        <Button
+                            variant="outlined"
+                            onClick={exportModalToExcel}
+                            startIcon={<FileDownloadIcon />}
+                            sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 700 }}
+                        >
+                            Xuất Excel
+                        </Button>
+                        <Button
+                            variant="contained"
+                            onClick={closeDetailDialog}
+                            sx={{
+                                borderRadius: '12px',
+                                textTransform: 'none',
+                                fontWeight: 750,
+                                px: 3,
+                                bgcolor: '#0f172a',
+                                '&:hover': { bgcolor: '#1e293b' }
+                            }}
+                        >
+                            Đóng
+                        </Button>
+                    </Stack>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 }

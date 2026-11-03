@@ -1,87 +1,134 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap');
 
 .login-container {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    font-family: 'Roboto', sans-serif;
-
-    background: linear-gradient(-45deg, #0d1b3f, #007BFF, #1a2980, #26d0ce);
+    font-family: 'Plus Jakarta Sans', 'Roboto', sans-serif;
+    background: linear-gradient(-45deg, #09122c, #0052cc, #1a2980, #14b8a6);
     background-size: 400% 400%;
     animation: animateGradient 15s ease infinite;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 /* ================================================== */
-/* ==== PHẦN CẬP NHẬT CHÍNH CHO HIỆU ỨNG KÍNH ==== */
+/* ==== GLASSMORPHISM LOGIN CARD ==== */
 /* ================================================== */
 .login-box {
-    /* 1. Nền trong mờ */
-    background: rgba(255, 255, 255, 0.1);
-
-    /* 2. Hiệu ứng làm nhòe nền phía sau (quan trọng nhất) */
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    /* Hỗ trợ trình duyệt Safari cũ */
-
-    /* 3. Thêm đường viền mờ để tạo cảm giác cạnh kính */
-    border: 1px solid rgba(255, 255, 255, 0.2);
-
-    padding: 40px 50px;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 36px 36px 30px 36px;
+    border-radius: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
     width: 100%;
-    max-width: 450px;
+    max-width: 440px;
     text-align: center;
-    animation: fadeIn 0.5s ease-in-out;
+    animation: fadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(-20px);
+        transform: translateY(-16px) scale(0.98);
     }
-
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
     }
 }
 
-/* Cập nhật màu chữ để dễ đọc hơn trên nền kính */
-.login-header .logo-icon {
-    font-size: 48px;
-    color: #ffffff;
-    /* Đổi thành màu trắng */
+/* Header */
+.login-header {
+    margin-bottom: 24px;
+}
+
+.logo-login {
+    width: 5.5rem;
+    height: auto;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.25));
+    transition: transform 0.3s ease;
+}
+
+.logo-login:hover {
+    transform: scale(1.04);
 }
 
 .login-header h1 {
-    font-size: 28px;
+    font-size: 24px;
+    font-weight: 800;
     color: #ffffff;
-    /* Đổi thành màu trắng */
-    margin: 10px 0 5px;
+    margin: 12px 0 4px;
+    letter-spacing: -0.5px;
 }
 
 .login-header p {
-    color: rgba(255, 255, 255, 0.8);
-    /* Trắng mờ */
-    font-size: 16px;
-    margin-bottom: 30px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0;
 }
 
+/* Mode Switcher Tabs */
+.login-mode-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 14px;
+    padding: 4px;
+    margin-bottom: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.mode-tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.mode-tab-btn.active {
+    background: rgba(255, 255, 255, 0.95);
+    color: #0f172a;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mode-tab-btn:hover:not(.active) {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Input Fields */
 .input-group {
     position: relative;
-    margin-bottom: 25px;
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 10px;
+    margin-bottom: 18px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 14px;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.15),
-        0 0 10px rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-    padding: 0;
-    /* tránh padding ảnh hưởng bố cục input */
+    transition: all 0.25s ease;
+}
+
+.input-group:focus-within {
+    background: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
 }
 
 .input-group .input-icon {
@@ -89,35 +136,28 @@
     left: 18px;
     top: 50%;
     transform: translateY(-50%);
-    color: #ddd;
-    /* Đổi màu icon */
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 15px;
 }
 
 .input-group input {
     width: 100%;
-    padding: 15px 40px 15px 45px;
+    padding: 15px 44px 15px 46px;
     border: none;
     background: transparent;
-    /* 👈 giữ trong suốt */
     color: #fff;
-    font-size: 16px;
-    border-radius: 10px;
-    transition: background 0.4s ease, color 0.4s ease;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 14px;
+    box-sizing: border-box;
 }
 
 .input-group input::placeholder {
-    color: rgba(255, 255, 255, 0.7);
-    /* Màu chữ gợi ý */
+    color: rgba(255, 255, 255, 0.65);
 }
 
 .input-group input:focus {
     outline: none;
-    box-shadow: none;
-}
-
-.input-group:hover {
-    background: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .password-toggle-icon {
@@ -125,72 +165,344 @@
     right: 18px;
     top: 50%;
     transform: translateY(-50%);
-    color: #ddd;
+    color: rgba(255, 255, 255, 0.7);
     cursor: pointer;
+    font-size: 15px;
+    transition: color 0.2s;
 }
 
+.password-toggle-icon:hover {
+    color: #fff;
+}
+
+/* Remember Me & Setup PIN Checkbox */
+.remember-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 6px 0 20px 2px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.custom-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+}
+
+.custom-checkbox-label input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    cursor: pointer;
+    accent-color: #38bdf8;
+    border-radius: 4px;
+}
+
+/* Error Message */
 .error-message {
-    background-color: rgba(220, 53, 69, 0.8);
+    background-color: rgba(239, 68, 68, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(254, 202, 202, 0.3);
     color: #ffffff;
-    font-size: 14px;
-    margin-bottom: 15px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 16px;
     text-align: center;
-    padding: 8px;
-    border-radius: 5px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    animation: shake 0.35s ease;
 }
 
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+}
+
+/* Buttons */
 .login-btn {
     width: 100%;
-    padding: 15px;
+    padding: 14px;
     border: none;
-    border-radius: 8px;
-    background-color: #ffffff;
+    border-radius: 14px;
+    background: #ffffff;
     color: #0d1b3f;
-    /* Đổi màu chữ */
-    font-size: 18px;
-    font-weight: 700;
-    /* In đậm chữ */
+    font-size: 16px;
+    font-weight: 800;
     cursor: pointer;
-    transition: background-color 0.3s, transform 0.2s;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
 
-.login-btn:hover {
-    background-color: #f0f0f0;
+.login-btn:hover:not(:disabled) {
+    background-color: #f8fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
-.login-btn:active {
+.login-btn:active:not(:disabled) {
     transform: scale(0.98);
 }
 
+.login-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+/* ================================================== */
+/* ==== QUICK PIN LOGIN SECTION ==== */
+/* ================================================== */
+.pin-user-card {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+}
+
+.pin-user-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 800;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+    flex-shrink: 0;
+}
+
+.pin-user-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.pin-user-name {
+    font-weight: 800;
+    color: #ffffff;
+    font-size: 15px;
+    margin: 0 0 3px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pin-user-role {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    color: #e0f2fe;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.pin-switch-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.pin-switch-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+/* PIN Dots / Digit Boxes Display */
+.pin-display-row {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin: 20px 0 24px;
+}
+
+.pin-digit-box {
+    width: 44px;
+    height: 52px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 800;
+    color: #ffffff;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pin-digit-box.filled {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: #38bdf8;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+}
+
+.pin-digit-box.active {
+    border-color: #ffffff;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+    transform: scale(1.05);
+}
+
+.pin-digit-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #38bdf8;
+    box-shadow: 0 0 8px #38bdf8;
+    animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Virtual Numeric Keypad */
+.pin-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.keypad-btn {
+    height: 52px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.18s ease;
+    user-select: none;
+}
+
+.keypad-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.03);
+}
+
+.keypad-btn:active {
+    transform: scale(0.94);
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.keypad-btn.action-btn {
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Hidden Real Input for Physical Keyboard */
+.hidden-pin-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+}
+
+/* Setup PIN Dialog Overlay */
+.pin-dialog-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+.pin-dialog-card {
+    background: rgba(30, 41, 59, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 24px;
+    padding: 30px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+    color: #ffffff;
+}
+
+.pin-dialog-title {
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0 0 8px;
+}
+
+.pin-dialog-subtitle {
+    font-size: 13px;
+    color: #94a3b8;
+    margin: 0 0 20px;
+}
+
+/* Footer */
 .login-footer {
-    margin-top: 25px;
+    margin-top: 24px;
 }
 
 .login-footer a {
-    color: #ffffff;
+    color: rgba(255, 255, 255, 0.75);
     text-decoration: none;
-    font-size: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
 .login-footer a:hover {
+    color: #ffffff;
     text-decoration: underline;
 }
 
-/* --- ĐỊNH NGHĨA CHUYỂN ĐỘNG (GIỮ NGUYÊN) --- */
+/* Background Animation */
 @keyframes animateGradient {
-    0% {
-        background-position: 0% 50%;
-    }
-
-    50% {
-        background-position: 100% 50%;
-    }
-
-    100% {
-        background-position: 0% 50%;
-    }
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
-.logo-login {
-    width: 6rem;
+@media (max-width: 480px) {
+    .login-box {
+        padding: 28px 20px;
+        border-radius: 20px;
+    }
+    .pin-digit-box {
+        width: 38px;
+        height: 46px;
+        font-size: 18px;
+    }
+    .keypad-btn {
+        height: 46px;
+        font-size: 18px;
+    }
 }

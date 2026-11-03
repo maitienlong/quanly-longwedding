@@ -8,6 +8,8 @@ import ThemHopDongKHDialog from './ThemHopDongKHDialog';
 import DetailHopDongKhachHangDialog from './DetailHopDongKhachHangDialog';
 import { formatDate } from '../utils/convertDate';
 import { formatLunarDateShort } from '../../utils/lunarDateUtils';
+import { getContractStatusInfo, isUnscheduledShooting, QUICK_STATUS_OPTIONS, CONTRACT_ROW_COLOR_LEGEND } from '../../utils/contractStatusHelper';
+import HopDongKanbanBoard from './HopDongKanbanBoard';
 import './hopdongkhachhang.css';
 
 // Material UI components
@@ -37,7 +39,10 @@ import {
     MenuItem,
     Tooltip,
     InputAdornment,
-    useMediaQuery
+    useMediaQuery,
+    OutlinedInput,
+    Checkbox,
+    ListItemText
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
@@ -46,8 +51,6 @@ import AddIcon from '@mui/icons-material/Add';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import CheckIcon from '@mui/icons-material/Check';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
 
 const formatShortMoney = (val) => {
     const num = Number(val) || 0;
@@ -79,6 +82,14 @@ function HopDongKhachHang() {
                     user?.chucVu === "Quản lý" || 
                     user?.role === "ADMIN" || 
                     user?.username === "along";
+
+    // Phân quyền Kỹ thuật viên (Thợ chụp / Makeup / Hậu kỳ)
+    const isTechnician = useMemo(() => {
+        if (!user) return false;
+        const role = (user.chucVu || user.vaiTro || user.role || user.positon || '').toLowerCase();
+        const isManager = role.includes('quản lý') || role.includes('admin') || role.includes('kế toán') || role.includes('sale') || role.includes('bán hàng') || user.permission === 1 || user.is_admin === true || user.username === 'along';
+        return !isManager;
+    }, [user]);
 
     // Hàm kiểm tra hợp đồng do tài khoản tạo hoặc được phân công làm việc
     const isContractOwnedOrAssigned = useCallback((hd, currentUser) => {
@@ -113,14 +124,47 @@ function HopDongKhachHang() {
     // Filters
     const [timeFilter, setTimeFilter] = useState('all'); // 'all' | 'hôm nay' | '1 tuần' | '1 tháng' | '4 tháng'
     const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'no_schedule' | 1 | 2 | 3 | 4 | 5
+    const [excludeStatus, setExcludeStatus] = useState([]); // Array: các id trạng thái bị loại trừ khỏi danh sách hiển thị
     const [searchInput, setSearchInput] = useState("");
-    const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
+    const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid' | 'kanban'
 
     // Dialog state
     const [openDialogHD, setOpenDialogHD] = useState(false);
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedValueDialog, setSelectedValueDialog] = useState({ data: "hello" });
     const [sendData, setSendData] = useState({});
+
+    const handleKanbanAdvanceStage = async (contract, targetStage) => {
+        const stageNames = {
+            1: "Chụp hình",
+            2: "Hậu kỳ",
+            3: "In ảnh",
+            4: "Hoàn thành"
+        };
+        const targetSub = targetStage === 2 ? 'cho_chinh' : (targetStage === 4 ? 'hoan_thanh' : 'dang_thuc_hien');
+
+        if (!window.confirm(`Bạn có chắc chắn muốn chuyển hợp đồng #${contract.maHopDong} sang bước: "${stageNames[targetStage]}" không?`)) {
+            return;
+        }
+
+        try {
+            showLoading("Đang chuyển giai đoạn...");
+            await otherService.UPDATE_PROGRESS({
+                maHopDong: contract.maHopDong,
+                giaiDoan: targetStage,
+                subGiaiDoan: targetSub,
+                data: {
+                    ghiChu: `Chuyển sang ${stageNames[targetStage]} từ bảng Kanban`
+                }
+            });
+            toast.success(`Đã chuyển hợp đồng #${contract.maHopDong} sang ${stageNames[targetStage]}!`);
+            loadHopDong(timeFilter, searchInput);
+        } catch (err) {
+            toast.error("Lỗi khi cập nhật tiến trình: " + (err.response?.data?.message || err.message));
+        } finally {
+            hideLoading();
+        }
+    };
 
     const handleClickOpenDialog = () => {
         setOpenDialogHD(true);
@@ -183,27 +227,54 @@ function HopDongKhachHang() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hopDong, sendData?._id]);
 
-    const isUnscheduledShooting = (hd) => {
-        if (!hd) return false;
-        if (hd.giaiDoan === 5) return false; // Hợp đồng đã hoàn thành không tính là chưa xếp lịch
-        return !hd.cacNgay?.ngayChup;
-    };
-
     // Filtered hopDong by permission and status filter
     const filteredHopDong = useMemo(() => {
         const rawList = hopDong || [];
         const baseList = isAdmin ? rawList : rawList.filter(hd => isContractOwnedOrAssigned(hd, user));
 
         return baseList.filter(hd => {
+            const statusInfo = getContractStatusInfo(hd);
+            const isUnscheduled = isUnscheduledShooting(hd);
+            const normalizedSub = (() => {
+                const s = statusInfo.subStage;
+                if (statusInfo.stage === 2) {
+                    if (['cho_chinh', 'da_giao_file_goc', 'khach_da_chon_anh'].includes(s)) return 'cho_chinh';
+                    if (['dang_chinh', 'dang_hau_ky', 'dang_chinh_anh', 'dang_thuc_hien'].includes(s)) return 'dang_chinh';
+                    if (['cho_khach_duyet', 'khach_duyet_anh', 'cho_khach_duyet_layout', 'khach_da_duyet_layout'].includes(s)) return 'cho_khach_duyet';
+                }
+                return s;
+            })();
+            const statusKey = isUnscheduled ? 'no_schedule' : `${statusInfo.stage}_${ statusInfo.subStage }`;
+            const normalizedStatusKey = isUnscheduled ? 'no_schedule' : `${statusInfo.stage}_${normalizedSub}`;
+            const stageNumStr = String(statusInfo.stage);
+
+            const matchFilterKey = (filterVal) => {
+                const fStr = String(filterVal);
+                if (fStr === 'no_schedule') return isUnscheduled;
+                if (fStr === 'bao_luu') return hd.subGiaiDoan === 'bao_luu';
+                if (fStr === 'huy') return hd.subGiaiDoan === 'huy';
+                if (hd.subGiaiDoan === 'bao_luu' || hd.subGiaiDoan === 'huy' || isUnscheduled) return false;
+                if (fStr.includes('_')) {
+                    return statusKey === fStr || normalizedStatusKey === fStr;
+                }
+                return stageNumStr === fStr;
+            };
+
+            // 1. Lọc theo trạng thái hợp đồng (tiến độ cụ thể)
             if (statusFilter !== 'all') {
-                const giaiDoanVal = isUnscheduledShooting(hd) ? 'no_schedule' : hd.giaiDoan;
-                if (String(giaiDoanVal) !== String(statusFilter)) {
+                if (!matchFilterKey(statusFilter)) return false;
+            }
+
+            // 2. Lọc loại bỏ các trạng thái không mong muốn (ví dụ: loại bỏ Hoàn thành)
+            if (excludeStatus.length > 0) {
+                if (excludeStatus.some(ex => matchFilterKey(ex))) {
                     return false;
                 }
             }
+
             return true;
         });
-    }, [hopDong, isAdmin, user, isContractOwnedOrAssigned, statusFilter]);
+    }, [hopDong, isAdmin, user, isContractOwnedOrAssigned, statusFilter, excludeStatus]);
 
     // Statistics Calculations
     const totalCount = filteredHopDong.length;
@@ -224,71 +295,302 @@ function HopDongKhachHang() {
     }, [filteredHopDong]);
 
     const convertTrangThai = (hd) => {
-        const giaiDoanVal = typeof hd === 'object' && hd !== null ? (isUnscheduledShooting(hd) ? 'no_schedule' : hd.giaiDoan) : hd;
-        if (giaiDoanVal === 'no_schedule') return "Chưa xếp lịch chụp";
-        switch (giaiDoanVal) {
-            case 1:
-                return "Tạo hợp đồng";
-            case 2:
-                return "Chụp hình";
-            case 3:
-                return "Hậu kỳ";
-            case 4:
-                return "In ảnh";
-            case 5:
-                return "Hoàn thành";
-            default:
-                return "Giai đoạn " + (giaiDoanVal || "");
-        }
+        return getContractStatusInfo(hd).label;
     };
 
     const getTrangThaiColor = (hd) => {
-        const giaiDoanVal = typeof hd === 'object' && hd !== null ? (isUnscheduledShooting(hd) ? 'no_schedule' : hd.giaiDoan) : hd;
-        if (giaiDoanVal === 'no_schedule') return "#dc2626";
-        switch (giaiDoanVal) {
-            case 1:
-                return "#64748b";
-            case 2:
-                return "#d97706";
-            case 3:
-                return "#2563eb";
-            case 4:
-                return "#7c3aed";
-            case 5:
-                return "#10b981";
-            default:
-                return "#64748b";
-        }
+        return getContractStatusInfo(hd).color;
     };
 
     const getRowBackgroundColor = (hd) => {
-        const giaiDoanVal = typeof hd === 'object' && hd !== null ? (isUnscheduledShooting(hd) ? 'no_schedule' : hd.giaiDoan) : hd;
-        if (giaiDoanVal === 'no_schedule') return '#fef2f2';
-        switch (giaiDoanVal) {
-            case 1:
-                return '#f8fafc';
-            case 2:
-                return '#fffbeb';
-            case 3:
-                return '#eff6ff';
-            case 4:
-                return '#faf5ff';
-            case 5:
-                return '#f0fdf4';
-            default:
-                return '#ffffff';
-        }
+        const info = getContractStatusInfo(hd);
+        return info.rowBgColor || '#ffffff';
     };
 
-    const quickStatusOptions = [
-        { id: 'all', label: 'Tất cả trạng thái' },
-        { id: 'no_schedule', label: '🔴 Chưa xếp lịch chụp' },
-        { id: 1, label: '📝 Tạo hợp đồng' },
-        { id: 2, label: '📸 Chụp hình' },
-        { id: 3, label: '🎨 Hậu kỳ' },
-        { id: 4, label: '🖼️ In ảnh' },
-        { id: 5, label: '✅ Hoàn thành' }
-    ];
+    const renderStatusBadge = (hd) => {
+        const info = getContractStatusInfo(hd);
+        if (info.isUnscheduled) {
+            return (
+                <Chip 
+                    icon={<i className="fa-solid fa-triangle-exclamation" style={{ color: '#fff', fontSize: '0.72rem', marginLeft: '6px' }}></i>}
+                    label="Chưa xếp lịch" 
+                    size="small" 
+                    sx={{ 
+                        bgcolor: '#dc2626', 
+                        color: '#fff',
+                        fontWeight: 800,
+                        fontSize: '0.74rem',
+                        height: '24px',
+                        boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
+                        '& .MuiChip-icon': { color: '#fff' }
+                    }} 
+                />
+            );
+        }
+
+        if (info.isComplete) {
+            return (
+                <Chip 
+                    icon={<i className="fa-solid fa-circle-check" style={{ color: '#fff', fontSize: '0.75rem', marginLeft: '6px' }}></i>}
+                    label="Đã hoàn tất" 
+                    size="small" 
+                    sx={{ 
+                        bgcolor: '#059669', 
+                        color: '#fff',
+                        fontWeight: 800,
+                        fontSize: '0.74rem',
+                        height: '24px',
+                        boxShadow: '0 2px 4px rgba(5, 150, 105, 0.25)',
+                        '& .MuiChip-icon': { color: '#fff' }
+                    }} 
+                />
+            );
+        }
+
+        const isDone = info.subStage === 'hoan_thanh';
+        const subColor = info.subStageConfig?.color || (isDone ? '#059669' : info.color);
+        const showSubStagePill = info.stage === 2 && !['bao_luu', 'huy'].includes(info.subStage);
+
+        if (info.subStage === 'bao_luu' || info.subStage === 'huy') {
+            return (
+                <Box
+                    sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.6,
+                        px: 1.1,
+                        py: 0.35,
+                        borderRadius: '14px',
+                        bgcolor: info.bgColor,
+                        border: `1.5px solid ${info.borderColor}`,
+                        whiteSpace: 'nowrap'
+                    }}
+                >
+                    <span style={{ fontSize: '0.76rem', fontWeight: 800, color: info.color }}>
+                        {info.badgeText}
+                    </span>
+                </Box>
+            );
+        }
+
+        return (
+            <Box 
+                sx={{ 
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.6,
+                    px: 0.9,
+                    py: 0.35,
+                    borderRadius: '14px',
+                    bgcolor: info.bgColor,
+                    border: `1.5px solid ${info.borderColor || info.stageConfig.borderColor}`,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                    whiteSpace: 'nowrap'
+                }}
+            >
+                <span style={{ fontSize: '0.82rem' }}>{info.stageConfig.icon}</span>
+                <span style={{ fontSize: '0.76rem', fontWeight: 800, color: info.stageConfig.color }}>
+                    {info.stageConfig.shortName}
+                </span>
+                {showSubStagePill && (
+                    <span style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        borderRadius: '8px',
+                        backgroundColor: subColor,
+                        color: '#ffffff',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                        lineHeight: '1.4'
+                    }}>
+                        {info.subStageConfig?.icon && <span style={{ fontSize: '0.62rem' }}>{info.subStageConfig.icon}</span>}
+                        {info.subStageConfig?.shortName || (isDone ? 'Hoàn thành' : 'Chờ chỉnh')}
+                    </span>
+                )}
+            </Box>
+        );
+    };
+
+    // Hàm tạo tag cảnh báo đếm ngược ngày chụp
+    const getShootingCountdownTag = (dateVal, isCompleted = false) => {
+        if (!dateVal) {
+            return (
+                <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    color: '#dc2626',
+                    background: '#fee2e2',
+                    border: '1px solid #fca5a5',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    marginTop: '3px'
+                }}>
+                    ⚠️ Chưa xếp lịch
+                </span>
+            );
+        }
+
+        const shootDate = new Date(dateVal);
+        if (isNaN(shootDate.getTime())) return null;
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const target = new Date(shootDate.getFullYear(), shootDate.getMonth(), shootDate.getDate());
+        const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (isCompleted) {
+            return (
+                <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '0.68rem',
+                    fontWeight: 600,
+                    color: '#059669',
+                    background: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    marginTop: '3px'
+                }}>
+                    ✓ Đã hoàn thành
+                </span>
+            );
+        }
+
+        if (diffDays === 0) {
+            return (
+                <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    color: '#dc2626',
+                    background: '#fee2e2',
+                    border: '1px solid #f87171',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    marginTop: '3px'
+                }}>
+                    🚨 Hôm nay chụp!
+                </span>
+            );
+        }
+
+        if (diffDays === 1) {
+            return (
+                <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    color: '#c2410c',
+                    background: '#ffedd5',
+                    border: '1px solid #fdba74',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    marginTop: '3px'
+                }}>
+                    ⚡ Ngày mai (còn 1 ngày)
+                </span>
+            );
+        }
+
+        if (diffDays >= 2 && diffDays <= 3) {
+            return (
+                <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    color: '#b45309',
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    marginTop: '3px'
+                }}>
+                    ⏳ Còn {diffDays} ngày nữa
+                </span>
+            );
+        }
+
+        if (diffDays >= 4 && diffDays <= 7) {
+            return (
+                <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    color: '#0369a1',
+                    background: '#f0f9ff',
+                    border: '1px solid #bae6fd',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    marginTop: '3px'
+                }}>
+                    🗓️ Còn {diffDays} ngày nữa
+                </span>
+            );
+        }
+
+        if (diffDays > 7) {
+            return (
+                <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '0.68rem',
+                    fontWeight: 600,
+                    color: '#475569',
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    marginTop: '3px'
+                }}>
+                    🗓️ Còn {diffDays} ngày nữa
+                </span>
+            );
+        }
+
+        const passedDays = Math.abs(diffDays);
+        return (
+            <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                fontSize: '0.68rem',
+                fontWeight: 500,
+                color: '#64748b',
+                background: '#f1f5f9',
+                border: '1px solid #e2e8f0',
+                padding: '1px 6px',
+                borderRadius: '4px',
+                marginTop: '3px'
+            }}>
+                Đã qua {passedDays} ngày
+            </span>
+        );
+    };
+
+    const quickStatusOptions = QUICK_STATUS_OPTIONS;
+
+    const handleSelectStatusFilter = (stId) => {
+        setStatusFilter(stId);
+        if (stId !== 'all' && excludeStatus.includes(String(stId))) {
+            setExcludeStatus(prev => prev.filter(id => id !== String(stId)));
+        }
+    };
 
     return (
         <div className="contract-page-container">
@@ -365,13 +667,92 @@ function HopDongKhachHang() {
                         <Select
                             value={statusFilter}
                             label="Trạng thái hợp đồng"
-                            onChange={(e) => setStatusFilter(e.target.value)}
+                            onChange={(e) => handleSelectStatusFilter(e.target.value)}
                         >
                             {quickStatusOptions.map(opt => (
                                 <MenuItem key={opt.id} value={opt.id}>
                                     {opt.label}
                                 </MenuItem>
                             ))}
+                        </Select>
+                    </FormControl>
+
+                    {/* Bộ lọc loại bỏ trạng thái (Exclude status) */}
+                    <FormControl size="small" sx={{ minWidth: 205 }}>
+                        <InputLabel id="exclude-status-label">Loại bỏ trạng thái</InputLabel>
+                        <Select
+                            labelId="exclude-status-label"
+                            multiple
+                            value={excludeStatus}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (Array.isArray(val) && val.includes('_clear_')) {
+                                    setExcludeStatus([]);
+                                    return;
+                                }
+                                setExcludeStatus(typeof val === 'string' ? val.split(',') : val);
+                            }}
+                            input={<OutlinedInput label="Loại bỏ trạng thái" />}
+                            renderValue={(selected) => {
+                                if (!selected || selected.length === 0) {
+                                    return <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Không loại trừ</span>;
+                                }
+                                if (selected.length === 1) {
+                                    const opt = quickStatusOptions.find(o => String(o.id) === String(selected[0]));
+                                    const cleanLabel = opt ? opt.label.replace(/^[^\s]+\s*/, '') : selected[0];
+                                    return (
+                                        <span style={{ color: '#dc2626', fontWeight: 700, fontSize: '0.82rem' }}>
+                                            🚫 Bỏ: {cleanLabel}
+                                        </span>
+                                    );
+                                }
+                                return (
+                                    <span style={{ color: '#dc2626', fontWeight: 700, fontSize: '0.82rem' }}>
+                                        🚫 Đã bỏ {selected.length} trạng thái
+                                    </span>
+                                );
+                            }}
+                        >
+                            {excludeStatus.length > 0 && (
+                                <MenuItem 
+                                    value="_clear_" 
+                                    sx={{ 
+                                        color: '#0284c7', 
+                                        fontWeight: 700, 
+                                        fontSize: '0.82rem',
+                                        borderBottom: '1px dashed #cbd5e1',
+                                        py: 1
+                                    }}
+                                >
+                                    <i className="fa-solid fa-rotate-left" style={{ marginRight: 8 }}></i>
+                                    Hiển thị tất cả (Bỏ loại trừ)
+                                </MenuItem>
+                            )}
+                            {quickStatusOptions.filter(o => o.id !== 'all').map((opt) => {
+                                const isChecked = excludeStatus.indexOf(String(opt.id)) > -1;
+                                return (
+                                    <MenuItem key={opt.id} value={String(opt.id)} sx={{ py: 0.5 }}>
+                                        <Checkbox 
+                                            size="small" 
+                                            checked={isChecked} 
+                                            sx={{ 
+                                                color: isChecked ? '#dc2626' : undefined, 
+                                                '&.Mui-checked': { color: '#dc2626' },
+                                                p: 0.5,
+                                                mr: 1
+                                            }} 
+                                        />
+                                        <ListItemText 
+                                            primary={`Loại bỏ: ${opt.label}`} 
+                                            primaryTypographyProps={{ 
+                                                fontSize: '0.83rem', 
+                                                fontWeight: isChecked ? 700 : 500,
+                                                color: isChecked ? '#dc2626' : '#1e293b'
+                                            }} 
+                                        />
+                                    </MenuItem>
+                                );
+                            })}
                         </Select>
                     </FormControl>
                 </div>
@@ -386,6 +767,9 @@ function HopDongKhachHang() {
                     >
                         <ToggleButton value="table" title="Dạng Bảng Chi Tiết">
                             <ViewListIcon fontSize="small" sx={{ mr: 0.5 }} /> Bảng
+                        </ToggleButton>
+                        <ToggleButton value="kanban" title="Bảng Kanban Tiến Trình Kéo - Thả">
+                            <i className="fa-solid fa-chart-gantt" style={{ marginRight: '6px' }}></i> Kanban
                         </ToggleButton>
                         <ToggleButton value="grid" title="Dạng Lưới Thẻ">
                             <ViewModuleIcon fontSize="small" sx={{ mr: 0.5 }} /> Lưới
@@ -403,35 +787,51 @@ function HopDongKhachHang() {
                 </div>
             </div>
 
-            {/* Quick-Tick Filter Chips Toolbar */}
-            <div className="contract-quick-filters glass-panel">
-                <Typography variant="caption" fontWeight="bold" sx={{ mr: 0.5, display: 'flex', alignItems: 'center', fontSize: '0.82rem', color: '#0369a1' }}>
-                    <FilterAltIcon fontSize="small" sx={{ mr: 0.3 }} /> Lọc nhanh tiến độ:
-                </Typography>
-                {quickStatusOptions.map((st) => {
-                    const isSelected = String(statusFilter) === String(st.id);
+            {/* 3. THANH CHÚ GIẢI MÀU SẮC DÒNG HỢP ĐỒNG (CLICK ĐỂ LỌC NHANH) */}
+            <div className="contract-quick-filters glass-panel" style={{ padding: '7px 14px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#475569', marginRight: '4px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    🎨 Màu dòng trạng thái:
+                </span>
+                {CONTRACT_ROW_COLOR_LEGEND.map((item) => {
+                    const isSelected = String(statusFilter) === String(item.id);
                     return (
-                        <Chip
-                            key={st.id}
-                            label={st.label}
-                            size="small"
-                            clickable
-                            color={isSelected ? "primary" : "default"}
-                            variant={isSelected ? "filled" : "outlined"}
-                            icon={isSelected ? <CheckIcon fontSize="small" /> : undefined}
-                            onClick={() => setStatusFilter(st.id)}
-                            sx={{
+                        <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleSelectStatusFilter(isSelected && item.id !== 'all' ? 'all' : item.id)}
+                            title={`Nhấn để lọc: ${item.label}`}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '3px 10px',
+                                borderRadius: '14px',
+                                fontSize: '0.73rem',
                                 fontWeight: isSelected ? 800 : 600,
-                                fontSize: '0.78rem',
-                                borderRadius: '8px',
-                                transition: 'all 0.15s',
-                                bgcolor: isSelected ? undefined : '#ffffff',
-                                borderColor: isSelected ? undefined : '#cbd5e1'
+                                backgroundColor: item.bg,
+                                color: item.color,
+                                border: isSelected ? `2px solid ${item.color}` : `1px solid ${item.border}`,
+                                boxShadow: isSelected ? `0 2px 6px ${item.color}33` : 'none',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
                             }}
-                        />
+                        >
+                            <span
+                                style={{
+                                    width: '9px',
+                                    height: '9px',
+                                    borderRadius: '50%',
+                                    backgroundColor: item.color,
+                                    display: 'inline-block',
+                                    flexShrink: 0
+                                }}
+                            />
+                            {item.label}
+                        </button>
                     );
                 })}
             </div>
+
 
             {/* 4. CONTENT: TABLE OR GRID VIEW */}
             {isMobile ? (
@@ -443,9 +843,10 @@ function HopDongKhachHang() {
                                 sx={{ 
                                     mb: 2, 
                                     borderRadius: 2, 
-                                    border: isUnscheduledShooting(hd) ? '1px solid #fca5a5' : '1px solid #e0e0e0', 
+                                    border: `1px solid ${getContractStatusInfo(hd).borderColor}`, 
+                                    borderLeft: `5px solid ${getContractStatusInfo(hd).color}`,
                                     bgcolor: getRowBackgroundColor(hd),
-                                    boxShadow: 'none' 
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.03)' 
                                 }}
                                 onClick={() => {
                                     setSendData(hd);
@@ -457,24 +858,14 @@ function HopDongKhachHang() {
                                     justifyContent: 'space-between', 
                                     alignItems: 'center', 
                                     p: 1.5, 
-                                    bgcolor: isUnscheduledShooting(hd) ? '#fee2e2' : '#f5f5f5', 
-                                    borderBottom: '1px solid #e0e0e0' 
+                                    bgcolor: getContractStatusInfo(hd).bgColor || '#f8fafc', 
+                                    borderBottom: `1px solid ${getContractStatusInfo(hd).borderColor || '#e0e0e0'}` 
                                 }}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: isUnscheduledShooting(hd) ? '#991b1b' : 'inherit' }}>
-                                        {hd.maHopDong}
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: getContractStatusInfo(hd).color }}>
+                                        #{hd.maHopDong}
                                     </Typography>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Chip 
-                                            label={convertTrangThai(hd)} 
-                                            size="small" 
-                                            sx={{ 
-                                                bgcolor: getTrangThaiColor(hd), 
-                                                color: '#fff',
-                                                fontWeight: 'bold',
-                                                fontSize: '0.75rem',
-                                                height: '24px'
-                                            }} 
-                                        />
+                                        {renderStatusBadge(hd)}
                                         <IconButton size="small" sx={{ padding: 0 }}>
                                             <MoreHorizIcon />
                                         </IconButton>
@@ -506,13 +897,32 @@ function HopDongKhachHang() {
                                         </Grid>
                                         <Grid item xs={6}>
                                             <Typography variant="caption" color="text.secondary">Dịch vụ</Typography>
-                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>{getDichVuChinhLabel(hd.dichVuChinh)}</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{getDichVuChinhLabel(hd.dichVuChinh)}</Typography>
                                         </Grid>
                                         <Grid item xs={6}>
                                             <Typography variant="caption" color="text.secondary">Ngày HĐ</Typography>
-                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.95rem' }}>
                                                 {hd.ngayHopDong ? formatDate(hd.ngayHopDong) : "-"}
                                             </Typography>
+                                        </Grid>
+                                        <Grid item xs={12}>
+                                            <Box sx={{ p: 1, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>Ngày chụp:</Typography>
+                                                <Box textAlign="right">
+                                                    {hd.cacNgay?.ngayChup ? (
+                                                        <>
+                                                            <strong style={{ fontSize: '0.85rem', color: '#d97706' }}>
+                                                                {formatDate(hd.cacNgay.ngayChup)}
+                                                            </strong>
+                                                            <div>{getShootingCountdownTag(hd.cacNgay.ngayChup, Number(hd.giaiDoan) > 1 || (Number(hd.giaiDoan) === 1 && hd.subGiaiDoan === 'hoan_thanh') || Number(hd.giaiDoan) === 5)}</div>
+                                                        </>
+                                                    ) : (
+                                                        <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 700 }}>
+                                                            ⚠️ Chưa xếp lịch
+                                                        </span>
+                                                    )}
+                                                </Box>
+                                            </Box>
                                         </Grid>
                                     </Grid>
                                 </Box>
@@ -522,20 +932,32 @@ function HopDongKhachHang() {
                         <Typography sx={{ textAlign: 'center', mt: 4 }}>Không có dữ liệu hợp đồng khách hàng.</Typography>
                     )}
                 </Box>
+            ) : viewMode === 'kanban' ? (
+                /* ===== DẠNG BẢNG KANBAN TIẾN TRÌNH ===== */
+                <HopDongKanbanBoard 
+                    contracts={filteredHopDong}
+                    onContractClick={(hd) => {
+                        setSendData(hd);
+                        handleClickOpenDetailDialog();
+                    }}
+                    onAdvanceStage={handleKanbanAdvanceStage}
+                />
             ) : viewMode === 'grid' ? (
                 /* ===== DẠNG LƯỚI (GRID VIEW) ===== */
                 <Box className="contract-list-scroll" sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5, pb: 4, pt: 0.5 }}>
                     {filteredHopDong && filteredHopDong.length > 0 ? (
                         <Grid container spacing={2.5}>
                             {filteredHopDong.map((hd, index) => {
+                                const statusInfo = getContractStatusInfo(hd);
                                 return (
                                     <Grid item xs={12} sm={6} md={4} lg={3} key={hd._id || index}>
                                         <Card 
                                             sx={{ 
                                                 borderRadius: '14px', 
-                                                border: isUnscheduledShooting(hd) ? '1px solid #fca5a5' : '1px solid #e2e8f0', 
-                                                bgcolor: getRowBackgroundColor(hd),
-                                                boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                                                border: `1px solid ${statusInfo.borderColor}`, 
+                                                borderLeft: `5px solid ${statusInfo.color}`,
+                                                bgcolor: statusInfo.rowBgColor || '#ffffff',
+                                                boxShadow: `0 4px 12px ${statusInfo.color}15`,
                                                 transition: 'all 0.25s ease-in-out',
                                                 height: '100%',
                                                 display: 'flex',
@@ -543,8 +965,8 @@ function HopDongKhachHang() {
                                                 justifyContent: 'space-between',
                                                 cursor: 'pointer',
                                                 '&:hover': {
-                                                    boxShadow: '0 12px 28px rgba(0,0,0,0.1)',
-                                                    borderColor: isUnscheduledShooting(hd) ? '#f87171' : '#94a3b8',
+                                                    boxShadow: `0 12px 28px ${statusInfo.color}25`,
+                                                    borderColor: statusInfo.color,
                                                     transform: 'translateY(-3px)'
                                                 }
                                             }}
@@ -558,7 +980,9 @@ function HopDongKhachHang() {
                                                 <Box 
                                                     sx={{ 
                                                         p: 1.5, 
-                                                        background: isUnscheduledShooting(hd) ? 'linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%)' : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', 
+                                                        background: isUnscheduledShooting(hd) 
+                                                            ? 'linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%)' 
+                                                            : `linear-gradient(135deg, ${statusInfo.color}e6 0%, #0f172a 100%)`, 
                                                         color: '#ffffff',
                                                         display: 'flex',
                                                         justifyContent: 'space-between',
@@ -570,17 +994,7 @@ function HopDongKhachHang() {
                                                     <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#ffffff', fontSize: '0.98rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '65%' }} title={hd.khachHang1?.tenKhachHang}>
                                                         👤 {hd.khachHang1?.tenKhachHang || 'Chưa cập nhật'}
                                                     </Typography>
-                                                    <Chip 
-                                                        label={convertTrangThai(hd)} 
-                                                        size="small" 
-                                                        sx={{ 
-                                                            bgcolor: getTrangThaiColor(hd), 
-                                                            color: '#ffffff',
-                                                            fontWeight: 700,
-                                                            fontSize: '0.72rem',
-                                                            height: '22px'
-                                                        }} 
-                                                    />
+                                                    {renderStatusBadge(hd)}
                                                 </Box>
 
                                                 {/* Card Content */}
@@ -654,19 +1068,31 @@ function HopDongKhachHang() {
                                                         </Box>
                                                         <Box display="flex" justifyContent="space-between" alignItems="center">
                                                             <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Ngày chụp ảnh:</span>
-                                                            {hd.cacNgay?.ngayChup ? (
-                                                                <strong style={{ fontSize: '0.78rem', color: '#d97706' }}>
-                                                                    {formatDate(hd.cacNgay.ngayChup)}
-                                                                </strong>
-                                                            ) : (
-                                                                <strong style={{ fontSize: '0.78rem', color: '#dc2626' }}>
-                                                                    ⚠️ Chưa xếp lịch
-                                                                </strong>
-                                                            )}
+                                                            <Box textAlign="right">
+                                                                {hd.cacNgay?.ngayChup ? (
+                                                                    <>
+                                                                        <strong style={{ fontSize: '0.78rem', color: '#d97706' }}>
+                                                                            {formatDate(hd.cacNgay.ngayChup)}
+                                                                        </strong>
+                                                                        <div>{getShootingCountdownTag(hd.cacNgay.ngayChup, Number(hd.giaiDoan) > 1 || (Number(hd.giaiDoan) === 1 && hd.subGiaiDoan === 'hoan_thanh') || Number(hd.giaiDoan) === 5)}</div>
+                                                                    </>
+                                                                ) : (
+                                                                    <strong style={{ fontSize: '0.78rem', color: '#dc2626' }}>
+                                                                        ⚠️ Chưa xếp lịch
+                                                                    </strong>
+                                                                )}
+                                                            </Box>
                                                         </Box>
 
-                                                        {/* Thanh Progress Trạng Thái Thanh Toán */}
-                                                        {(() => {
+                                                        {/* Thanh Progress Trạng Thái Thanh Toán hoặc Job Card cho KTV */}
+                                                        {isTechnician ? (
+                                                            <Box sx={{ mt: 0.5, pt: 0.8, borderTop: '1px dashed #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Phiếu công việc:</span>
+                                                                <span style={{ fontSize: '0.72rem', background: '#eff6ff', color: '#1d4ed8', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, border: '1px solid #bfdbfe' }}>
+                                                                    🛠️ {hd.cacNgay?.diaDiemChup ? `Điểm: ${hd.cacNgay.diaDiemChup}` : 'Xem chi tiết việc'}
+                                                                </span>
+                                                            </Box>
+                                                        ) : (() => {
                                                             const daThanhToan = Number(hd.thanhToan?.khachHangDaThanhToan) || 0;
                                                             const conLai = hd.thanhToan?.conLai !== undefined ? Number(hd.thanhToan.conLai) : 0;
                                                             const tongTienHD = daThanhToan + conLai;
@@ -747,36 +1173,53 @@ function HopDongKhachHang() {
                         <Table stickyHeader size="small">
                             <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.5, zIndex: 3 } }}>
                                 <TableRow>
-                                    <TableCell align='center' style={{ minWidth: 50, width: '4%' }}>STT</TableCell>
-                                    <TableCell style={{ minWidth: 180, width: '18%' }}>TÊN KHÁCH HÀNG</TableCell>
-                                    <TableCell align='center' style={{ minWidth: 110, width: '10%' }}>MÃ SỐ HĐ</TableCell>
-                                    <TableCell style={{ minWidth: 140, width: '13%' }}>LIÊN HỆ</TableCell>
-                                    <TableCell align='center' style={{ minWidth: 130, width: '13%' }}>DỊCH VỤ</TableCell>
-                                    <TableCell align='center' style={{ minWidth: 160, width: '15%' }}>THANH TOÁN</TableCell>
-                                    <TableCell align='center' style={{ minWidth: 120, width: '10%' }}>TRẠNG THÁI</TableCell>
-                                    <TableCell align='center' style={{ minWidth: 120, width: '9%' }}>NGÀY HỢP ĐỒNG</TableCell>
-                                    <TableCell align='center' style={{ minWidth: 130, width: '10%' }}>NGÀY CHỤP</TableCell>
+                                    <TableCell align='center' style={{ minWidth: 45, width: '4%' }}>STT</TableCell>
+                                    <TableCell style={{ minWidth: 165, width: '15%' }}>TÊN KHÁCH HÀNG</TableCell>
+                                    <TableCell align='center' style={{ minWidth: 95, width: '8%' }}>MÃ SỐ HĐ</TableCell>
+                                    <TableCell style={{ minWidth: 125, width: '10%' }}>LIÊN HỆ</TableCell>
+                                    <TableCell align='center' style={{ minWidth: 145, width: '13%' }}>NGÀY CHỤP</TableCell>
+                                    <TableCell align='center' style={{ minWidth: 105, width: '9%' }}>DỊCH VỤ</TableCell>
+                                    <TableCell align='center' style={{ minWidth: 155, width: '15%' }}>{isTechnician ? 'PHIẾU CÔNG VIỆC' : 'THANH TOÁN'}</TableCell>
+                                    <TableCell align='center' style={{ minWidth: 155, width: '15%' }}>TRẠNG THÁI</TableCell>
+                                    <TableCell align='center' style={{ minWidth: 115, width: '11%' }}>NGÀY HỢP ĐỒNG</TableCell>
                                 </TableRow>
                             </TableHead>
 
                             <TableBody>
                                 {filteredHopDong && filteredHopDong.length > 0 ? (
-                                    filteredHopDong.map((hd, index) => (
+                                    filteredHopDong.map((hd, index) => {
+                                        const statusInfo = getContractStatusInfo(hd);
+                                        return (
                                         <TableRow 
                                             key={hd._id || index}
                                             className="contract-table-row"
-                                            style={{ 
-                                                backgroundColor: getRowBackgroundColor(hd)
+                                            sx={{ 
+                                                backgroundColor: `${statusInfo.rowBgColor || '#ffffff'} !important`,
+                                                opacity: statusInfo.subStage === 'huy' ? 0.78 : 1,
+                                                '& td': {
+                                                    backgroundColor: 'transparent',
+                                                    borderBottom: `1px solid ${statusInfo.borderColor || '#e2e8f0'}`
+                                                },
+                                                '&:hover': {
+                                                    filter: 'brightness(0.96)'
+                                                }
                                             }}
                                             onClick={() => {
                                                 setSendData(hd);
                                                 handleClickOpenDetailDialog();
                                             }}
                                         >
-                                            <TableCell align='center' style={{ fontWeight: 600, color: '#64748b' }}>
+                                            <TableCell 
+                                                align='center' 
+                                                style={{ 
+                                                    fontWeight: 800, 
+                                                    color: statusInfo.color,
+                                                    borderLeft: `5px solid ${statusInfo.color}`
+                                                }}
+                                            >
                                                 {index + 1}
                                             </TableCell>
-                                            <TableCell align='left' style={{ fontWeight: 800, fontSize: '0.96rem', color: '#0f172a' }}>
+                                            <TableCell align='left' style={{ fontWeight: 800, fontSize: '0.96rem', color: statusInfo.subStage === 'huy' ? '#94a3b8' : '#0f172a', textDecoration: statusInfo.subStage === 'huy' ? 'line-through' : 'none' }}>
                                                 {hd.khachHang1?.tenKhachHang}
                                                 {hd.khachHang2?.tenKhachHang && (
                                                     <>
@@ -786,7 +1229,13 @@ function HopDongKhachHang() {
                                                 )}
                                             </TableCell>
                                             <TableCell align='center'>
-                                                <span className="badge-code">
+                                                <span 
+                                                    className="badge-code"
+                                                    style={{
+                                                        borderColor: `${statusInfo.color}40`,
+                                                        backgroundColor: '#ffffff'
+                                                    }}
+                                                >
                                                     {hd.maHopDong}
                                                 </span>
                                             </TableCell>
@@ -826,13 +1275,48 @@ function HopDongKhachHang() {
                                                     </div>
                                                 )}
                                             </TableCell>
+                                            {/* Cột 5: NGÀY CHỤP */}
+                                            <TableCell align='center'>
+                                                {hd.cacNgay?.ngayChup ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                        <div style={{ fontWeight: 700, color: '#d97706', fontSize: '0.82rem' }}>
+                                                            {formatDate(hd.cacNgay.ngayChup)}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                                                            (Âm: {formatLunarDateShort(hd.cacNgay.ngayChup)})
+                                                        </div>
+                                                        {getShootingCountdownTag(hd.cacNgay.ngayChup, Number(hd.giaiDoan) > 1 || (Number(hd.giaiDoan) === 1 && hd.subGiaiDoan === 'hoan_thanh') || Number(hd.giaiDoan) === 5)}
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                        <span style={{
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: '3px',
+                                                            fontSize: '0.72rem',
+                                                            fontWeight: 700,
+                                                            color: '#dc2626',
+                                                            background: '#fee2e2',
+                                                            border: '1px solid #fca5a5',
+                                                            padding: '2px 8px',
+                                                            borderRadius: '4px'
+                                                        }}>
+                                                            ⚠️ Chưa xếp lịch
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </TableCell>
                                             <TableCell align='center'>
                                                 <span className="badge-service-tag">
                                                     {getDichVuChinhLabel(hd.dichVuChinh)}
                                                 </span>
                                             </TableCell>
                                             <TableCell align='center' onClick={(e) => { e.stopPropagation(); setSendData(hd); handleClickOpenDetailDialog(); }}>
-                                                {(() => {
+                                                {isTechnician ? (
+                                                    <span style={{ fontSize: '0.74rem', background: '#eff6ff', color: '#1d4ed8', padding: '4px 10px', borderRadius: '6px', fontWeight: 700, border: '1px solid #bfdbfe', display: 'inline-block' }}>
+                                                        🛠️ Job Card ({hd.cacNgay?.diaDiemChup || 'Tại Studio'})
+                                                    </span>
+                                                ) : (() => {
                                                     const percent = hd.thanhToan?.phanTramDaThanhToan !== undefined
                                                         ? Number(hd.thanhToan.phanTramDaThanhToan)
                                                         : (Number(hd.thanhToan?.tongGiaTriSauGiam || hd.thanhToan?.tongGiaTri || 0) > 0
@@ -882,17 +1366,7 @@ function HopDongKhachHang() {
                                                 })()}
                                             </TableCell>
                                             <TableCell align='center'>
-                                                <Chip 
-                                                    label={convertTrangThai(hd)} 
-                                                    size="small" 
-                                                    sx={{ 
-                                                        bgcolor: getTrangThaiColor(hd), 
-                                                        color: '#fff',
-                                                        fontWeight: 'bold',
-                                                        fontSize: '0.75rem',
-                                                        height: '24px'
-                                                    }} 
-                                                />
+                                                {renderStatusBadge(hd)}
                                             </TableCell>
                                             <TableCell align='center'>
                                                 {hd.ngayHopDong ? (
@@ -904,20 +1378,9 @@ function HopDongKhachHang() {
                                                     </>
                                                 ) : "-"}
                                             </TableCell>
-                                            <TableCell align='center'>
-                                                {hd.cacNgay?.ngayChup ? (
-                                                    <>
-                                                        <div style={{ fontWeight: 700, color: '#d97706' }}>{formatDate(hd.cacNgay.ngayChup)}</div>
-                                                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                                                            (Âm: {formatLunarDateShort(hd.cacNgay.ngayChup)})
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <span style={{ color: '#dc2626', fontWeight: 'bold', fontSize: '0.78rem' }}>⚠️ Chưa xếp lịch</span>
-                                                )}
-                                            </TableCell>
                                         </TableRow>
-                                    ))
+                                    );
+                                })
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#94a3b8' }}>

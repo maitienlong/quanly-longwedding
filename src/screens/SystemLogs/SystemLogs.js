@@ -282,32 +282,35 @@ const SystemLogs = () => {
     // Blocked IPs
     const [blockedIps, setBlockedIps] = useState([]);
 
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('access_token');
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    };
+
     const fetchAllData = async () => {
         try {
+            const headers = getAuthHeaders();
             // Stats
-            const statsRes = await axios.get(`${adminApiUrl}/api/visitors/stats`);
+            const statsRes = await axios.get(`${adminApiUrl}/api/visitors/stats`, { headers });
             if (statsRes.data?.status === 'success') {
                 setStats(statsRes.data.data);
             }
 
             // Map Locations
-            const mapRes = await axios.get(`${adminApiUrl}/api/visitors/map-locations`);
+            const mapRes = await axios.get(`${adminApiUrl}/api/visitors/map-locations`, { headers });
             if (mapRes.data?.status === 'success') {
                 setMapLocations(mapRes.data.data);
             }
 
             // Visitor Logs
-            const vLogRes = await axios.get(`${adminApiUrl}/api/visitors/logs`);
+            const vLogRes = await axios.get(`${adminApiUrl}/api/visitors/logs`, { headers });
             if (vLogRes.data?.status === 'success') {
                 setVisitorLogs(vLogRes.data.data);
             }
 
             // Action Logs
             setLoadingActionLogs(true);
-            const token = localStorage.getItem('access_token');
-            const aLogRes = await axios.get(`${adminApiUrl}/api/log`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {}
-            });
+            const aLogRes = await axios.get(`${adminApiUrl}/api/log`, { headers });
             if (aLogRes.data?.status === 'success') {
                 setActionLogs(aLogRes.data.data || []);
             }
@@ -320,7 +323,7 @@ const SystemLogs = () => {
 
     const fetchOnlineVisitors = async () => {
         try {
-            const res = await axios.get(`${adminApiUrl}/api/visitors/active`);
+            const res = await axios.get(`${adminApiUrl}/api/visitors/active`, { headers: getAuthHeaders() });
             if (res.data?.status === 'success') {
                 setOnlineVisitors(res.data.data);
             }
@@ -331,7 +334,7 @@ const SystemLogs = () => {
 
     const fetchBlockedIps = async () => {
         try {
-            const res = await axios.get(`${adminApiUrl}/api/visitors/blocked`);
+            const res = await axios.get(`${adminApiUrl}/api/visitors/blocked`, { headers: getAuthHeaders() });
             if (res.data?.status === 'success') {
                 setBlockedIps(res.data.data);
             }
@@ -357,7 +360,7 @@ const SystemLogs = () => {
 
     const handleBlockIp = async (ip) => {
         try {
-            await axios.post(`${adminApiUrl}/api/visitors/block`, { ip });
+            await axios.post(`${adminApiUrl}/api/visitors/block`, { ip }, { headers: getAuthHeaders() });
             toast.success(`Đã chặn địa chỉ IP: ${ip}`);
             fetchAllData();
             if (tabIndex === 2) fetchOnlineVisitors();
@@ -369,7 +372,7 @@ const SystemLogs = () => {
 
     const handleUnblockIp = async (ip) => {
         try {
-            await axios.post(`${adminApiUrl}/api/visitors/unblock`, { ip });
+            await axios.post(`${adminApiUrl}/api/visitors/unblock`, { ip }, { headers: getAuthHeaders() });
             toast.success(`Đã gỡ chặn địa chỉ IP: ${ip}`);
             fetchAllData();
             if (tabIndex === 2) fetchOnlineVisitors();

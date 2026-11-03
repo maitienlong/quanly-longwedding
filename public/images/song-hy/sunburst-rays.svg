@@ -1,0 +1,35 @@
+<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <radialGradient id="sunburstGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1F3A25" stop-opacity="0.3"/>
+      <stop offset="60%" stop-color="#1F3A25" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#1F3A25" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g fill="url(#sunburstGrad)">
+    <polygon points="300,300 285,0 315,0" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(15 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(30 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(45 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(60 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(75 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(90 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(105 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(120 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(135 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(150 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(165 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(180 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(195 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(210 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(225 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(240 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(255 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(270 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(285 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(300 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(315 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(330 300 300)" />
+    <polygon points="300,300 285,0 315,0" transform="rotate(345 300 300)" />
+  </g>
+</svg>

@@ -46,7 +46,7 @@ import Tab from '@mui/material/Tab';
 import Chip from '@mui/material/Chip';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import LunarDateTimePicker from '../../components/LunarDateTimePicker';
 import { useAuth } from '../Login/AuthContext/AuthContext';
 import { getLoanReceiptPrintConfig, generateLoanReceiptPrintHtml } from '../../utils/printConfigHelper';
 
@@ -90,6 +90,10 @@ function LichSoanDo() {
     const [trangPhucIsThueThem, setTrangPhucIsThueThem] = useState(false);
     const [trangPhucDonGiaThue, setTrangPhucDonGiaThue] = useState(0);
 
+    // Barcode Scanning & Smart Conflict Detection
+    const [allSchedules, setAllSchedules] = useState([]);
+    const [barcodeInput, setBarcodeInput] = useState('');
+
     const commonHeight = 56;
 
     // Load data from APIs
@@ -100,16 +104,18 @@ function LichSoanDo() {
             otherService.findAllLichSoanDo({})
         ])
             .then(([resHD, resLSD]) => {
-                // Filter Pre-Wedding (1) and Cho thuê trang phục (12), excluding completed contracts (giaiDoan === 5)
+                    // Filter Pre-Wedding (1) and Cho thuê trang phục (12), excluding completed contracts (giaiDoan 4 hoan_thanh or legacy 5)
                 const list = (resHD.data.hopDong || []).filter(hd => {
                     const dvId = Number(hd.dichVuChinh);
                     const label = getDichVuChinhLabel(hd.dichVuChinh)?.toLowerCase() || '';
                     const isTargetService = dvId === 1 || dvId === 12 || label.includes('pre-wedding') || label.includes('cho thuê trang phục');
-                    const isNotCompleted = Number(hd.giaiDoan) !== 5;
+                    const isCompleted = Number(hd.giaiDoan) === 5 || (Number(hd.giaiDoan) === 4 && hd.subGiaiDoan === 'hoan_thanh');
+                    const isNotCompleted = !isCompleted;
                     return isTargetService && isNotCompleted;
                 });
                 
                 const schedules = resLSD.data?.lichSoanDo || [];
+                setAllSchedules(schedules);
                 const updatedList = list.map(hd => {
                     const matchedSD = schedules.find(sd => 
                         (sd.hopDongId === hd._id) || 
@@ -335,6 +341,70 @@ function LichSoanDo() {
         setTrangPhucDonGiaThue(0);
 
         setOpenDialog(true);
+    };
+
+    // Detect Overbooking Conflicts for borrowed items
+    const conflictItems = React.useMemo(() => {
+        if (!ngayMuon || !dsMuon || dsMuon.length === 0 || !selectedHD) return [];
+
+        const currentMuonTime = new Date(ngayMuon).getTime();
+        const currentTraTime = ngayTra ? new Date(ngayTra).getTime() : currentMuonTime + (2 * 86400000);
+        if (isNaN(currentMuonTime)) return [];
+
+        const conflicts = [];
+        const currentHDCode = selectedHD.maHopDong;
+        const ONE_DAY_MS = 86400000;
+
+        (allSchedules || []).forEach(otherSD => {
+            if (otherSD.maHopDong === currentHDCode) return;
+            if (!otherSD.ngayMuon || !otherSD.dsMuon || otherSD.dsMuon.length === 0) return;
+
+            const otherMuonTime = new Date(otherSD.ngayMuon).getTime();
+            const otherTraTime = otherSD.ngayTra ? new Date(otherSD.ngayTra).getTime() : otherMuonTime + (2 * 86400000);
+            if (isNaN(otherMuonTime)) return;
+
+            // Overlap with 1 day buffer for cleaning
+            const isOverlap = (currentMuonTime - ONE_DAY_MS <= otherTraTime) && (currentTraTime + ONE_DAY_MS >= otherMuonTime);
+
+            if (isOverlap) {
+                dsMuon.forEach(item => {
+                    const isConflict = otherSD.dsMuon.some(otherItem => otherItem.maDichVu && otherItem.maDichVu === item.maDichVu);
+                    if (isConflict) {
+                        conflicts.push({
+                            itemTitle: item.tenDichVu || item.maDichVu,
+                            itemCode: item.maDichVu,
+                            conflictingContract: otherSD.maHopDong,
+                            otherDates: `${otherSD.ngayMuon} - ${otherSD.ngayTra || '---'}`
+                        });
+                    }
+                });
+            }
+        });
+
+        return conflicts;
+    }, [ngayMuon, ngayTra, dsMuon, selectedHD, allSchedules]);
+
+    // Handle Quick Barcode Scanner for item check
+    const handleScanBarcode = () => {
+        const code = barcodeInput.trim().toUpperCase();
+        if (!code) return;
+
+        const matchIndex = dsMuon.findIndex(item => (item.maDichVu && item.maDichVu.toUpperCase() === code) || (item.tenDichVu && item.tenDichVu.toUpperCase().includes(code)));
+
+        if (matchIndex !== -1) {
+            setDsMuon(prev => prev.map((item, idx) => idx === matchIndex ? { ...item, daChuanBi: true } : item));
+            toast.success(`🎯 Đã kiểm tra chuẩn bị: ${dsMuon[matchIndex].tenDichVu}!`);
+            setBarcodeInput('');
+        } else {
+            const found = trangPhucList.find(p => p.maDichVu && p.maDichVu.toUpperCase() === code);
+            if (found) {
+                setSelectedTrangPhuc(found);
+                toast.info(`Tìm thấy "${found.tenDichVu}". Đã chọn để thêm vào danh sách.`);
+                setBarcodeInput('');
+            } else {
+                toast.error(`Không tìm thấy mã đồ "${code}" trong danh mục kho!`);
+            }
+        }
     };
 
     // Handle adding borrowed dress/suit
@@ -996,21 +1066,21 @@ function LichSoanDo() {
                             <Box p={3} display="flex" flexDirection="column" gap={3}>
                                 {/* Date and detail inputs */}
                                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                                    <DateTimePicker
+                                    <LunarDateTimePicker
                                         label="Ngày soạn đồ"
                                         value={ngaySoan ? dayjs(ngaySoan) : null}
                                         onChange={(newValue) => setNgaySoan(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
                                         slotProps={{ textField: { size: 'small', fullWidth: true } }}
                                         format="DD/MM/YYYY HH:mm"
                                     />
-                                    <DateTimePicker
+                                    <LunarDateTimePicker
                                         label="Ngày mượn đồ"
                                         value={ngayMuon ? dayjs(ngayMuon) : null}
                                         onChange={(newValue) => setNgayMuon(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
                                         slotProps={{ textField: { size: 'small', fullWidth: true } }}
                                         format="DD/MM/YYYY HH:mm"
                                     />
-                                    <DateTimePicker
+                                    <LunarDateTimePicker
                                         label="Ngày trả đồ dự kiến"
                                         value={ngayTra ? dayjs(ngayTra) : null}
                                         onChange={(newValue) => setNgayTra(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
@@ -1158,8 +1228,71 @@ function LichSoanDo() {
                                     </Paper>
                                 )}
 
+                                {/* CONFLICT OVERBOOKING WARNING ALERT */}
+                                {conflictItems.length > 0 && (
+                                    <div style={{
+                                        margin: '12px 0',
+                                        padding: '12px 16px',
+                                        background: 'rgba(239, 68, 68, 0.1)',
+                                        border: '1px solid #ef4444',
+                                        borderRadius: '10px',
+                                        color: '#b91c1c'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, fontSize: '0.9rem', marginBottom: '4px' }}>
+                                            <i className="fa-solid fa-triangle-exclamation" style={{ color: '#ef4444' }}></i>
+                                            <span>CẢNH BÁO XUNG ĐỘT TRÙNG LỊCH ĐỒ ({conflictItems.length} món)!</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.8rem', lineHeight: 1.6 }}>
+                                            {conflictItems.map((c, idx) => (
+                                                <div key={idx}>
+                                                    • <strong>{c.itemTitle}</strong> (#{c.itemCode}) đang được xếp cho HĐ <strong>#{c.conflictingContract}</strong> ({c.otherDates}).
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* BARCODE QUICK SCANNER TOOLBAR */}
+                                <div style={{
+                                    margin: '12px 0',
+                                    padding: '10px 14px',
+                                    background: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '10px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    flexWrap: 'wrap'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                                        <i className="fa-solid fa-barcode" style={{ fontSize: '1.1rem', color: '#eab308' }}></i>
+                                        <span>Quét mã Barcode / Kiểm đồ:</span>
+                                    </div>
+                                    <TextField
+                                        size="small"
+                                        placeholder="Quét mã vạch hoặc gõ mã đồ..."
+                                        value={barcodeInput}
+                                        onChange={(e) => setBarcodeInput(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleScanBarcode()}
+                                        sx={{ flex: 1, minWidth: '180px', '& .MuiInputBase-input': { fontSize: '0.85rem', py: 0.8 } }}
+                                    />
+                                    <Button
+                                        variant="contained"
+                                        size="small"
+                                        onClick={handleScanBarcode}
+                                        sx={{ background: '#0f172a', color: '#facc15', textTransform: 'none', fontWeight: 700 }}
+                                    >
+                                        Kiểm tra (Enter)
+                                    </Button>
+                                </div>
+
                                 {/* LIST OF BORROWED ITEMS */}
-                                <h4 style={{ margin: '10px 0 0px 0', color: '#1976d2' }}>DANH SÁCH ĐỒ ĐANG CHỌN MƯỢN:</h4>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0 6px 0' }}>
+                                    <h4 style={{ margin: 0, color: '#1976d2' }}>DANH SÁCH ĐỒ ĐANG CHỌN MƯỢN:</h4>
+                                    <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                                        Đã kiểm: <strong style={{ color: '#22c55e' }}>{dsMuon.filter(i => i.daChuanBi).length}</strong> / {dsMuon.length} món
+                                    </span>
+                                </div>
                                 <TableContainer component={Paper} variant="outlined" style={{ maxHeight: 240 }}>
                                     <Table size="small" stickyHeader>
                                         <TableHead>

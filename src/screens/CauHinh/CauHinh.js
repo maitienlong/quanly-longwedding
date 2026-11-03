@@ -21,7 +21,11 @@ import {
     DialogContent,
     DialogActions,
     InputAdornment,
-    LinearProgress
+    LinearProgress,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -36,6 +40,9 @@ import LockResetIcon from '@mui/icons-material/LockReset';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import KeyIcon from '@mui/icons-material/Key';
+import SecurityIcon from '@mui/icons-material/Security';
+import DialpadIcon from '@mui/icons-material/Dialpad';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import DescriptionIcon from '@mui/icons-material/Description';
 import CheckroomIcon from '@mui/icons-material/Checkroom';
@@ -45,6 +52,12 @@ import { useAuth } from '../Login/AuthContext/AuthContext';
 import otherService from '../../API/services/otherService';
 import logo from '../../assets/logo/logo-vang.png';
 import { getEmployeeAwards } from '../../utils/awardHelper';
+import {
+    savePinSession,
+    getSavedPinUser,
+    clearPinSession,
+    verifyPinAndGetSession
+} from '../../utils/pinAuthUtils';
 import {
     getContractPrintConfig,
     saveContractPrintConfig,
@@ -56,6 +69,7 @@ import {
     generateLoanReceiptPrintHtml
 } from '../../utils/printConfigHelper';
 import './cauhinh.css';
+import ContractTemplateDesigner, { SAMPLE_CONTRACT_DATA } from './ContractTemplateDesigner';
 
 function CauHinh() {
     const { user } = useAuth();
@@ -135,9 +149,93 @@ function CauHinh() {
     const [isSavingAvatar, setIsSavingAvatar] = useState(false);
 
     // Term input tạm
-    const [newContractTerm, setNewContractTerm] = useState('');
     const [newLoanTerm, setNewLoanTerm] = useState('');
     const [newReturnTerm, setNewReturnTerm] = useState('');
+
+    // PIN State & Handlers
+    const [savedPinUser, setSavedPinUser] = useState(() => getSavedPinUser());
+    const [pinModalOpen, setPinModalOpen] = useState(false);
+    const [pinModalStep, setPinModalStep] = useState(1); // 1: Old PIN verify (if exists), 2: Enter new PIN, 3: Confirm new PIN
+    const [oldPinInput, setOldPinInput] = useState('');
+    const [newPinInput, setNewPinInput] = useState('');
+    const [confirmPinInput, setConfirmPinInput] = useState('');
+    const [pinModalError, setPinModalError] = useState('');
+
+    // Thời gian tự động khóa màn hình (phút, 0 = tắt)
+    const [autoLockTimeout, setAutoLockTimeout] = useState(() => {
+        return localStorage.getItem('lw_autolock_timeout') || '0';
+    });
+
+    const handleAutoLockTimeoutChange = (val) => {
+        setAutoLockTimeout(val);
+        localStorage.setItem('lw_autolock_timeout', val);
+        if (val === '0') {
+            toast.info("Đã tắt tự động khóa màn hình.");
+        } else {
+            toast.success(`Đã lưu: Tự động khóa màn hình sau ${val} phút không hoạt động!`);
+        }
+    };
+
+    const handleOpenPinModal = () => {
+        const currentSaved = getSavedPinUser();
+        setSavedPinUser(currentSaved);
+        setOldPinInput('');
+        setNewPinInput('');
+        setConfirmPinInput('');
+        setPinModalError('');
+        setPinModalStep(currentSaved ? 1 : 2);
+        setPinModalOpen(true);
+    };
+
+    const handleVerifyOldPin = async () => {
+        setPinModalError('');
+        if (oldPinInput.length !== 6) {
+            setPinModalError("Vui lòng nhập đủ 6 số mã PIN hiện tại!");
+            return;
+        }
+        try {
+            await verifyPinAndGetSession(oldPinInput);
+            setPinModalStep(2);
+        } catch (err) {
+            setPinModalError(err.message || "Mã PIN cũ không chính xác!");
+        }
+    };
+
+    const handleSaveNewPin = async () => {
+        setPinModalError('');
+        if (newPinInput.length !== 6) {
+            setPinModalError("Mã PIN mới phải có đúng 6 chữ số!");
+            return;
+        }
+        if (newPinInput !== confirmPinInput) {
+            setPinModalError("Mã PIN xác nhận không khớp. Vui lòng nhập lại!");
+            return;
+        }
+
+        const token = localStorage.getItem('access_token');
+        const sessionData = {
+            token,
+            user: userProfileData || user
+        };
+
+        const username = user?.username || userProfileData?.username || 'user';
+        const ok = await savePinSession(username, newPinInput, sessionData);
+        if (ok) {
+            toast.success("Cài đặt mã PIN đăng nhập nhanh thành công!");
+            setSavedPinUser(getSavedPinUser());
+            setPinModalOpen(false);
+        } else {
+            setPinModalError("Có lỗi xảy ra khi lưu mã PIN. Vui lòng thử lại!");
+        }
+    };
+
+    const handleDisablePin = () => {
+        if (window.confirm("Bạn có chắc chắn muốn tắt và xóa mã PIN đăng nhập nhanh trên thiết bị này?")) {
+            clearPinSession();
+            setSavedPinUser(null);
+            toast.info("Đã tắt và xóa mã PIN đăng nhập nhanh trên thiết bị này.");
+        }
+    };
 
     useEffect(() => {
         if (user) {
@@ -344,22 +442,6 @@ function CauHinh() {
         toast.info("Đã khôi phục mẫu in hợp đồng về mặc định.");
     };
 
-    const handleAddContractTerm = () => {
-        if (!newContractTerm.trim()) return;
-        setContractConfig(prev => ({
-            ...prev,
-            terms: [...prev.terms, newContractTerm.trim()]
-        }));
-        setNewContractTerm('');
-    };
-
-    const handleDeleteContractTerm = (index) => {
-        setContractConfig(prev => ({
-            ...prev,
-            terms: prev.terms.filter((_, i) => i !== index)
-        }));
-    };
-
     // ==== Xử lý lưu cấu hình Phiếu mượn / trả đồ ====
     const handleSaveLoanConfig = () => {
         const ok = saveLoanReceiptPrintConfig(loanConfig);
@@ -416,47 +498,10 @@ function CauHinh() {
             return;
         }
 
-        const testData = {
-            maHopDong: 'HD-2025-DEMO',
-            ngayLapHopDongFormatted: '18/08/2025',
-            nameKH1: 'Nguyễn Thị Hoa',
-            nameKH2: 'Trần Văn Long',
-            phoneKH1: '0988.123.456',
-            phoneKH2: '0977.654.321',
-            addressKH1: 'Nghĩa Đàn, Nghệ An',
-            addressKH2: 'Nghĩa Đàn, Nghệ An',
-            goiPreWedding: 'Gói Chụp Ảnh Cưới Luxury VIP Studio & Ngoại Cảnh',
-            giaPreWedding: '12.000.000 đ',
-            goiPhongSu: 'Phóng sự cưới 2 máy',
-            giaPhongSu: '5.000.000 đ',
-            goiQuayPhim: 'Quay phim highlight 4K',
-            giaQuayPhim: '6.000.000 đ',
-            trangDiemLuot: '02',
-            ngayTrangDiem: 'Ngày cưới & Ăn hỏi',
-            trangDiemThem: 'Trang điểm mẹ cô dâu & chú rể',
-            ngayChupFormatted: '20/09/2025',
-            ngayAnHoiFormatted: '15/10/2025',
-            ngayCuoiFormatted: '20/10/2025',
-            soLuongAnh60x90: 2,
-            soLuongAnh20x30: 2,
-            albumTrang: 30,
-            aoDaiAnHoi: '01 cặp áo dài cô dâu chú rể màu đỏ Long Phụng',
-            vayCuoi: '01 Váy Limited làm lễ + 01 Váy đi bàn',
-            beTrap: '07 cặp, màu vàng đồng',
-            vestNgayCuoi: '01 bộ vest đen phong cách Hàn Quốc',
-            tongTien: 23000000,
-            datCoc: 5000000,
-            daThanhToan: 15000000,
-            conLai: 8000000
-        };
-
-        const html = generateContractPrintHtml(testData, contractConfig);
+        const html = generateContractPrintHtml(SAMPLE_CONTRACT_DATA, contractConfig);
         printWindow.document.write(html);
         printWindow.document.close();
         printWindow.focus();
-        setTimeout(() => {
-            printWindow.print();
-        }, 300);
     };
 
     // ==== IN THỬ NGHIỆM MẪU PHIẾU MƯỢN ĐỒ ====
@@ -578,6 +623,20 @@ function CauHinh() {
                                 <div className="cauhinh-menu-desc">Chỉ tiêu cá nhân & thành tích</div>
                             </div>
                         </li>
+
+                        {/* Tab Mã PIN & Khóa Màn Hình: Cho phép cả Nhân viên và Quản lý */}
+                        <li
+                            className={`cauhinh-menu-item ${activeTab === 'security_pin' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('security_pin')}
+                        >
+                            <span className="cauhinh-menu-icon" style={{ color: '#0284c7' }}>
+                                <i className="fa-solid fa-shield-halved"></i>
+                            </span>
+                            <div className="cauhinh-menu-text">
+                                <div className="cauhinh-menu-title">Mã PIN & Khóa Màn Hình</div>
+                                <div className="cauhinh-menu-desc">Đổi mã PIN & Thời gian tự khóa</div>
+                            </div>
+                        </li>
                     </ul>
                 </aside>
 
@@ -585,228 +644,14 @@ function CauHinh() {
                 <main className="cauhinh-content-area">
                     {/* TAB 1: CẤU HÌNH MẪU IN HỢP ĐỒNG (Chỉ Quản lý) */}
                     {isAdmin && activeTab === 'contract_print' && (
-                        <div className="cauhinh-panel">
-                            <div className="cauhinh-panel-header">
-                                <div>
-                                    <h2 className="cauhinh-panel-title">
-                                        <i className="fa-solid fa-file-contract" style={{ color: '#0284c7', marginRight: 8 }}></i>
-                                        Cấu Hình Mẫu In Hợp Đồng Khách Hàng
-                                    </h2>
-                                    <p className="cauhinh-panel-desc">Thiết lập tiêu đề, thông tin studio, điều khoản dịch vụ và người ký trên bản in Hợp Đồng</p>
-                                </div>
-                                <div className="cauhinh-actions-row">
-                                    <Button
-                                        variant="outlined"
-                                        color="inherit"
-                                        startIcon={<RestartAltIcon />}
-                                        onClick={handleResetContractConfig}
-                                        sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
-                                    >
-                                        Mặc định
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        color="primary"
-                                        startIcon={<PrintIcon />}
-                                        onClick={handleTestPrintContract}
-                                        sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-                                    >
-                                        In thử bản mẫu
-                                    </Button>
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        startIcon={<SaveIcon />}
-                                        onClick={handleSaveContractConfig}
-                                        sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: '#0284c7' }}
-                                    >
-                                        Lưu cấu hình
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <Grid container spacing={3}>
-                                {/* Tiêu đề & Thông tin cơ bản */}
-                                <Grid item xs={12} md={6}>
-                                    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: '#ffffff' }}>
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            🏷️ TIÊU ĐỀ & THÔNG TIN ĐẦU HỢP ĐỒNG
-                                        </Typography>
-                                        <Stack spacing={2}>
-                                            <TextField
-                                                label="Tiêu đề chính hợp đồng"
-                                                size="small"
-                                                fullWidth
-                                                value={contractConfig.contractTitle}
-                                                onChange={e => setContractConfig({ ...contractConfig, contractTitle: e.target.value })}
-                                            />
-                                            <TextField
-                                                label="Tiêu đề phụ / Chú thích"
-                                                size="small"
-                                                fullWidth
-                                                value={contractConfig.contractSubtitle}
-                                                onChange={e => setContractConfig({ ...contractConfig, contractSubtitle: e.target.value })}
-                                            />
-                                            <TextField
-                                                label="Tên Studio hiển thị"
-                                                size="small"
-                                                fullWidth
-                                                value={contractConfig.studioName}
-                                                onChange={e => setContractConfig({ ...contractConfig, studioName: e.target.value })}
-                                            />
-                                            <TextField
-                                                label="Hotline hỗ trợ khách hàng"
-                                                size="small"
-                                                fullWidth
-                                                value={contractConfig.studioHotline}
-                                                onChange={e => setContractConfig({ ...contractConfig, studioHotline: e.target.value })}
-                                            />
-                                            <TextField
-                                                label="Địa chỉ Studio"
-                                                size="small"
-                                                fullWidth
-                                                value={contractConfig.studioAddress}
-                                                onChange={e => setContractConfig({ ...contractConfig, studioAddress: e.target.value })}
-                                            />
-                                            <TextField
-                                                label="Lời cảm ơn ở chân trang (Footer)"
-                                                size="small"
-                                                fullWidth
-                                                multiline
-                                                rows={2}
-                                                value={contractConfig.footerNote}
-                                                onChange={e => setContractConfig({ ...contractConfig, footerNote: e.target.value })}
-                                            />
-                                        </Stack>
-                                    </Paper>
-                                </Grid>
-
-                                {/* Chữ ký & Hiển thị */}
-                                <Grid item xs={12} md={6}>
-                                    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: '#ffffff' }}>
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            ✍️ CẤU HÌNH KHU VỰC CHỮ KÝ & TÙY CHỌN
-                                        </Typography>
-                                        <Stack spacing={2}>
-                                            <TextField
-                                                label="Tiêu đề người ký Bên A (Khách hàng)"
-                                                size="small"
-                                                fullWidth
-                                                value={contractConfig.clientSignTitle}
-                                                onChange={e => setContractConfig({ ...contractConfig, clientSignTitle: e.target.value })}
-                                            />
-                                            <TextField
-                                                label="Ghi chú dưới chữ ký Bên A"
-                                                size="small"
-                                                fullWidth
-                                                value={contractConfig.clientSignSubtitle}
-                                                onChange={e => setContractConfig({ ...contractConfig, clientSignSubtitle: e.target.value })}
-                                            />
-                                            <TextField
-                                                label="Tiêu đề người ký Bên B (Studio)"
-                                                size="small"
-                                                fullWidth
-                                                value={contractConfig.studioSignTitle}
-                                                onChange={e => setContractConfig({ ...contractConfig, studioSignTitle: e.target.value })}
-                                            />
-                                            <TextField
-                                                label="Ghi chú dưới chữ ký Bên B"
-                                                size="small"
-                                                fullWidth
-                                                value={contractConfig.studioSignSubtitle}
-                                                onChange={e => setContractConfig({ ...contractConfig, studioSignSubtitle: e.target.value })}
-                                            />
-                                            <Divider sx={{ my: 1 }} />
-                                            <FormControlLabel
-                                                control={
-                                                    <Switch
-                                                        checked={contractConfig.showTeamStaff}
-                                                        onChange={e => setContractConfig({ ...contractConfig, showTeamStaff: e.target.checked })}
-                                                        color="primary"
-                                                    />
-                                                }
-                                                label="Hiển thị danh sách nhân sự phụ trách (Thợ chụp, Make-up, Chỉnh ảnh)"
-                                            />
-                                        </Stack>
-                                    </Paper>
-                                </Grid>
-
-                                {/* Danh sách điều khoản hợp đồng */}
-                                <Grid item xs={12}>
-                                    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: '#ffffff' }}>
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            📜 ĐIỀU KHOẢN & CAM KẾT DỊCH VỤ TRÊN BẢN IN
-                                        </Typography>
-                                        <Typography variant="body2" sx={{ color: '#64748b', mb: 2 }}>
-                                            Các điều khoản này sẽ được in trực tiếp vào phần cam kết của hợp đồng để khách hàng đọc và ký xác nhận.
-                                        </Typography>
-
-                                        {/* Thêm điều khoản mới */}
-                                        <Box sx={{ display: 'flex', gap: 1.5, mb: 2.5 }}>
-                                            <TextField
-                                                placeholder="Nhập nội dung điều khoản mới..."
-                                                size="small"
-                                                fullWidth
-                                                value={newContractTerm}
-                                                onChange={e => setNewContractTerm(e.target.value)}
-                                                onKeyPress={e => e.key === 'Enter' && handleAddContractTerm()}
-                                            />
-                                            <Button
-                                                variant="contained"
-                                                startIcon={<AddCircleOutlineIcon />}
-                                                onClick={handleAddContractTerm}
-                                                sx={{ minWidth: 150, textTransform: 'none', fontWeight: 700, bgcolor: '#0284c7' }}
-                                            >
-                                                Thêm điều khoản
-                                            </Button>
-                                        </Box>
-
-                                        {/* Danh sách điều khoản hiện tại */}
-                                        <Stack spacing={1.5}>
-                                            {contractConfig.terms.map((term, index) => (
-                                                <Box
-                                                    key={index}
-                                                    sx={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 1.5,
-                                                        p: 1.5,
-                                                        borderRadius: 2,
-                                                        bgcolor: '#f8fafc',
-                                                        border: '1px solid #e2e8f0'
-                                                    }}
-                                                >
-                                                    <Chip
-                                                        label={`Điều ${index + 1}`}
-                                                        size="small"
-                                                        sx={{ fontWeight: 800, bgcolor: '#e0f2fe', color: '#0369a1' }}
-                                                    />
-                                                    <TextField
-                                                        size="small"
-                                                        fullWidth
-                                                        variant="standard"
-                                                        value={term}
-                                                        onChange={e => {
-                                                            const updated = [...contractConfig.terms];
-                                                            updated[index] = e.target.value;
-                                                            setContractConfig({ ...contractConfig, terms: updated });
-                                                        }}
-                                                        InputProps={{ disableUnderline: false }}
-                                                    />
-                                                    <IconButton
-                                                        color="error"
-                                                        size="small"
-                                                        onClick={() => handleDeleteContractTerm(index)}
-                                                        title="Xóa điều khoản này"
-                                                    >
-                                                        <DeleteOutlineIcon />
-                                                    </IconButton>
-                                                </Box>
-                                            ))}
-                                        </Stack>
-                                    </Paper>
-                                </Grid>
-                            </Grid>
+                        <div className="cauhinh-panel" style={{ padding: '16px' }}>
+                            <ContractTemplateDesigner
+                                config={contractConfig}
+                                onChange={setContractConfig}
+                                onSave={handleSaveContractConfig}
+                                onReset={handleResetContractConfig}
+                                onTestPrint={handleTestPrintContract}
+                            />
                         </div>
                     )}
 
@@ -1346,6 +1191,79 @@ function CauHinh() {
                                                 </Button>
                                             </Stack>
                                         </Paper>
+
+                                        {/* 3. Thẻ Cấu Hình Mã PIN Đăng Nhập Nhanh */}
+                                        <Paper variant="outlined" className="account-info-card">
+                                            <div className="account-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                                <h3 className="account-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0, fontSize: '1rem', fontWeight: 800 }}>
+                                                    <SecurityIcon sx={{ color: '#0284c7' }} />
+                                                    Mã PIN Đăng Nhập Nhanh
+                                                </h3>
+                                                <Chip
+                                                    label={savedPinUser ? "Đang bật (6 số)" : "Chưa bật"}
+                                                    size="small"
+                                                    sx={{
+                                                        bgcolor: savedPinUser ? '#dcfce7' : '#f1f5f9',
+                                                        color: savedPinUser ? '#15803d' : '#64748b',
+                                                        fontWeight: 800,
+                                                        fontSize: '0.75rem'
+                                                    }}
+                                                />
+                                            </div>
+
+                                            <Typography variant="body2" sx={{ color: '#64748b', mb: 2, fontSize: '0.85rem' }}>
+                                                {savedPinUser 
+                                                    ? "Mã PIN 6 số đã được kích hoạt trên trình duyệt này. Bạn có thể đăng nhập tức thì chỉ trong 1 giây."
+                                                    : "Kích hoạt mã PIN 6 số giúp bạn đăng nhập nhanh vào hệ thống mà không cần gõ mật khẩu dài mỗi lần."
+                                                }
+                                            </Typography>
+
+                                            <Stack direction="row" spacing={1}>
+                                                <Button
+                                                    variant="contained"
+                                                    size="small"
+                                                    startIcon={<DialpadIcon />}
+                                                    onClick={handleOpenPinModal}
+                                                    sx={{
+                                                        bgcolor: '#0284c7',
+                                                        borderRadius: 2,
+                                                        fontWeight: 750,
+                                                        textTransform: 'none',
+                                                        flex: 1,
+                                                        '&:hover': { bgcolor: '#0369a1' }
+                                                    }}
+                                                >
+                                                    {savedPinUser ? "Đổi mã PIN mới" : "Thiết lập mã PIN"}
+                                                </Button>
+
+                                                {savedPinUser && (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="error"
+                                                        size="small"
+                                                        onClick={handleDisablePin}
+                                                        sx={{ borderRadius: 2, fontWeight: 750, textTransform: 'none' }}
+                                                    >
+                                                        Tắt mã PIN
+                                                    </Button>
+                                                )}
+                                            </Stack>
+
+                                            {savedPinUser && (
+                                                <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+                                                        ⏱️ Tự khóa: {autoLockTimeout === '0' ? 'Đang tắt' : `Sau ${autoLockTimeout} phút`}
+                                                    </Typography>
+                                                    <Button 
+                                                        size="small" 
+                                                        onClick={() => setActiveTab('security_pin')}
+                                                        sx={{ fontSize: '0.75rem', p: 0, textTransform: 'none', fontWeight: 700 }}
+                                                    >
+                                                        Cài đặt thời gian →
+                                                    </Button>
+                                                </Box>
+                                            )}
+                                        </Paper>
                                     </Stack>
                                 </Grid>
 
@@ -1495,6 +1413,185 @@ function CauHinh() {
                             </Grid>
                         </div>
                     )}
+
+                    {/* TAB 5: CẤU HÌNH & QUẢN LÝ MÃ PIN ĐĂNG NHẬP NHANH (Tất cả người dùng) */}
+                    {activeTab === 'security_pin' && (
+                        <div className="cauhinh-panel">
+                            <div className="cauhinh-panel-header">
+                                <div>
+                                    <h2 className="cauhinh-panel-title">
+                                        <SecurityIcon sx={{ color: '#0284c7', mr: 1 }} />
+                                        Cấu Hình Mã PIN Đăng Nhập Nhanh
+                                    </h2>
+                                    <p className="cauhinh-panel-desc">
+                                        Quản lý bật/tắt và thay đổi mã PIN 6 chữ số để đăng nhập an toàn, tức thì trên thiết bị này.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <Grid container spacing={3} sx={{ mt: 0.5 }}>
+                                <Grid item xs={12} md={7}>
+                                    <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+                                        <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={3}>
+                                            <Box display="flex" alignItems="center" gap={2}>
+                                                <Avatar
+                                                    sx={{
+                                                        width: 56,
+                                                        height: 56,
+                                                        bgcolor: savedPinUser ? '#0284c7' : '#94a3b8',
+                                                        color: '#fff',
+                                                        fontWeight: 800,
+                                                        fontSize: '1.4rem'
+                                                    }}
+                                                >
+                                                    {(userProfileData?.fullname || user?.username || 'U').charAt(0).toUpperCase()}
+                                                </Avatar>
+                                                <div>
+                                                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
+                                                        {userProfileData?.fullname || user?.username || 'Tài khoản của bạn'}
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+                                                        @{user?.username} • {user?.vaiTro || user?.chucVu || user?.role || 'Nhân viên'}
+                                                    </Typography>
+                                                </div>
+                                            </Box>
+
+                                            <Chip
+                                                label={savedPinUser ? "🟢 ĐANG KÍCH HOẠT" : "⚪ CHƯA BẬT MÃ PIN"}
+                                                sx={{
+                                                    bgcolor: savedPinUser ? '#dcfce7' : '#f1f5f9',
+                                                    color: savedPinUser ? '#15803d' : '#64748b',
+                                                    fontWeight: 800,
+                                                    fontSize: '0.8rem',
+                                                    px: 1
+                                                }}
+                                            />
+                                        </Box>
+
+                                        <Divider sx={{ my: 2 }} />
+
+                                        <Stack spacing={2.5}>
+                                            <Box sx={{ p: 2, bgcolor: savedPinUser ? '#f0fdf4' : '#f8fafc', borderRadius: 2.5, border: `1px solid ${savedPinUser ? '#bbf7d0' : '#e2e8f0'}` }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 700, color: savedPinUser ? '#166534' : '#334155', mb: 0.5 }}>
+                                                    {savedPinUser ? "✓ Mã PIN đang hoạt động trên thiết bị này" : "Chưa bật mã PIN"}
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ color: savedPinUser ? '#15803d' : '#64748b', display: 'block' }}>
+                                                    {savedPinUser 
+                                                        ? `Mã PIN 6 số đã được thiết lập. Khi truy cập trang đăng nhập, bạn chỉ cần gõ 6 chữ số để vào hệ thống ngay lập tức.`
+                                                        : `Khi bật mã PIN, bạn có thể đăng nhập nhanh chóng mà không cần nhập lại tên tài khoản và mật khẩu dài.`
+                                                    }
+                                                </Typography>
+                                            </Box>
+
+                                            <Box display="flex" gap={2} flexWrap="wrap">
+                                                <Button
+                                                    variant="contained"
+                                                    startIcon={<DialpadIcon />}
+                                                    onClick={handleOpenPinModal}
+                                                    sx={{
+                                                        bgcolor: '#0284c7',
+                                                        borderRadius: 2.5,
+                                                        fontWeight: 750,
+                                                        textTransform: 'none',
+                                                        px: 3,
+                                                        py: 1.2,
+                                                        '&:hover': { bgcolor: '#0369a1' }
+                                                    }}
+                                                >
+                                                    {savedPinUser ? "Đổi Mã PIN Mới" : "Bật & Cài Đặt Mã PIN (6 số)"}
+                                                </Button>
+
+                                                {savedPinUser && (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="error"
+                                                        onClick={handleDisablePin}
+                                                        sx={{
+                                                            borderRadius: 2.5,
+                                                            fontWeight: 750,
+                                                            textTransform: 'none',
+                                                            px: 2.5,
+                                                            py: 1.2
+                                                        }}
+                                                    >
+                                                        Tắt & Xóa Mã PIN
+                                                    </Button>
+                                                )}
+                                            </Box>
+
+                                            <Divider sx={{ my: 1.5 }} />
+
+                                            {/* Cài đặt thời gian tự động khóa màn hình */}
+                                            <Box>
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0f172a', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    ⏱️ Thời Gian Tự Động Khóa Màn Hình
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 2 }}>
+                                                    Khi không có thao tác chuột hoặc bàn phím trong khoảng thời gian đã chọn, màn hình sẽ tự động khóa để bảo mật dữ liệu.
+                                                </Typography>
+
+                                                <FormControl size="small" fullWidth sx={{ maxWidth: 340 }}>
+                                                    <InputLabel id="autolock-select-label">Thời gian tự động khóa</InputLabel>
+                                                    <Select
+                                                        labelId="autolock-select-label"
+                                                        value={autoLockTimeout}
+                                                        label="Thời gian tự động khóa"
+                                                        onChange={(e) => handleAutoLockTimeoutChange(e.target.value)}
+                                                        disabled={!savedPinUser}
+                                                    >
+                                                        <MenuItem value="0">Không bao giờ (Tắt tự động khóa)</MenuItem>
+                                                        <MenuItem value="1">Sau 1 phút không thao tác</MenuItem>
+                                                        <MenuItem value="3">Sau 3 phút không thao tác</MenuItem>
+                                                        <MenuItem value="5">Sau 5 phút không thao tác (Khuyên dùng)</MenuItem>
+                                                        <MenuItem value="10">Sau 10 phút không thao tác</MenuItem>
+                                                        <MenuItem value="15">Sau 15 phút không thao tác</MenuItem>
+                                                        <MenuItem value="30">Sau 30 phút không thao tác</MenuItem>
+                                                        <MenuItem value="60">Sau 1 giờ không thao tác</MenuItem>
+                                                    </Select>
+                                                </FormControl>
+
+                                                {!savedPinUser && (
+                                                    <Typography variant="caption" sx={{ color: '#ef4444', display: 'block', mt: 1, fontWeight: 600 }}>
+                                                        ⚠️ Cần cài đặt mã PIN trước để kích hoạt tính năng tự động khóa.
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        </Stack>
+                                    </Paper>
+                                </Grid>
+
+                                <Grid item xs={12} md={5}>
+                                    <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: '#f8fafc' }}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#0f172a', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <VpnKeyIcon sx={{ color: '#0284c7' }} />
+                                            Tiêu Chuẩn Bảo Mật Mã PIN
+                                        </Typography>
+
+                                        <Stack spacing={2}>
+                                            <Box sx={{ display: 'flex', gap: 1.5 }}>
+                                                <span style={{ color: '#16a34a', fontWeight: 800 }}>✓</span>
+                                                <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.5 }}>
+                                                    <strong>Mã hóa chuẩn SHA-256 + Salt</strong>: Mã PIN được băm mật mã an toàn trên trình duyệt, không ai có thể giải ngược.
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', gap: 1.5 }}>
+                                                <span style={{ color: '#16a34a', fontWeight: 800 }}>✓</span>
+                                                <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.5 }}>
+                                                    <strong>Tự động khóa chống dò mã</strong>: Tạm khóa 60 giây nếu nhập sai 5 lần liên tiếp.
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', gap: 1.5 }}>
+                                                <span style={{ color: '#16a34a', fontWeight: 800 }}>✓</span>
+                                                <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.5 }}>
+                                                    <strong>Độc lập trên từng thiết bị</strong>: Chỉ áp dụng trên trình duyệt hiện tại. Bạn có thể tắt bất cứ lúc nào.
+                                                </Typography>
+                                            </Box>
+                                        </Stack>
+                                    </Paper>
+                                </Grid>
+                            </Grid>
+                        </div>
+                    )}
                 </main>
             </div>
 
@@ -1599,6 +1696,128 @@ function CauHinh() {
                     >
                         {isSavingAvatar ? 'Đang lưu...' : 'Lưu Ảnh Đại Diện'}
                     </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* DIALOG THIẾT LẬP / ĐỔI MÃ PIN */}
+            <Dialog
+                open={pinModalOpen}
+                onClose={() => setPinModalOpen(false)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SecurityIcon sx={{ color: '#0284c7' }} />
+                    {savedPinUser ? (pinModalStep === 1 ? "Xác Thực Mã PIN Cũ" : "Đổi Mã PIN Đăng Nhập Mới") : (pinModalStep === 2 ? "Thiết Lập Mã PIN 6 Số" : "Xác Nhận Lại Mã PIN")}
+                </DialogTitle>
+
+                <DialogContent sx={{ p: 3, pt: '20px !important' }}>
+                    {pinModalError && (
+                        <Box sx={{ p: 1.5, mb: 2, bgcolor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 2, color: '#dc2626', fontSize: '0.85rem', fontWeight: 600 }}>
+                            {pinModalError}
+                        </Box>
+                    )}
+
+                    {pinModalStep === 1 ? (
+                        <Stack spacing={2}>
+                            <Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>
+                                Nhập mã PIN hiện tại (6 số) để xác thực:
+                            </Typography>
+                            <TextField
+                                label="Mã PIN hiện tại"
+                                type="password"
+                                fullWidth
+                                size="small"
+                                inputProps={{ maxLength: 6, pattern: '[0-9]*' }}
+                                value={oldPinInput}
+                                onChange={(e) => {
+                                    setOldPinInput(e.target.value.replace(/\D/g, '').slice(0, 6));
+                                    if (pinModalError) setPinModalError('');
+                                }}
+                                autoFocus
+                            />
+                        </Stack>
+                    ) : pinModalStep === 2 ? (
+                        <Stack spacing={2}>
+                            <Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>
+                                Nhập mã PIN mới (6 chữ số):
+                            </Typography>
+                            <TextField
+                                label="Mã PIN mới (6 số)"
+                                type="password"
+                                fullWidth
+                                size="small"
+                                inputProps={{ maxLength: 6, pattern: '[0-9]*' }}
+                                value={newPinInput}
+                                onChange={(e) => {
+                                    setNewPinInput(e.target.value.replace(/\D/g, '').slice(0, 6));
+                                    if (pinModalError) setPinModalError('');
+                                }}
+                                autoFocus
+                            />
+                        </Stack>
+                    ) : (
+                        <Stack spacing={2}>
+                            <Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>
+                                Nhập lại mã PIN mới để xác nhận:
+                            </Typography>
+                            <TextField
+                                label="Xác nhận mã PIN mới"
+                                type="password"
+                                fullWidth
+                                size="small"
+                                inputProps={{ maxLength: 6, pattern: '[0-9]*' }}
+                                value={confirmPinInput}
+                                onChange={(e) => {
+                                    setConfirmPinInput(e.target.value.replace(/\D/g, '').slice(0, 6));
+                                    if (pinModalError) setPinModalError('');
+                                }}
+                                autoFocus
+                            />
+                        </Stack>
+                    )}
+                </DialogContent>
+
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button onClick={() => setPinModalOpen(false)} sx={{ textTransform: 'none', borderRadius: 2 }}>
+                        Hủy
+                    </Button>
+                    {pinModalStep === 1 ? (
+                        <Button
+                            variant="contained"
+                            onClick={handleVerifyOldPin}
+                            disabled={oldPinInput.length !== 6}
+                            sx={{ bgcolor: '#0284c7', textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+                        >
+                            Tiếp tục →
+                        </Button>
+                    ) : pinModalStep === 2 ? (
+                        <Button
+                            variant="contained"
+                            onClick={() => {
+                                if (newPinInput.length !== 6) {
+                                    setPinModalError("Mã PIN mới phải có đúng 6 chữ số!");
+                                    return;
+                                }
+                                setPinModalError('');
+                                setPinModalStep(3);
+                            }}
+                            disabled={newPinInput.length !== 6}
+                            sx={{ bgcolor: '#0284c7', textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+                        >
+                            Xác nhận PIN →
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="contained"
+                            onClick={handleSaveNewPin}
+                            disabled={confirmPinInput.length !== 6}
+                            sx={{ bgcolor: '#16a34a', textTransform: 'none', borderRadius: 2, fontWeight: 700, '&:hover': { bgcolor: '#15803d' } }}
+                        >
+                            Lưu Mã PIN
+                        </Button>
+                    )}
                 </DialogActions>
             </Dialog>
         </div>

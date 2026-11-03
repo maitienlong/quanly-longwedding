@@ -1,0 +1,1102 @@
+/* =========================================================================
+   GIAO DIỆN TỔNG QUAN LONG WEDDING - MODERN LIGHT (NỀN TRẮNG)
+   Bố cục cân đối:
+   - Hàng 1: [Bảng chỉ số trong tháng (50%)] + [Bảng lịch sắp tới (50%)]
+   - Hàng 2: [Bảng cảnh báo trễ hạn (50%)] + [Bảng HĐ mới ký trong tháng (50%)]
+   ========================================================================= */
+
+.tq-container {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 20px 24px 20px;
+    background: #f8fafc;
+    color: #1e293b;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    box-sizing: border-box;
+}
+
+/* Scrollbar tinh tế cho tq-container */
+.tq-container::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.tq-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.tq-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.tq-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Header Area */
+.tq-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.tq-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tq-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: -0.02em;
+}
+
+.tq-title-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #0284c7;
+    font-size: 1.1rem;
+}
+
+.tq-subtitle {
+    font-size: 0.82rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tq-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tq-date-pill {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.tq-date-pill strong {
+    color: #0284c7;
+}
+
+.tq-refresh-btn {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.tq-refresh-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+/* =========================================================================
+   HÀNG 1: 3 CỘT CÂN ĐỐI NHAU (CHỈ SỐ THÁNG - LỊCH TRÌNH 7 NGÀY - HỢP ĐỒNG TRỄ HẠN)
+   ========================================================================= */
+.tq-top-row-3cols {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+    align-items: stretch;
+}
+
+/* Generic White Panel Card */
+.tq-white-panel {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.tq-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 28px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.tq-panel-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tq-section-badge {
+    font-size: 0.66rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #eff6ff;
+    color: #0284c7;
+    border: 1px solid #bfdbfe;
+    white-space: nowrap;
+}
+
+/* CỘT 1: BẢNG CHỈ SỐ HOẠT ĐỘNG TRONG THÁNG */
+.tq-stats-panel {
+    border-top: 3px solid #10b981;
+    align-self: start;
+}
+
+.tq-stats-inner-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    align-content: start;
+}
+
+.tq-stat-mini-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 66px;
+    max-height: 78px;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.tq-stat-mini-card:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.tq-stat-mini-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 3px;
+}
+
+.tq-stat-mini-label {
+    font-size: 0.63rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.tq-stat-mini-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+}
+
+.tq-stat-mini-value {
+    font-size: 0.92rem;
+    font-weight: 750;
+    color: #0f172a;
+    line-height: 1.2;
+    margin-bottom: 2px;
+}
+
+.tq-stat-mini-sub {
+    font-size: 0.63rem;
+    color: #64748b;
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tq-stat-mini-sub strong {
+    color: #1e293b;
+}
+
+/* Card color badges inside stats */
+.mini-contract {
+    border-left: 3px solid #10b981;
+}
+.mini-contract .tq-stat-mini-icon {
+    background: #ecfdf5;
+    color: #10b981;
+}
+
+.mini-revenue {
+    border-left: 3px solid #0284c7;
+}
+.mini-revenue .tq-stat-mini-icon {
+    background: #f0f9ff;
+    color: #0284c7;
+}
+.mini-revenue .tq-stat-mini-value {
+    color: #0284c7;
+}
+
+.mini-expense {
+    border-left: 3px solid #f43f5e;
+}
+.mini-expense .tq-stat-mini-icon {
+    background: #fff1f2;
+    color: #f43f5e;
+}
+.mini-expense .tq-stat-mini-value {
+    color: #e11d48;
+}
+
+.mini-net {
+    border-left: 3px solid #6366f1;
+}
+.mini-net .tq-stat-mini-icon {
+    background: #eef2ff;
+    color: #6366f1;
+}
+
+.tq-stats-bottom-summary {
+    margin-top: 6px;
+    padding: 4px 8px;
+    background: #f1f5f9;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 0.68rem;
+    color: #475569;
+}
+
+/* CỘT 2: BẢNG LỊCH SẮP TỚI */
+.tq-schedule-panel {
+    border-top: 3px solid #0284c7;
+}
+
+.tq-days-strip-white {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    margin-bottom: 8px;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.tq-days-strip-white::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
+    width: 0;
+    height: 0;
+}
+
+.tq-day-item-white {
+    flex: 1 1 0;
+    min-width: 0;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 3px 1px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 1px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.tq-day-item-white:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.tq-day-item-white.active {
+    background: #eff6ff;
+    border: 1.5px solid #0284c7;
+}
+
+.tq-day-item-white.is-tomorrow-pill {
+    background: #f0f9ff;
+    border-color: #38bdf8;
+}
+
+.tq-day-item-white.is-tomorrow-pill.active {
+    background: #e0f2fe;
+    border-color: #0284c7;
+}
+
+/* Ngày có lịch trình: Hiển thị màu xanh lá cây */
+.tq-day-item-white.has-events {
+    background: #f0fdf4;
+    border: 1.5px solid #22c55e;
+    box-shadow: 0 1px 2px rgba(34, 197, 94, 0.12);
+}
+
+.tq-day-item-white.has-events:hover {
+    background: #dcfce7;
+    border-color: #16a34a;
+}
+
+.tq-day-item-white.has-events .tq-day-title-white {
+    color: #15803d;
+    font-weight: 700;
+}
+
+.tq-day-item-white.has-events .tq-day-date-white {
+    color: #14532d;
+    font-weight: 800;
+}
+
+.tq-day-item-white.has-events .tq-day-count-badge-white {
+    background: #16a34a;
+    color: #ffffff;
+    font-weight: 800;
+    box-shadow: 0 1px 2px rgba(22, 163, 74, 0.25);
+}
+
+/* Khi ngày có lịch được chọn (active) */
+.tq-day-item-white.has-events.active {
+    background: #dcfce7;
+    border: 2px solid #16a34a;
+    box-shadow: 0 0 0 1px #16a34a, 0 2px 4px rgba(22, 163, 74, 0.22);
+}
+
+.tq-day-item-white.has-events.active .tq-day-title-white {
+    color: #14532d;
+    font-weight: 800;
+}
+
+.tq-day-item-white.has-events.active .tq-day-date-white {
+    color: #052e16;
+    font-weight: 900;
+}
+
+.tq-day-item-white.has-events.active .tq-day-count-badge-white {
+    background: #15803d;
+    color: #ffffff;
+    font-weight: 800;
+    box-shadow: 0 1px 3px rgba(21, 128, 61, 0.35);
+}
+
+/* Ưu tiên màu xanh lá cây nếu ngày mai có lịch */
+.tq-day-item-white.is-tomorrow-pill.has-events {
+    background: #f0fdf4;
+    border-color: #22c55e;
+}
+
+.tq-day-item-white.is-tomorrow-pill.has-events.active {
+    background: #dcfce7;
+    border-color: #16a34a;
+}
+
+.tq-day-title-white {
+    font-size: 0.52rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    text-align: center;
+    width: 100%;
+    display: block;
+    line-height: 1.1;
+    overflow: hidden;
+    letter-spacing: -0.01em;
+}
+
+.tq-day-date-white {
+    font-size: 0.64rem;
+    font-weight: 800;
+    color: #0f172a;
+    text-align: center;
+    width: 100%;
+    display: block;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.tq-day-lunar-white {
+    font-size: 0.50rem;
+    font-weight: 600;
+    color: #64748b;
+    text-align: center;
+    width: 100%;
+    display: block;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    letter-spacing: -0.01em;
+}
+
+.tq-day-item-white.has-events .tq-day-lunar-white {
+    color: #16a34a;
+    font-weight: 700;
+}
+
+.tq-day-item-white.has-events.active .tq-day-lunar-white {
+    color: #15803d;
+    font-weight: 800;
+}
+
+.tq-day-item-white.active .tq-day-lunar-white {
+    color: #0284c7;
+    font-weight: 700;
+}
+
+.tq-day-item-white.is-tomorrow-pill .tq-day-lunar-white {
+    color: #0284c7;
+}
+
+.tq-day-count-badge-white {
+    font-size: 0.50rem;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #475569;
+    padding: 0 3px;
+    border-radius: 5px;
+    min-width: 12px;
+    height: 12px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    line-height: 1;
+}
+
+.tq-day-item-white.active .tq-day-count-badge-white {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+/* Schedule toolbar */
+.tq-schedule-toolbar-white {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.tq-category-tabs-white {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.tq-tab-btn-white {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.67rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    transition: all 0.15s ease;
+}
+
+.tq-tab-btn-white:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+}
+
+.tq-tab-btn-white.active {
+    background: #eff6ff;
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+.tq-search-box-white {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    padding: 0 8px;
+    height: 22px; /* Chiều cao nhỏ lại 1 nửa */
+    min-height: 22px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    transition: all 0.15s ease;
+}
+
+.tq-search-box-white i {
+    color: #94a3b8;
+    margin-right: 5px;
+    font-size: 0.62rem;
+}
+
+.tq-search-input-white {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #0f172a;
+    font-size: 0.7rem;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    line-height: 22px;
+}
+
+/* Schedule Events List */
+.tq-schedule-list-white {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 290px;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+}
+
+.tq-schedule-card-white {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-left: 3px solid #cbd5e1;
+}
+
+.tq-schedule-card-white:hover {
+    border-color: #94a3b8;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* ⭐ BÔI DÒNG MÀU XANH CHO NGÀY MAI ⭐ */
+.tq-schedule-card-white.is-tomorrow {
+    background: #f0f9ff !important;
+    border: 1.5px solid #0284c7 !important;
+    border-left: 5px solid #0284c7 !important;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.12) !important;
+}
+
+.tq-badge-tomorrow-white {
+    background: #0284c7;
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.tq-badge-today-white {
+    background: #f59e0b;
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.tq-card-head-white {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tq-card-type-tag-white {
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.tag-chup-white {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+
+.tag-photoshop-white {
+    background: #faf5ff;
+    color: #7c3aed;
+    border: 1px solid #ddd6fe;
+}
+
+.tag-soando-white {
+    background: #eff6ff;
+    color: #0284c7;
+    border: 1px solid #bfdbfe;
+}
+
+.tag-trangdiem-white {
+    background: #fdf2f8;
+    color: #db2777;
+    border: 1px solid #fbcfe8;
+}
+
+.tag-cuoihoi-white {
+    background: #fff1f2;
+    color: #e11d48;
+    border: 1px solid #fecdd3;
+}
+
+.tq-card-code-white {
+    font-family: monospace;
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.tq-card-body-white {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.tq-card-client-white {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.tq-card-datetime-white {
+    font-size: 0.68rem;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tq-card-staff-white {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    font-size: 0.64rem;
+}
+
+.tq-staff-pill-white {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    padding: 1px 4px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.64rem;
+}
+
+.tq-staff-pill-white i {
+    color: #0284c7;
+    font-size: 0.62rem;
+}
+
+.tq-staff-pill-white.unassigned {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #b45309;
+}
+
+.tq-staff-pill-white.unassigned i {
+    color: #f59e0b;
+}
+
+.tq-overdue-alert-panel {
+    border-top: 3px solid #ef4444;
+}
+
+.tq-overdue-alert-panel .tq-panel-header {
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tq-overdue-filter-group {
+    display: flex;
+    gap: 4px;
+}
+
+.tq-pill-btn-white {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.tq-pill-btn-white.active {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+}
+
+/* Container cuộn cho bảng có thanh cuộn tinh tế, không mũi tên */
+.tq-panel-scroll-body {
+    max-height: 380px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    border-radius: 0 0 10px 10px;
+}
+
+/* Loại bỏ hoàn toàn nút mũi tên scrollbar mặc định của Windows */
+.tq-panel-scroll-body::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+.tq-panel-scroll-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.tq-panel-scroll-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.tq-panel-scroll-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.tq-panel-scroll-body::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+/* =========================================================================
+   CHUẨN HÓA BẢNG DỮ LIỆU ĐỒNG BỘ 2 CỘT
+   ========================================================================= */
+.tq-table-white {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 0.74rem;
+    text-align: left;
+}
+
+.tq-table-white th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    padding: 6px 6px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+.tq-table-white td {
+    padding: 6px 6px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.72rem;
+}
+
+.tq-table-white tr:hover {
+    background: #f8fafc;
+}
+
+.tq-badge-delayed-white {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    font-size: 0.64rem;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.tq-btn-action-white {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #0284c7;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    white-space: nowrap;
+}
+
+.tq-btn-action-white:hover {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+}
+
+.tq-empty-box-white {
+    padding: 24px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.82rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.tq-empty-box-white i {
+    font-size: 1.8rem;
+    color: #cbd5e1;
+}
+
+/* =========================================================================
+   RESPONSIVE CHO CỬA SỔ TRÌNH DUYỆT NHỎ HOẶC MÀN HÌNH NHỎ (LAPTOP 1366px, 1280px...)
+   ========================================================================= */
+@media (max-width: 1400px) {
+    .tq-container {
+        padding: 12px 14px 20px 14px;
+    }
+
+    .tq-title {
+        font-size: 1.22rem;
+    }
+
+    .tq-subtitle {
+        font-size: 0.76rem;
+    }
+
+    .tq-top-row-3cols {
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .tq-white-panel {
+        padding: 8px 8px;
+    }
+
+    .tq-panel-title {
+        font-size: 0.72rem;
+    }
+
+    .tq-section-badge {
+        font-size: 0.60rem;
+        padding: 1px 4px;
+    }
+
+    /* Thẻ chỉ số Cột 1 */
+    .tq-stat-mini-card {
+        padding: 4px 6px;
+        min-height: 58px;
+        max-height: 70px;
+    }
+
+    .tq-stat-mini-label {
+        font-size: 0.56rem;
+    }
+
+    .tq-stat-mini-value {
+        font-size: 0.80rem;
+    }
+
+    .tq-stat-mini-sub {
+        font-size: 0.56rem;
+    }
+
+    .tq-stats-bottom-summary {
+        font-size: 0.60rem;
+        padding: 3px 6px;
+    }
+
+    /* Dải 7 ngày Cột 2 */
+    .tq-day-title-white {
+        font-size: 0.46rem;
+    }
+
+    .tq-day-date-white {
+        font-size: 0.56rem;
+    }
+
+    .tq-day-count-badge-white {
+        font-size: 0.46rem;
+        min-width: 11px;
+        height: 11px;
+    }
+
+    .tq-tab-btn-white {
+        font-size: 0.60rem;
+        padding: 1px 4px;
+    }
+
+    .tq-schedule-card-white {
+        padding: 4px 6px;
+        font-size: 0.66rem;
+    }
+
+    /* Bảng trễ hạn Cột 3 */
+    .tq-pill-btn-white {
+        font-size: 0.58rem;
+        padding: 1px 4px;
+    }
+
+    .tq-table-white {
+        font-size: 0.66rem;
+    }
+
+    .tq-table-white th, 
+    .tq-table-white td {
+        padding: 3px 4px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .tq-top-row-3cols {
+        gap: 6px;
+    }
+
+    .tq-white-panel {
+        padding: 6px 6px;
+    }
+
+    .tq-day-title-white {
+        font-size: 0.42rem;
+    }
+
+    .tq-day-date-white {
+        font-size: 0.50rem;
+    }
+
+    .tq-day-count-badge-white {
+        font-size: 0.42rem;
+        min-width: 10px;
+        height: 10px;
+    }
+
+    .tq-stat-mini-card {
+        padding: 4px 5px;
+        min-height: 54px;
+        max-height: 64px;
+    }
+
+    .tq-stat-mini-value {
+        font-size: 0.72rem;
+    }
+
+    .tq-stat-mini-label {
+        font-size: 0.50rem;
+    }
+
+    .tq-stat-mini-sub {
+        font-size: 0.50rem;
+    }
+
+    .tq-stats-bottom-summary {
+        font-size: 0.56rem;
+    }
+
+    .tq-tab-btn-white {
+        font-size: 0.55rem;
+        padding: 1px 3px;
+    }
+
+    .tq-table-white {
+        font-size: 0.60rem;
+    }
+}
+
+@media (max-width: 1024px) {
+    .tq-top-row-3cols {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 680px) {
+    .tq-container {
+        padding: 12px 10px 30px 10px;
+    }
+    .tq-stats-inner-grid {
+        grid-template-columns: 1fr;
+    }
+    .tq-title {
+        font-size: 1.2rem;
+    }
+    .tq-search-box-white {
+        max-width: 100%;
+        width: 100%;
+    }
+}

@@ -318,3 +318,48 @@
         min-width: 100%;
     }
 }
+
+/* Extra styles for Service Types Management */
+.icon-cyan {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.btn-action-edit-type {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+    border-radius: 8px !important;
+    border: 1px solid #bfdbfe !important;
+}
+
+.service-type-emoji-btn {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.service-type-emoji-btn:hover,
+.service-type-emoji-btn.active {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    transform: scale(1.15);
+}
+
+.service-type-color-dot {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.service-type-color-dot:hover,
+.service-type-color-dot.active {
+    border-color: #0f172a;
+    transform: scale(1.2);
+}

@@ -3,24 +3,63 @@ import './QuanLyWebsite.css';
 import { toast } from 'sonner';
 import websiteService from '../../API/services/websiteService';
 import otherService from '../../API/services/otherService';
+import QuanLyThiepMoi from '../QuanLyThiepMoi/QuanLyThiepMoi';
 import { formatCurrency } from '../utils/formatCurrency.js';
 
-const SECTIONS = [
-  { id: 'intro', name: 'Quản Lý Intro Website', icon: '🎬' },
-  { id: 'banners', name: 'Slide Banner Trang Chủ', icon: '🖼️' },
-  { id: 'khai_truong', name: 'Deal Khai Trương', icon: '🎟️' },
-  { id: 'services', name: 'Dịch vụ của tôi', icon: '💼' },
-  { id: 'feedback', name: 'Feedback khách hàng', icon: '⭐' },
-  { id: 'bookings', name: 'Danh sách lịch tư vấn', icon: '📅' },
-  { id: 'dresses', name: 'Bộ sưu tập váy cưới', icon: '👗' },
-  { id: 'invitations', name: 'Mẫu thiệp cưới nổi bật', icon: '💌' },
-  { id: 'makeup', name: 'Nghệ thuật trang điểm', icon: '💄' },
-  { id: 'packages', name: 'Bảng giá & Gói chụp', icon: '💰' },
-  { id: 'collections', name: 'Concept mẫu', icon: '🎨' },
-  { id: 'special_collections', name: 'Bộ sưu tập đặc biệt', icon: '✨' },
-  { id: 'event_management', name: 'Quản lý sự kiện 2/9', icon: '🎉' },
-  { id: 'footer', name: 'Thông tin Footer', icon: '📌' }
+const SECTION_GROUPS = [
+  {
+    id: 'home_brand',
+    title: 'Trang Chủ & Nhận Diện',
+    icon: '🌟',
+    badge: '3 mục',
+    desc: 'Hiệu ứng mở đầu, Banner Hero & Chân trang',
+    sections: [
+      { id: 'intro', name: 'Màn Hình Intro', icon: '🎬', tag: 'Hiệu ứng mở đầu', previewLink: '/' },
+      { id: 'banners', name: 'Slide Banner Hero', icon: '🖼️', tag: 'Banner Trang Chủ', previewLink: '/' },
+      { id: 'footer', name: 'Thông Tin Footer', icon: '📌', tag: 'Chân trang & Liên hệ', previewLink: '/#footer' }
+    ]
+  },
+  {
+    id: 'services_media',
+    title: 'Dịch Vụ & Bộ Sưu Tập',
+    icon: '💼',
+    badge: '6 mục',
+    desc: 'Hệ sinh thái dịch vụ, Concept ảnh cưới & Bảng giá',
+    sections: [
+      { id: 'services', name: 'Dịch Vụ Của Tôi', icon: '💼', tag: 'Hệ sinh thái', previewLink: '/#services' },
+      { id: 'collections', name: 'Concept Mẫu', icon: '🎨', tag: 'Ý tưởng & Bối cảnh', previewLink: '/new-concept' },
+      { id: 'special_collections', name: 'Bộ Sưu Tập Thực Tế (3D)', icon: '✨', tag: 'Photobook Kéo Thả', previewLink: '/bo-suu-tap-an-tuong' },
+      { id: 'dresses', name: 'Bộ Sưu Tập Váy Cưới', icon: '👗', tag: 'Váy Cưới & Trang Phục', previewLink: '/vay-cuoi-co-dau' },
+      { id: 'makeup', name: 'Nghệ Thuật Makeup', icon: '💄', tag: 'Layout Cô Dâu', previewLink: '/trang-diem-co-dau' },
+      { id: 'packages', name: 'Bảng Giá & Gói Chụp', icon: '💰', tag: 'Combo & Báo Giá', previewLink: '/packages' }
+    ]
+  },
+  {
+    id: 'crm_feedback',
+    title: 'Khách Hàng & Thiệp Mời',
+    icon: '💌',
+    badge: '3 mục',
+    desc: 'Quản lý thiệp mời online, Lịch tư vấn & Đánh giá',
+    sections: [
+      { id: 'thiep_moi_online', name: 'Quản Lý Thiệp Mời', icon: '💌', tag: 'Mẫu thiệp & Tạo thiệp', previewLink: '/thiep-online' },
+      { id: 'bookings', name: 'Lịch Đặt Tư Vấn', icon: '📅', tag: 'Leads Web', directAppRoute: '/leads', directAppLabel: 'Mở CRM Quản Lý Lead' },
+      { id: 'feedback', name: 'Feedback Khách Hàng', icon: '⭐', tag: 'Đánh giá chân thực', previewLink: '/#testimonials' }
+    ]
+  },
+  {
+    id: 'campaigns',
+    title: 'Chiến Dịch & Sự Kiện',
+    icon: '🎯',
+    badge: '2 mục',
+    desc: 'Deal Khai Trương, Vòng Quay & Sự Kiện Quốc Khánh',
+    sections: [
+      { id: 'khai_truong', name: 'Deal Khai Trương', icon: '🎟️', tag: 'Vòng quay & Voucher', previewLink: '/khai-truong' },
+      { id: 'event_management', name: 'Quản Lý Sự Kiện 2/9', icon: '🎉', tag: 'Thắp cờ & Lời tri ân', previewLink: '/quoc-khanh' }
+    ]
+  }
 ];
+
+const SECTIONS = SECTION_GROUPS.flatMap(g => g.sections);
 
 const DEFAULT_INTRO_CONFIG = {
   isEnabled: true,
@@ -86,7 +125,9 @@ const DEFAULT_BANNER_SLIDES = [
   {
     id: 'slide-baby',
     tabLabel: 'Concept Sinh Nhật Bé',
+    title: 'Mùa Thu Sang',
     calligraphy: 'Mùa Thu Sang',
+    subtitle: 'ƯU ĐÃI VÀNG',
     subTitle: 'ƯU ĐÃI VÀNG',
     gift1: 'TẶNG NGAY 200K VÀO GIÁ GÓI',
     gift2: 'HOẶC 1 ẢNH ĐỂ BÀN 20X30 (GIÁ TRỊ 200K)',
@@ -97,6 +138,12 @@ const DEFAULT_BANNER_SLIDES = [
       'TRẢ TOÀN BỘ ẢNH GỐC',
       '10 FILE ẢNH CHỈNH SỬA PHOTOSHOP'
     ],
+    showTitle: true,
+    showSubtitle: true,
+    showBtn: true,
+    showSpecs: true,
+    showPrice: true,
+    btnText: 'ĐẶT LỊCH NGAY',
     oldPrice: '1.190.000 VNĐ',
     newPrice: '990.000 VNĐ',
     time: 'THỜI GIAN: 01/09 - 15/09/2026',
@@ -108,7 +155,9 @@ const DEFAULT_BANNER_SLIDES = [
   {
     id: 'slide-aodai',
     tabLabel: 'Áo Dài Di Sản 2/9',
+    title: 'Hào Khí Non Sông',
     calligraphy: 'Hào Khí Non Sông',
+    subtitle: 'ƯU ĐÃI VÀNG ĐẠI LỄ 2/9',
     subTitle: 'ƯU ĐÃI VÀNG ĐẠI LỄ 2/9',
     gift1: 'TẶNG NGAY 810.000Đ VÀO GIÁ GÓI',
     gift2: '+ 01 ẢNH CỔNG PHA LÊ 60x90 (TRỊ GIÁ 800K)',
@@ -119,6 +168,12 @@ const DEFAULT_BANNER_SLIDES = [
       'MIỄN PHÍ MAKEUP & LÀM TÓC CHUYÊN NGHIỆP',
       'TRẢ TOÀN BỘ FILE GỐC & 20 ẢNH PHOTOSHOP'
     ],
+    showTitle: true,
+    showSubtitle: true,
+    showBtn: true,
+    showSpecs: true,
+    showPrice: true,
+    btnText: 'ĐẶT LỊCH NGAY',
     oldPrice: '7.800.000 VNĐ',
     newPrice: '5.990.000 VNĐ',
     time: 'THỜI GIAN: 01/09 - 15/09/2026',
@@ -130,7 +185,9 @@ const DEFAULT_BANNER_SLIDES = [
   {
     id: 'slide-wedding',
     tabLabel: 'Combo Cưới Trọn Gói',
+    title: 'Mùa Cưới Sum Vầy',
     calligraphy: 'Mùa Cưới Sum Vầy',
+    subtitle: 'ƯU ĐÃI VÀNG NGÀY CƯỚI',
     subTitle: 'ƯU ĐÃI VÀNG NGÀY CƯỚI',
     gift1: 'TẶNG VOUCHER 8.100.000Đ TIỀN MẶT',
     gift2: '+ 01 VEST MAY ĐO CAO CẤP + ALBUM 30X30',
@@ -141,6 +198,12 @@ const DEFAULT_BANNER_SLIDES = [
       'EKIP 1-1 CHUYÊN NGHIỆP TẬN TÂM',
       '01 ALBUM 30X30 MỞ PHẲNG + 02 ẢNH CỔNG 60X90'
     ],
+    showTitle: true,
+    showSubtitle: true,
+    showBtn: true,
+    showSpecs: true,
+    showPrice: true,
+    btnText: 'ĐẶT LỊCH NGAY',
     oldPrice: '26.200.000 VNĐ',
     newPrice: '18.100.000 VNĐ',
     time: 'THỜI GIAN: 01/09 - 15/09/2026',
@@ -152,7 +215,22 @@ const DEFAULT_BANNER_SLIDES = [
 ];
 
 const QuanLyWebsite = () => {
-  const [activeTab, setActiveTab] = useState('banners');
+  const queryTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+  const initialGroup = queryTab ? (SECTION_GROUPS.find(g => g.sections.some(s => s.id === queryTab))?.id || 'home_brand') : 'home_brand';
+  const [activeGroup, setActiveGroup] = useState(initialGroup);
+  const [activeTab, setActiveTab] = useState(queryTab || 'banners');
+  const switchTab = (tabId) => {
+    setActiveTab(tabId);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tabId);
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const [searchTerm, setSearchTerm] = useState('');
   const [khaiTruongSubTab, setKhaiTruongSubTab] = useState('deals');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -167,6 +245,13 @@ const QuanLyWebsite = () => {
     return activeTab;
   };
   const section = getEffectiveSection();
+  useEffect(() => {
+    const parentGroup = SECTION_GROUPS.find(g => g.sections.some(s => s.id === activeTab));
+    if (parentGroup && parentGroup.id !== activeGroup) {
+      setActiveGroup(parentGroup.id);
+    }
+  }, [activeTab]);
+
   const [draggedIndex, setDraggedIndex] = useState(null);
 
   const handleDragStart = (e, index) => {
@@ -412,6 +497,66 @@ const QuanLyWebsite = () => {
   };
 
   const getFilteredData = () => {
+    let result = data;
+    if (section === 'collections') {
+      result = data.filter(item => !item.isSpecial);
+    } else if (section === 'bookings') {
+      const getLocalDateString = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const todayStr = getLocalDateString(new Date());
+
+      const startOfWeek = new Date();
+      const dayOfWeek = startOfWeek.getDay();
+      const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+
+      const parseLocalDate = (dateStr) => {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        }
+        return new Date(dateStr);
+      };
+
+      result = data.filter(item => {
+        if (!item.date) return bookingFilter === 'all';
+        const itemDate = parseLocalDate(item.date);
+        itemDate.setHours(0, 0, 0, 0);
+        if (bookingFilter === 'today') {
+          return item.date === todayStr;
+        } else if (bookingFilter === 'week') {
+          return itemDate >= startOfWeek && itemDate <= endOfWeek;
+        }
+        return true;
+      });
+    }
+
+    if (searchTerm && searchTerm.trim()) {
+      const kw = searchTerm.trim().toLowerCase();
+      result = result.filter(item => {
+        const textToSearch = [
+          item.title, item.name, item.calligraphy, item.subtitle, item.subTitle,
+          item.phone, item.email, item.address, item.code, item.category,
+          item.desc, item.content, item.coupleName, item.maHopDong
+        ].filter(Boolean).join(' ').toLowerCase();
+        return textToSearch.includes(kw);
+      });
+    }
+
+    return result;
+  };
+
+  const old_getFilteredData_unused = () => {
     if (section === 'collections') {
       return data.filter(item => !item.isSpecial);
     }
@@ -533,6 +678,10 @@ const QuanLyWebsite = () => {
   const fetchData = async () => {
     if (section === 'intro') {
       await fetchIntroConfig();
+      setLoading(false);
+      return;
+    }
+    if (section === 'thiep_moi_online') {
       setLoading(false);
       return;
     }
@@ -691,6 +840,13 @@ const QuanLyWebsite = () => {
           if (item.image && typeof item.image === 'object' && item.image.preview) {
             URL.revokeObjectURL(item.image.preview);
           }
+          if (Array.isArray(item.images)) {
+            item.images.forEach(img => {
+              if (img && typeof img === 'object' && img.preview) {
+                URL.revokeObjectURL(img.preview);
+              }
+            });
+          }
         });
       }
     }
@@ -698,13 +854,49 @@ const QuanLyWebsite = () => {
     setEditItem(null);
   };
 
+  const ensureHttps = (url) => {
+    if (typeof url !== 'string') return url;
+    if (url.startsWith('http://api.longwedding.vn')) {
+      return url.replace('http://api.longwedding.vn', 'https://api.longwedding.vn');
+    }
+    if (url.startsWith('http://longwedding.vn')) {
+      return url.replace('http://longwedding.vn', 'https://longwedding.vn');
+    }
+    return url;
+  };
+
+  const uploadFileOrBase64 = async (fileObj) => {
+    const file = fileObj instanceof File ? fileObj : (fileObj && fileObj.file instanceof File ? fileObj.file : null);
+    if (!file) {
+      if (typeof fileObj === 'string') return ensureHttps(fileObj);
+      if (fileObj && fileObj.preview && typeof fileObj.preview === 'string') return ensureHttps(fileObj.preview);
+      return fileObj;
+    }
+
+    try {
+      const res = await websiteService.uploadImage(file);
+      if (res && (res.url || res.path)) {
+        return ensureHttps(res.url || res.path);
+      }
+      if (res && res.data && (res.data.url || res.data.path)) {
+        return ensureHttps(res.data.url || res.data.path);
+      }
+      return await fileToBase64(file);
+    } catch (err) {
+      console.warn("Upload ảnh qua API /upload thất bại, chuyển về base64:", err);
+      return await fileToBase64(file);
+    }
+  };
+
   const prepareSubmitData = async (item) => {
     const prepared = { ...item };
 
-    // Process single image fields
+    // Process single image fields (e.g. image, coverImage, avatar, icon, etc.)
     for (const key of Object.keys(prepared)) {
-      if (prepared[key] && typeof prepared[key] === 'object' && prepared[key].file instanceof File) {
-        prepared[key] = await fileToBase64(prepared[key].file);
+      if (prepared[key] && typeof prepared[key] === 'object' && (prepared[key].file instanceof File || prepared[key] instanceof File)) {
+        prepared[key] = await uploadFileOrBase64(prepared[key]);
+      } else if (typeof prepared[key] === 'string') {
+        prepared[key] = ensureHttps(prepared[key]);
       }
     }
 
@@ -712,9 +904,11 @@ const QuanLyWebsite = () => {
     if (Array.isArray(prepared.images)) {
       const processedImages = [];
       for (const img of prepared.images) {
-        if (img && typeof img === 'object' && img.file instanceof File) {
-          const base64 = await fileToBase64(img.file);
-          processedImages.push(base64);
+        if (img && typeof img === 'object' && (img.file instanceof File || img instanceof File)) {
+          const uploadedUrl = await uploadFileOrBase64(img);
+          processedImages.push(uploadedUrl);
+        } else if (img && typeof img === 'object' && img.preview && !img.file) {
+          processedImages.push(img.preview);
         } else {
           processedImages.push(img);
         }
@@ -726,13 +920,34 @@ const QuanLyWebsite = () => {
     if (prepared.pageContent) {
       const pageContent = { ...prepared.pageContent };
 
+      // Process single image properties in pageContent
+      for (const pKey of Object.keys(pageContent)) {
+        if (pageContent[pKey] && typeof pageContent[pKey] === 'object' && (pageContent[pKey].file instanceof File || pageContent[pKey] instanceof File)) {
+          pageContent[pKey] = await uploadFileOrBase64(pageContent[pKey]);
+        }
+      }
+
       // Process gallery images
       if (Array.isArray(pageContent.gallery)) {
         const processedGallery = [];
         for (const item of pageContent.gallery) {
           const newItem = { ...item };
-          if (newItem.image && typeof newItem.image === 'object' && newItem.image.file instanceof File) {
-            newItem.image = await fileToBase64(newItem.image.file);
+          if (newItem.image && typeof newItem.image === 'object' && (newItem.image.file instanceof File || newItem.image instanceof File)) {
+            newItem.image = await uploadFileOrBase64(newItem.image);
+          }
+          if (Array.isArray(newItem.images)) {
+            const processedImages = [];
+            for (const img of newItem.images) {
+              if (img && typeof img === 'object' && (img.file instanceof File || img instanceof File)) {
+                const uploadedUrl = await uploadFileOrBase64(img);
+                processedImages.push(uploadedUrl);
+              } else if (img && typeof img === 'object' && img.preview && !img.file) {
+                processedImages.push(img.preview);
+              } else {
+                processedImages.push(img);
+              }
+            }
+            newItem.images = processedImages;
           }
           processedGallery.push(newItem);
         }
@@ -747,9 +962,21 @@ const QuanLyWebsite = () => {
       prepared.gifts = prepared.gifts.split('\n').map(s => s.trim()).filter(s => s !== '');
     }
 
-    // Process specs for banners tab
-    if (typeof prepared.specs === 'string') {
-      prepared.specs = prepared.specs.split('\n').map(s => s.trim()).filter(s => s !== '');
+    // Process specs and display settings for banners tab
+    if (section === 'banners') {
+      if (typeof prepared.specs === 'string') {
+        prepared.specs = prepared.specs.split('\n').map(s => s.trim()).filter(s => s !== '');
+      }
+      prepared.showTitle = prepared.showTitle !== undefined ? Boolean(prepared.showTitle) : true;
+      prepared.showSubtitle = prepared.showSubtitle !== undefined ? Boolean(prepared.showSubtitle) : true;
+      prepared.showBtn = prepared.showBtn !== undefined ? Boolean(prepared.showBtn) : true;
+      prepared.showSpecs = prepared.showSpecs !== undefined ? Boolean(prepared.showSpecs) : true;
+      prepared.showPrice = prepared.showPrice !== undefined ? Boolean(prepared.showPrice) : true;
+      prepared.title = (typeof prepared.title === 'string' && prepared.title.trim() !== '') ? prepared.title.trim() : (prepared.calligraphy || '');
+      prepared.calligraphy = prepared.title;
+      prepared.subtitle = (typeof prepared.subtitle === 'string' && prepared.subtitle.trim() !== '') ? prepared.subtitle.trim() : (prepared.subTitle || '');
+      prepared.subTitle = prepared.subtitle;
+      prepared.btnText = (typeof prepared.btnText === 'string' && prepared.btnText.trim() !== '') ? prepared.btnText.trim() : 'ĐẶT LỊCH NGAY';
     }
 
     return prepared;
@@ -788,6 +1015,17 @@ const QuanLyWebsite = () => {
     if (section === 'banners') {
       setEditItem({
         ...item,
+        title: item.title || item.calligraphy || '',
+        calligraphy: item.title || item.calligraphy || '',
+        subtitle: item.subtitle || item.subTitle || '',
+        subTitle: item.subtitle || item.subTitle || '',
+        showTitle: item.showTitle !== undefined ? Boolean(item.showTitle) : true,
+        showSubtitle: item.showSubtitle !== undefined ? Boolean(item.showSubtitle) : true,
+        showBtn: item.showBtn !== undefined ? Boolean(item.showBtn) : true,
+        showSpecs: item.showSpecs !== undefined ? Boolean(item.showSpecs) : true,
+        showPrice: item.showPrice !== undefined ? Boolean(item.showPrice) : true,
+        btnText: item.btnText || 'ĐẶT LỊCH NGAY',
+        btnLink: item.btnLink || '/chup-anh-cuoi',
         specs: Array.isArray(item.specs) ? item.specs.join('\n') : (item.specs || '')
       });
     } else if (section === 'services') {
@@ -827,9 +1065,18 @@ const QuanLyWebsite = () => {
     const base = { id: `slide-${Date.now()}` };
     if (section === 'banners') {
       base.tabLabel = 'Gói Chụp Mới';
+      base.title = 'Mùa Yêu Thương';
       base.calligraphy = 'Mùa Yêu Thương';
+      base.subtitle = 'ƯU ĐÃI VÀNG';
       base.subTitle = 'ƯU ĐÃI VÀNG';
       base.badge = 'GIẢM 20%';
+      base.showTitle = true;
+      base.showSubtitle = true;
+      base.showBtn = true;
+      base.showSpecs = true;
+      base.showPrice = true;
+      base.btnText = 'ĐẶT LỊCH NGAY';
+      base.btnLink = '/chup-anh-cuoi';
       base.gift1 = 'TẶNG NGAY 500K VÀO GIÁ GÓI';
       base.gift2 = '+ 01 ẢNH ĐỂ BÀN PHA LÊ CAO CẤP';
       base.conceptTarget = 'DÀNH CHO GÓI CHỤP MỚI TẠI LONG WEDDING';
@@ -837,7 +1084,6 @@ const QuanLyWebsite = () => {
       base.oldPrice = '5.000.000 VNĐ';
       base.newPrice = '3.990.000 VNĐ';
       base.time = 'THỜI GIAN: 01/09 - 30/09/2026';
-      base.btnLink = '/chup-anh-cuoi';
       base.image = '';
     } else if (section === 'services') {
       base.pageContent = {
@@ -991,20 +1237,23 @@ const QuanLyWebsite = () => {
     const gallery = editItem.pageContent?.gallery || [];
     
     const handleGalleryImageUpload = (e, idx) => {
-      const file = e.target.files[0];
-      if (!file) return;
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
       
-      const preview = URL.createObjectURL(file);
       const newGallery = [...gallery];
-      if (newGallery[idx].image && typeof newGallery[idx].image === 'object' && newGallery[idx].image.preview) {
-        URL.revokeObjectURL(newGallery[idx].image.preview);
-      }
-      newGallery[idx] = { ...newGallery[idx], image: { file, preview } };
+      const currentImages = Array.isArray(newGallery[idx].images) ? newGallery[idx].images : [];
+      
+      const newImages = files.map(file => ({
+        file,
+        preview: URL.createObjectURL(file)
+      }));
+
+      newGallery[idx] = { ...newGallery[idx], images: [...currentImages, ...newImages] };
       setEditItem({ ...editItem, pageContent: { ...editItem.pageContent, gallery: newGallery } });
     };
 
     const addGalleryItem = () => {
-      const newGallery = [...gallery, { image: '', title: '', desc: '' }];
+      const newGallery = [...gallery, { images: [], title: '', desc: '' }];
       setEditItem({ ...editItem, pageContent: { ...editItem.pageContent, gallery: newGallery } });
     };
 
@@ -1013,7 +1262,25 @@ const QuanLyWebsite = () => {
       if (item && item.image && typeof item.image === 'object' && item.image.preview) {
         URL.revokeObjectURL(item.image.preview);
       }
+      if (Array.isArray(item.images)) {
+        item.images.forEach(img => {
+          if (img && typeof img === 'object' && img.preview) {
+            URL.revokeObjectURL(img.preview);
+          }
+        });
+      }
       const newGallery = gallery.filter((_, i) => i !== idx);
+      setEditItem({ ...editItem, pageContent: { ...editItem.pageContent, gallery: newGallery } });
+    };
+
+    const deleteSingleImage = (gIdx, imgIdx) => {
+      const newGallery = [...gallery];
+      const img = newGallery[gIdx].images[imgIdx];
+      if (img && typeof img === 'object' && img.preview) {
+        URL.revokeObjectURL(img.preview);
+      }
+      const newImages = newGallery[gIdx].images.filter((_, i) => i !== imgIdx);
+      newGallery[gIdx] = { ...newGallery[gIdx], images: newImages };
       setEditItem({ ...editItem, pageContent: { ...editItem.pageContent, gallery: newGallery } });
     };
 
@@ -1021,40 +1288,41 @@ const QuanLyWebsite = () => {
       <div className="service-tab-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <p style={{ fontSize: '0.85em', color: '#666', margin: 0 }}>
-            Danh sách các hình ảnh concept hoặc tác phẩm tiêu biểu.
+            Danh sách các bộ sưu tập / Concept. Mỗi bộ sưu tập có thể chứa nhiều ảnh.
           </p>
-          <button type="button" className="add-btn-small" onClick={addGalleryItem}>+ Thêm ảnh</button>
+          <button type="button" className="add-btn-small" onClick={addGalleryItem}>+ Thêm BST</button>
         </div>
         
-        <div className="gallery-editor-list">
+        <div className="gallery-editor-list" style={{ gridTemplateColumns: '1fr' }}>
           {gallery.map((item, idx) => {
-            const previewSrc = (item.image && typeof item.image === 'object' && item.image.preview) ? item.image.preview : item.image;
+            const images = Array.isArray(item.images) ? item.images : [];
+            // Backwards compatibility for old data that might have single 'image'
+            if (item.image && typeof item.image === 'string' && images.length === 0) {
+              images.push(item.image);
+            }
             return (
-              <div key={idx} className="gallery-editor-card">
-                <div className="gallery-thumb-section">
-                  {previewSrc ? (
-                    <div className="gallery-thumb-wrapper">
-                      <img src={previewSrc} alt="Preview" className="gallery-thumb" />
-                      <button type="button" className="gallery-delete-img" onClick={() => {
-                        if (item.image && typeof item.image === 'object' && item.image.preview) {
-                          URL.revokeObjectURL(item.image.preview);
-                        }
-                        const newGallery = [...gallery];
-                        newGallery[idx] = { ...newGallery[idx], image: '' };
-                        setEditItem({ ...editItem, pageContent: { ...editItem.pageContent, gallery: newGallery } });
-                      }}>×</button>
+              <div key={idx} className="gallery-editor-card" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '24px', padding: '24px' }}>
+                <div style={{ flex: '1 1 350px' }}>
+                  <div className="album-images-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '12px', marginBottom: '10px' }}>
+                    {images.map((img, imgIdx) => {
+                      const previewSrc = (img && typeof img === 'object' && img.preview) ? img.preview : img;
+                      return (
+                        <div key={imgIdx} style={{ position: 'relative', height: '100px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                          <img src={previewSrc} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button type="button" onClick={() => deleteSingleImage(idx, imgIdx)} style={{ position: 'absolute', top: '4px', right: '4px', width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(220,38,38,0.9)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>✕</button>
+                        </div>
+                      );
+                    })}
+                    <div style={{ height: '100px', borderRadius: '8px', border: '2px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#f8fafc', position: 'relative', transition: 'all 0.2s ease' }}>
+                      <span style={{ fontSize: '28px', color: '#94a3b8' }}>+</span>
+                      <input type="file" multiple accept="image/*" onChange={(e) => handleGalleryImageUpload(e, idx)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
                     </div>
-                  ) : (
-                    <div className="gallery-upload-btn">
-                      <span>Chọn ảnh</span>
-                      <input type="file" accept="image/*" onChange={(e) => handleGalleryImageUpload(e, idx)} className="gallery-file-input" />
-                    </div>
-                  )}
+                  </div>
                 </div>
-                <div className="gallery-info-section">
+                <div className="gallery-info-section" style={{ padding: 0, flex: '1 1 250px', justifyContent: 'center' }}>
                   <input 
                     type="text" 
-                    placeholder="Tên Concept (vd: Concept Lãng Mạn)" 
+                    placeholder="Tên Bộ Sưu Tập / Concept" 
                     value={item.title || ''} 
                     onChange={(e) => {
                       const newGallery = [...gallery];
@@ -1065,7 +1333,7 @@ const QuanLyWebsite = () => {
                   />
                   <input 
                     type="text" 
-                    placeholder="Mô tả phụ (vd: Không gian ngoài trời)" 
+                    placeholder="Mô tả phụ (vd: Chụp tại biển)" 
                     value={item.desc || ''} 
                     onChange={(e) => {
                       const newGallery = [...gallery];
@@ -1074,12 +1342,12 @@ const QuanLyWebsite = () => {
                     }}
                     required
                   />
-                  <button type="button" className="del-btn-small" onClick={() => deleteGalleryItem(idx)}>Xóa mục</button>
+                  <button type="button" className="del-btn-small" style={{ width: 'fit-content', padding: '10px 24px', marginTop: '12px' }} onClick={() => deleteGalleryItem(idx)}>Xóa Bộ Sưu Tập</button>
                 </div>
               </div>
             );
           })}
-          {gallery.length === 0 && <p className="empty-msg-small">Chưa có hình ảnh nào trong bộ sưu tập.</p>}
+          {gallery.length === 0 && <p className="empty-msg-small">Chưa có bộ sưu tập nào.</p>}
         </div>
       </div>
     );
@@ -1187,13 +1455,165 @@ const QuanLyWebsite = () => {
         : (Array.isArray(editItem.specs) ? editItem.specs.join('\n') : '');
 
       return (
-        <div className="banner-form-editor" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="banner-form-editor" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Panel Bật / Tắt Hiển Thị (Apple Hero Style) */}
+          <div style={{
+            background: '#f8fafc',
+            border: '1.5px solid #cbd5e1',
+            borderRadius: '12px',
+            padding: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>⚙️ BẬT / TẮT THÀNH PHẦN SLIDE (APPLE HERO STYLE)</span>
+              </div>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                Tuỳ chỉnh hiển thị độc lập Tiêu đề, Phụ đề và Nút
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
+              {/* Toggle Title */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#ffffff',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1'
+              }}>
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '13px', color: '#334155' }}>🔤 Tiêu đề chính (Title)</div>
+                  <div style={{ fontSize: '11px', color: editItem.showTitle !== false ? '#16a34a' : '#dc2626', fontWeight: '500' }}>
+                    {editItem.showTitle !== false ? '● Đang hiển thị' : '○ Đang ẩn'}
+                  </div>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={editItem.showTitle !== false}
+                    onChange={(e) => setEditItem({ ...editItem, showTitle: e.target.checked })}
+                  />
+                  <span className="slider round"></span>
+                </label>
+              </div>
+
+              {/* Toggle Subtitle */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#ffffff',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1'
+              }}>
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '13px', color: '#334155' }}>📝 Tiêu đề phụ (Subtitle)</div>
+                  <div style={{ fontSize: '11px', color: editItem.showSubtitle !== false ? '#16a34a' : '#dc2626', fontWeight: '500' }}>
+                    {editItem.showSubtitle !== false ? '● Đang hiển thị' : '○ Đang ẩn'}
+                  </div>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={editItem.showSubtitle !== false}
+                    onChange={(e) => setEditItem({ ...editItem, showSubtitle: e.target.checked })}
+                  />
+                  <span className="slider round"></span>
+                </label>
+              </div>
+
+              {/* Toggle Nút Đặt Lịch (CTA) */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#ffffff',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1'
+              }}>
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '13px', color: '#334155' }}>🔘 Nút bấm (Button CTA)</div>
+                  <div style={{ fontSize: '11px', color: editItem.showBtn !== false ? '#16a34a' : '#dc2626', fontWeight: '500' }}>
+                    {editItem.showBtn !== false ? '● Đang hiển thị' : '○ Đang ẩn'}
+                  </div>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={editItem.showBtn !== false}
+                    onChange={(e) => setEditItem({ ...editItem, showBtn: e.target.checked })}
+                  />
+                  <span className="slider round"></span>
+                </label>
+              </div>
+
+              {/* Toggle Thông Tin Gói */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#ffffff',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1'
+              }}>
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '13px', color: '#334155' }}>📋 Thông tin gói</div>
+                  <div style={{ fontSize: '11px', color: editItem.showSpecs !== false ? '#16a34a' : '#dc2626', fontWeight: '500' }}>
+                    {editItem.showSpecs !== false ? '● Đang hiển thị' : '○ Đang ẩn'}
+                  </div>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={editItem.showSpecs !== false}
+                    onChange={(e) => setEditItem({ ...editItem, showSpecs: e.target.checked })}
+                  />
+                  <span className="slider round"></span>
+                </label>
+              </div>
+
+              {/* Toggle Mục Giá */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#ffffff',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1'
+              }}>
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '13px', color: '#334155' }}>💰 Mục Giá & Ưu đãi</div>
+                  <div style={{ fontSize: '11px', color: editItem.showPrice !== false ? '#16a34a' : '#dc2626', fontWeight: '500' }}>
+                    {editItem.showPrice !== false ? '● Đang hiển thị' : '○ Đang ẩn'}
+                  </div>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={editItem.showPrice !== false}
+                    onChange={(e) => setEditItem({ ...editItem, showPrice: e.target.checked })}
+                  />
+                  <span className="slider round"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
               <label className="field-label">🏷️ Tên Tab Slide</label>
               <input 
                 type="text" 
-                placeholder="vd: Áo Dài Di Sản 2/9" 
+                placeholder="vd: Áo Dài Di Sản 2/9 hoặc Mùa Cưới Sum Vầy" 
                 value={editItem.tabLabel || ''} 
                 onChange={(e) => setEditItem({...editItem, tabLabel: e.target.value})} 
                 required 
@@ -1212,23 +1632,27 @@ const QuanLyWebsite = () => {
 
           <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
-              <label className="field-label">✒️ Tiêu đề thư pháp (Calligraphy)</label>
+              <label className="field-label">
+                🔤 Tiêu đề chính (Title)
+                {editItem.showTitle === false && <span style={{ color: '#dc2626', fontSize: '11px', marginLeft: '6px' }}>(Đang tắt hiển thị)</span>}
+              </label>
               <input 
                 type="text" 
-                placeholder="vd: Hào Khí Non Sông" 
-                value={editItem.calligraphy || ''} 
-                onChange={(e) => setEditItem({...editItem, calligraphy: e.target.value})} 
-                required 
+                placeholder="vd: Hào Khí Non Sông hoặc Chạm Mood Mùa Thu" 
+                value={editItem.title !== undefined ? editItem.title : (editItem.calligraphy || '')} 
+                onChange={(e) => setEditItem({...editItem, title: e.target.value, calligraphy: e.target.value})} 
               />
             </div>
             <div className="form-group">
-              <label className="field-label">🌟 Phụ đề ưu đãi (Subtitle)</label>
+              <label className="field-label">
+                📝 Tiêu đề phụ (Subtitle)
+                {editItem.showSubtitle === false && <span style={{ color: '#dc2626', fontSize: '11px', marginLeft: '6px' }}>(Đang tắt hiển thị)</span>}
+              </label>
               <input 
                 type="text" 
-                placeholder="vd: ƯU ĐÃI VÀNG ĐẠI LỄ 2/9" 
-                value={editItem.subTitle || ''} 
-                onChange={(e) => setEditItem({...editItem, subTitle: e.target.value})} 
-                required 
+                placeholder="vd: ƯU ĐÃI VÀNG ĐẠI LỄ 2/9 hoặc Chạm Deal Cực Đã" 
+                value={editItem.subtitle !== undefined ? editItem.subtitle : (editItem.subTitle || '')} 
+                onChange={(e) => setEditItem({...editItem, subtitle: e.target.value, subTitle: e.target.value})} 
               />
             </div>
           </div>
@@ -1237,15 +1661,44 @@ const QuanLyWebsite = () => {
             {renderImageUploadField("🖼️ Ảnh Người Mẫu / Poster Banner", "image")}
           </div>
 
+          {/* Cấu hình Nút bấm & Liên kết */}
           <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div className="form-group">
-              <label className="field-label">💰 Giá ưu đãi mới</label>
+              <label className="field-label">
+                🔘 Tên nút bấm (Button Text)
+                {editItem.showBtn === false && <span style={{ color: '#dc2626', fontSize: '11px', marginLeft: '6px' }}>(Đang tắt nút)</span>}
+              </label>
+              <input 
+                type="text" 
+                placeholder="vd: ĐẶT LỊCH NGAY, TƯ VẤN NGAY, XEM CHI TIẾT..." 
+                value={editItem.btnText || ''} 
+                onChange={(e) => setEditItem({...editItem, btnText: e.target.value})} 
+              />
+            </div>
+            <div className="form-group">
+              <label className="field-label">🔗 Đường dẫn nút (Link)</label>
+              <input 
+                type="text" 
+                placeholder="vd: /quoc-khanh hoặc /chup-anh-cuoi" 
+                value={editItem.btnLink || ''} 
+                onChange={(e) => setEditItem({...editItem, btnLink: e.target.value})} 
+                required 
+              />
+            </div>
+          </div>
+
+          {/* Cấu hình Giá */}
+          <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div className="form-group">
+              <label className="field-label">
+                💰 Giá ưu đãi mới
+                {editItem.showPrice === false && <span style={{ color: '#dc2626', fontSize: '11px', marginLeft: '6px' }}>(Đang ẩn mục giá)</span>}
+              </label>
               <input 
                 type="text" 
                 placeholder="vd: 5.990.000 VNĐ" 
                 value={editItem.newPrice || ''} 
                 onChange={(e) => setEditItem({...editItem, newPrice: e.target.value})} 
-                required 
               />
             </div>
             <div className="form-group">
@@ -1291,7 +1744,10 @@ const QuanLyWebsite = () => {
           </div>
 
           <div className="form-group">
-            <label className="field-label">✦ Danh sách quyền lợi / Thông số gói (Mỗi dòng 1 gạch đầu dòng):</label>
+            <label className="field-label">
+              ✦ Danh sách quyền lợi / Thông số gói (Mỗi dòng 1 gạch đầu dòng):
+              {editItem.showSpecs === false && <span style={{ color: '#dc2626', fontSize: '11px', marginLeft: '6px' }}>(Đang ẩn mục thông tin gói)</span>}
+            </label>
             <textarea 
               placeholder="vd: 2 CONCEPT ÁO DÀI CỔ PHỤC HOÀNG GIA&#10;2 BỘ TRANG PHỤC CAO CẤP ĐỘC QUYỀN&#10;MIỄN PHÍ MAKEUP & LÀM TÓC CHUYÊN NGHIỆP&#10;TRẢ TOÀN BỘ FILE GỐC & 20 ẢNH PHOTOSHOP" 
               value={specsValue} 
@@ -1301,26 +1757,14 @@ const QuanLyWebsite = () => {
             />
           </div>
 
-          <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div className="form-group">
-              <label className="field-label">⏰ Thời gian áp dụng</label>
-              <input 
-                type="text" 
-                placeholder="vd: THỜI GIAN: 01/09 - 15/09/2026" 
-                value={editItem.time || ''} 
-                onChange={(e) => setEditItem({...editItem, time: e.target.value})} 
-              />
-            </div>
-            <div className="form-group">
-              <label className="field-label">🔗 Đường dẫn nút Đặt lịch (Link)</label>
-              <input 
-                type="text" 
-                placeholder="vd: /quoc-khanh hoặc /chup-anh-cuoi" 
-                value={editItem.btnLink || ''} 
-                onChange={(e) => setEditItem({...editItem, btnLink: e.target.value})} 
-                required 
-              />
-            </div>
+          <div className="form-group">
+            <label className="field-label">⏰ Thời gian áp dụng</label>
+            <input 
+              type="text" 
+              placeholder="vd: THỜI GIAN: 01/09 - 15/09/2026" 
+              value={editItem.time || ''} 
+              onChange={(e) => setEditItem({...editItem, time: e.target.value})} 
+            />
           </div>
         </div>
       );
@@ -1863,7 +2307,7 @@ const QuanLyWebsite = () => {
               🔄 Làm Mới
             </button>
             <a
-              href="http://localhost:3000/quoc-khanh"
+              href="/quoc-khanh"
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: 'inline-flex', alignItems: 'center', background: 'linear-gradient(135deg, #da251d 0%, #a3140e 100%)', color: '#fff', padding: '10px 18px', borderRadius: '10px', fontWeight: 800, textDecoration: 'none', border: '1px solid #ffd700' }}
@@ -2068,99 +2512,158 @@ const QuanLyWebsite = () => {
 
   return (
     <div className="quanly-website-container">
-      {/* ===== PAGE HEADER ===== */}
-      <div className="website-page-header">
-        <div className="website-header-title-wrap">
-          <div className="website-header-icon">
-            🌐
-          </div>
+      {/* ===== 1. COMPACT PAGE HEADER & WEBSITE STATUS ===== */}
+      <div className="cms-top-bar">
+        <div className="cms-title-area">
+          <div className="cms-header-icon-box">🌐</div>
           <div>
-            <h2>QUẢN LÝ GIAO DIỆN WEBSITE</h2>
-            <p>Tùy chỉnh nội dung, banner, bảng giá và giao diện hiển thị trên trang chủ Long Wedding</p>
+            <div className="cms-title-badge-row">
+              <h2 className="cms-page-heading">QUẢN LÝ NỘI DUNG WEBSITE (CMS)</h2>
+              <span className={`cms-status-indicator ${globalSettings.isPublished ? 'online' : 'offline'}`}>
+                <span className="cms-pulse-dot"></span>
+                {globalSettings.isPublished ? 'WEBSITE ĐANG HOẠT ĐỘNG (PUBLIC)' : 'TẠM ẨN / BẢO TRÌ'}
+              </span>
+            </div>
+            <p className="cms-page-subtext">Hệ thống điều phối hiển thị nội dung, banner, bảng giá và chiến dịch studio</p>
           </div>
+        </div>
+
+        <div className="cms-quick-actions">
+          <div className="cms-status-toggle-box">
+            <span className="cms-toggle-label">Phát hành:</span>
+            <label className="switch" title="Bật/Tắt hiển thị Website ra công chúng">
+              <input 
+                type="checkbox" 
+                checked={globalSettings.isPublished} 
+                onChange={(e) => setGlobalSettings({...globalSettings, isPublished: e.target.checked})} 
+              />
+              <span className="slider round"></span>
+            </label>
+          </div>
+
+          <button 
+            type="button" 
+            className="cms-save-status-btn"
+            onClick={handleSaveGlobalSettings} 
+            disabled={isSavingSettings}
+            title="Lưu trạng thái công bố website"
+          >
+            <span>{isSavingSettings ? '⏳ Đang lưu...' : '💾 Lưu Trạng Thái'}</span>
+          </button>
+
+          <a 
+            href={SECTIONS.find(s => s.id === activeTab)?.previewLink || '/'} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="cms-view-site-btn"
+            title="Mở tab mới xem trực tiếp giao diện website"
+          >
+            <span>👁️ Xem Website ↗</span>
+          </a>
         </div>
       </div>
 
-      {/* ===== GLOBAL SETTINGS PANEL ===== */}
-      <div className="global-settings-panel">
-        <div className="global-settings-header">
-          <h3>
-            <span>⚙️ Cài đặt trạng thái Website</span>
-          </h3>
-          <button 
-            className="save-settings-btn" 
-            onClick={handleSaveGlobalSettings} 
-            disabled={isSavingSettings}
-          >
-            <span>💾 {isSavingSettings ? 'Đang lưu...' : 'Lưu cài đặt'}</span>
-          </button>
-        </div>
-        
-        <div className="global-settings-content">
-          <div className="setting-row">
-            <div className="setting-label-col">
-              <div className="setting-title-wrap">
-                <span className="setting-title">Trạng thái công bố Website</span>
-                <span className={`status-badge-live ${globalSettings.isPublished ? 'online' : 'offline'}`}>
-                  <span className="pulse-dot"></span>
-                  {globalSettings.isPublished ? 'ĐANG HOẠT ĐỘNG (PUBLIC)' : 'TẠM ẨN / BẢO TRÌ'}
-                </span>
-              </div>
-              <span className="setting-desc">
-                {globalSettings.isPublished 
-                  ? "Khách hàng có thể truy cập website bình thường. Tắt công tắc để chuyển website sang chế độ bảo trì/chuẩn bị lên sóng." 
-                  : "Website đang tạm ẩn. Khách hàng truy cập sẽ nhìn thấy màn hình 'Đang chuẩn bị lên sóng'."}
-              </span>
-            </div>
-            <div className="setting-action-col">
-              <label className="switch">
-                <input 
-                  type="checkbox" 
-                  checked={globalSettings.isPublished} 
-                  onChange={(e) => setGlobalSettings({...globalSettings, isPublished: e.target.checked})} 
-                />
-                <span className="slider round"></span>
-              </label>
+      {!globalSettings.isPublished && (
+        <div className="cms-maintenance-warning-bar">
+          <div className="maintenance-left">
+            <span className="warning-icon">⚠️</span>
+            <div>
+              <strong>Website đang ở chế độ Tạm ẩn / Chuẩn bị lên sóng!</strong>
+              <p>Khách hàng truy cập sẽ thấy màn hình đếm ngược. Bạn có thể hẹn giờ tự động mở lại bên dưới.</p>
             </div>
           </div>
-          
-          {!globalSettings.isPublished && (
-            <div className="setting-row time-picker-row">
-              <div className="setting-label-col">
-                <span className="setting-title">⏰ Hẹn giờ tự động mở lại Website (Không bắt buộc)</span>
-                <span className="setting-desc">Website sẽ đếm ngược và tự động công bố lại vào thời gian này.</span>
-              </div>
-              <div className="setting-action-col">
-                <input 
-                  type="datetime-local" 
-                  className="settings-datetime-input"
-                  value={globalSettings.scheduledPublishTime} 
-                  onChange={(e) => setGlobalSettings({...globalSettings, scheduledPublishTime: e.target.value})} 
-                />
-              </div>
-            </div>
-          )}
+          <div className="maintenance-right">
+            <label>⏰ Hẹn giờ mở lại:</label>
+            <input 
+              type="datetime-local" 
+              className="settings-datetime-input"
+              value={globalSettings.scheduledPublishTime} 
+              onChange={(e) => setGlobalSettings({...globalSettings, scheduledPublishTime: e.target.value})} 
+            />
+          </div>
         </div>
-      </div>
-      
-      {/* ===== TABS NAVIGATION ===== */}
-      <div className="website-tabs-container">
-        <div className="website-tabs">
-          {SECTIONS.map(sec => (
-            <button 
-              key={sec.id} 
-              className={`tab-btn ${activeTab === sec.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(sec.id)}
-            >
-              <span className="tab-icon">{sec.icon}</span>
-              <span>{sec.name}</span>
-            </button>
-          ))}
+      )}
+
+      {/* ===== 2. GROUPED TABS NAVIGATION (4 NHÓM NGHIỆP VỤ) ===== */}
+      <div className="cms-grouped-navigation">
+        {/* Tầng 1: Các Nhóm Nghiệp Vụ Chính */}
+        <div className="cms-main-group-tabs">
+          {SECTION_GROUPS.map(group => {
+            const isGroupActive = activeGroup === group.id || group.sections.some(s => s.id === activeTab);
+            return (
+              <button
+                key={group.id}
+                type="button"
+                className={`cms-group-btn ${isGroupActive ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveGroup(group.id);
+                  // Chuyển sang mục đầu tiên của nhóm nếu mục hiện tại không nằm trong nhóm
+                  if (!group.sections.some(s => s.id === activeTab)) {
+                    switchTab(group.sections[0].id);
+                  }
+                }}
+              >
+                <span className="group-icon">{group.icon}</span>
+                <div className="group-text-box">
+                  <span className="group-title">{group.title}</span>
+                  <span className="group-desc">{group.badge}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tầng 2: Các Chuyên Mục Con Của Nhóm Đang Chọn */}
+        <div className="cms-sub-sections-bar">
+          <div className="cms-sub-sections-list">
+            {(SECTION_GROUPS.find(g => g.id === activeGroup) || SECTION_GROUPS[0]).sections.map(sub => {
+              const isSubActive = activeTab === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  type="button"
+                  className={`cms-sub-tab-btn ${isSubActive ? 'active' : ''}`}
+                  onClick={() => switchTab(sub.id)}
+                >
+                  <span className="sub-icon">{sub.icon}</span>
+                  <span className="sub-name">{sub.name}</span>
+                  {sub.tag && <span className="sub-tag">{sub.tag}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Ô Tìm Kiếm Nhanh Tức Thì & Liên Kết Ngoài */}
+          <div className="cms-sub-toolbar-right">
+            {activeTab !== 'intro' && activeTab !== 'event_management' && activeTab !== 'footer' && activeTab !== 'thiep_moi_online' && (
+              <div className="cms-instant-search-box">
+                <span className="search-icon">🔍</span>
+                <input 
+                  type="text" 
+                  placeholder="Tìm nhanh nội dung..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                />
+                {searchTerm && (
+                  <button type="button" className="clear-search-btn" onClick={() => setSearchTerm('')}>✕</button>
+                )}
+              </div>
+            )}
+
+            {/* Lối tắt liên kết CRM / Thiệp 4.0 nếu tab liên quan */}
+            {activeTab === 'bookings' && (
+              <a href="/leads" className="cms-shortcut-pill">
+                <span>📋 Mở CRM Lead Toàn Diện ➔</span>
+              </a>
+            )}
+
+          </div>
         </div>
       </div>
 
       {/* ===== CONTENT PANEL ===== */}
       <div className="website-content-panel">
+        {activeTab !== 'thiep_moi_online' && (
         <div className="panel-header">
           <div className="panel-header-title-wrap">
             <h3>
@@ -2171,7 +2674,7 @@ const QuanLyWebsite = () => {
                   : `${SECTIONS.find(s => s.id === activeTab)?.icon || '📁'} ${SECTIONS.find(s => s.id === activeTab)?.name}`)}
             </h3>
             <span className="panel-count-badge">
-              {activeTab === 'intro' ? `${INTRO_THEMES.length} chủ đề` : `${getFilteredData().length} mục`}
+              {activeTab === 'intro' ? `${INTRO_THEMES.length} chủ đề` : (activeTab === 'thiep_moi_online' ? 'Nền tảng 4.0' : `${getFilteredData().length} mục`)}
             </span>
           </div>
 
@@ -2201,13 +2704,14 @@ const QuanLyWebsite = () => {
                 <span>☁️ Đồng bộ từ Quản lý dịch vụ</span>
               </button>
             )}
-            {section !== 'intro' && section !== 'bookings' && section !== 'voucher_claims' && section !== 'special_collections' && activeTab !== 'event_management' && (
+            {section !== 'intro' && section !== 'thiep_moi_online' && section !== 'bookings' && section !== 'voucher_claims' && section !== 'special_collections' && activeTab !== 'event_management' && (
               <button className="add-btn" onClick={openAdd}>
                 <span>+ {section === 'khai_truong' ? 'Thêm Deal Khai Trương' : (section === 'vouchers' ? 'Thêm Voucher Mới' : (section === 'banners' ? 'Thêm Slide Mới' : 'Thêm Mục Mới'))}</span>
               </button>
             )}
           </div>
         </div>
+        )}
 
         {activeTab === 'khai_truong' && (
           <div className="khaitruong-sub-tabs">
@@ -2257,6 +2761,10 @@ const QuanLyWebsite = () => {
 
         {activeTab === 'intro' ? (
           renderIntroPanel()
+        ) : activeTab === 'thiep_moi_online' ? (
+          <div className="embedded-thiepmoi-wrapper" style={{ marginTop: '5px' }}>
+            <QuanLyThiepMoi isEmbedded={true} />
+          </div>
         ) : activeTab === 'event_management' ? (
           renderEventManagement()
         ) : loading ? (
@@ -2323,6 +2831,60 @@ const QuanLyWebsite = () => {
                   </h4>
                   {section === 'banners' && (
                     <div style={{ marginTop: '6px' }}>
+                      {/* Trạng thái hiển thị */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '6px' }}>
+                        <span style={{
+                          backgroundColor: item.showTitle !== false ? '#dcfce7' : '#fee2e2',
+                          color: item.showTitle !== false ? '#15803d' : '#b91c1c',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontSize: '11px',
+                          fontWeight: '600'
+                        }}>
+                          🔤 Tiêu đề: {item.showTitle !== false ? 'BẬT' : 'TẮT'}
+                        </span>
+                        <span style={{
+                          backgroundColor: item.showSubtitle !== false ? '#dcfce7' : '#fee2e2',
+                          color: item.showSubtitle !== false ? '#15803d' : '#b91c1c',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontSize: '11px',
+                          fontWeight: '600'
+                        }}>
+                          📝 Phụ đề: {item.showSubtitle !== false ? 'BẬT' : 'TẮT'}
+                        </span>
+                        <span style={{
+                          backgroundColor: item.showBtn !== false ? '#e0e7ff' : '#fee2e2',
+                          color: item.showBtn !== false ? '#3730a3' : '#b91c1c',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontSize: '11px',
+                          fontWeight: '600'
+                        }}>
+                          🔘 Nút ({item.btnText || 'ĐẶT LỊCH NGAY'}): {item.showBtn !== false ? 'BẬT' : 'TẮT'}
+                        </span>
+                        <span style={{
+                          backgroundColor: item.showSpecs !== false ? '#f1f5f9' : '#f8fafc',
+                          color: item.showSpecs !== false ? '#475569' : '#94a3b8',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontSize: '11px',
+                          fontWeight: '500'
+                        }}>
+                          📋 Gói: {item.showSpecs !== false ? 'BẬT' : 'TẮT'}
+                        </span>
+                        <span style={{
+                          backgroundColor: item.showPrice !== false ? '#f1f5f9' : '#f8fafc',
+                          color: item.showPrice !== false ? '#475569' : '#94a3b8',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontSize: '11px',
+                          fontWeight: '500'
+                        }}>
+                          💰 Giá: {item.showPrice !== false ? 'BẬT' : 'TẮT'}
+                        </span>
+                      </div>
+
                       <p className="item-desc" style={{ fontSize: '13px', color: '#b45309', fontWeight: 'bold', margin: '0 0 4px 0' }}>
                         {item.subTitle && <span>🌟 {item.subTitle} </span>}
                         {item.newPrice && (

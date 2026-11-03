@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { getLoaiDichVuLabel, getServiceTypesCache } from './serviceTypesHelper';
 
 /**
  * Danh sách ánh xạ tên loại dịch vụ
@@ -8,7 +9,8 @@ export const SERVICE_TYPE_MAP = {
     1: 'Trang Phục',
     2: 'Gói Dịch Vụ',
     3: 'Ảnh',
-    4: 'Trang Điểm'
+    4: 'Trang Điểm',
+    5: 'Thiệp Cưới Online'
 };
 
 export const REVERSE_SERVICE_TYPE_MAP = {
@@ -45,7 +47,13 @@ export const resolveLoaiDichVu = (val) => {
         return [1, 2, 3, 4].includes(val) ? val : 1;
     }
     const cleanStr = String(val).trim().toLowerCase();
-    return REVERSE_SERVICE_TYPE_MAP[cleanStr] || 1;
+    if (REVERSE_SERVICE_TYPE_MAP[cleanStr]) return REVERSE_SERVICE_TYPE_MAP[cleanStr];
+    try {
+        const cached = getServiceTypesCache();
+        const found = cached.find(t => t.name.toLowerCase() === cleanStr || String(t.id) === cleanStr);
+        if (found) return found.id;
+    } catch (e) {}
+    return 1;
 };
 
 /**
@@ -61,7 +69,7 @@ export const exportServicesToExcel = (services = [], customFilename = '') => {
         // Định dạng dữ liệu cho từng dòng
         const excelRows = services.map((s, index) => {
             const loaiDichVuNum = Number(s.loaiDichVu) || 1;
-            const loaiDichVuText = SERVICE_TYPE_MAP[loaiDichVuNum] || 'Khác';
+            const loaiDichVuText = getLoaiDichVuLabel(loaiDichVuNum) || SERVICE_TYPE_MAP[loaiDichVuNum] || 'Khác';
 
             return {
                 "STT": index + 1,

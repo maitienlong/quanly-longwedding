@@ -16,6 +16,8 @@ import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import DetailHopDongKhachHangDialog from '../HopDong/DetailHopDongKhachHangDialog';
 import LocAnhMayTinhDialog from '../HopDong/LocAnhMayTinhDialog';
+import { getContractStatusInfo, HAU_KY_SUB_STAGES } from '../../utils/contractStatusHelper';
+import { hasPermission } from '../../utils/permissionHelper';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import Card from '@mui/material/Card';
@@ -52,8 +54,7 @@ import {
     faPrint
 } from '@fortawesome/free-solid-svg-icons';
 
-import { formatLunarDateShort, getDetailedLunarInfo, convertLunarToSolar } from '../../utils/lunarDateUtils';
-import WeddingDateLookupModal from '../../components/WeddingDateLookupModal';
+import { formatLunarDateShort, formatLunarDateFull, getDetailedLunarInfo, convertLunarToSolar } from '../../utils/lunarDateUtils';
 
 // getDichVuChinhLabel is now retrieved dynamically from useContractTypes hook
 
@@ -91,7 +92,15 @@ const formatTimestampToDateInput = (val) => {
     return `${year}-${month}-${day}`;
 };
 
-const isPastToday = (dateString, giaiDoan, tab) => {
+const formatDateTimeInput = (val) => {
+    if (!val) return "";
+    const date = new Date(val);
+    if (isNaN(date.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const isPastToday = (dateString, giaiDoan, tab, subGiaiDoan) => {
     if (!dateString) return false;
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return false;
@@ -102,14 +111,17 @@ const isPastToday = (dateString, giaiDoan, tab) => {
     
     // Kiểm tra xem lịch trình đã hoàn thành chưa
     let isCompleted = false;
+    const stageNum = Number(giaiDoan) || 1;
+    const isSubDone = subGiaiDoan === 'hoan_thanh';
+
     if (tab === 'chupHinh') {
-        isCompleted = giaiDoan >= 3; // Giai đoạn >= 3 (Hậu kỳ, In ảnh, Hoàn thành) coi như đã chụp xong
+        isCompleted = stageNum > 1 || (stageNum === 1 && isSubDone);
     } else if (tab === 'hauKy') {
-        isCompleted = giaiDoan >= 4; // Giai đoạn >= 4 (In ảnh, Hoàn thành) coi như đã chỉnh sửa xong
+        isCompleted = stageNum > 2 || (stageNum === 2 && isSubDone);
     } else if (tab === 'inAnh') {
-        isCompleted = giaiDoan >= 5; // Giai đoạn >= 5 (Hoàn thành) coi như đã in xong
+        isCompleted = stageNum > 3 || (stageNum === 3 && isSubDone);
     } else if (tab === 'anHoiVaCuoi') {
-        isCompleted = giaiDoan >= 5; // Giai đoạn >= 5 (Hoàn thành) coi như đã xong
+        isCompleted = stageNum === 4 && isSubDone;
     }
     
     // Báo đỏ nếu ngày lịch trình nhỏ hơn ngày hôm nay và chưa hoàn thành
@@ -132,6 +144,14 @@ function LichCuaHang() {
                     user?.chucVu === "Quản lý" || 
                     user?.role === "ADMIN" || 
                     user?.username === "along";
+
+    // Kiểm tra quyền Phân công thợ (Photo / Make / Hậu kỳ)
+    const canAssignCrew = useMemo(() => {
+        const effectiveUser = user || (() => {
+            try { return JSON.parse(localStorage.getItem('user')) || {}; } catch(e) { return {}; }
+        })();
+        return hasPermission(effectiveUser, 'phan-cong-tho');
+    }, [user]);
 
     // Hàm kiểm tra hợp đồng có được giao cho nhân viên hiện tại hay không
     const isAssignedToUser = useCallback((hd, currentUser) => {
@@ -162,14 +182,9 @@ function LichCuaHang() {
                checkMatch(hd?.soanDo?.nguoiKiem);
     }, []);
 
-    // Danh sách hợp đồng sau khi phân quyền (Nhân viên chỉ thấy HĐ mình được giao)
-    const filteredHopDong = useMemo(() => {
-        const rawList = hopDong || [];
-        if (isAdmin) return rawList;
-        return rawList.filter(hd => isAssignedToUser(hd, user));
-    }, [hopDong, isAdmin, user, isAssignedToUser]);
 
-    const [viewMode, setViewMode] = useState('list'); // 'list' hoặc 'calendar'
+
+    const [viewMode, setViewMode] = useState('calendar'); // 'calendar' hoặc 'list'
     const todayDate = new Date();
     const [currentMonth, setCurrentMonth] = useState(todayDate.getMonth()); // 0 - 11
     const [currentYear, setCurrentYear] = useState(todayDate.getFullYear());
@@ -182,7 +197,6 @@ function LichCuaHang() {
 
     // Dialog tra cứu lịch âm
     const [openLunarLookup, setOpenLunarLookup] = useState(false);
-    const [openWeddingDateLookup, setOpenWeddingDateLookup] = useState(false);
     const [lookupSolarDate, setLookupSolarDate] = useState(() => {
         const d = new Date();
         const pad = (n) => String(n).padStart(2, '0');
@@ -230,7 +244,44 @@ function LichCuaHang() {
     }, []);
 
     // Tab quản lý
-    const [activeTab, setActiveTab] = useState('chupHinh'); // 'chupHinh', 'hauKy', hoặc 'anHoiVaCuoi'
+    const [activeTab, setActiveTab] = useState('tongHop'); // 'tongHop', 'makeUp', 'chupHinh', 'hauKy', 'inAnh', 'anHoiVaCuoi'
+    const [hauKyStatusFilter, setHauKyStatusFilter] = useState('all');
+
+    // Danh sách hợp đồng sau khi phân quyền (Nhân viên chỉ thấy HĐ mình được giao) & bộ lọc tiến trình cho từng giai đoạn
+    const filteredHopDong = useMemo(() => {
+        let rawList = hopDong || [];
+        if (!isAdmin) {
+            rawList = rawList.filter(hd => isAssignedToUser(hd, user));
+        }
+        // Tab Chụp hình: Chỉ hiển thị HĐ ở Giai đoạn 1 (Chụp hình). Khi chuyển sang hậu kỳ (giai đoạn 2) sẽ rời khỏi bảng này
+        if (activeTab === 'chupHinh') {
+            rawList = rawList.filter(hd => Number(hd.giaiDoan) === 1);
+        }
+        // Tab Hậu kỳ: Chỉ hiển thị HĐ ở Giai đoạn 2 (Hậu kỳ)
+        if (activeTab === 'hauKy') {
+            rawList = rawList.filter(hd => Number(hd.giaiDoan) === 2);
+            if (hauKyStatusFilter !== 'all') {
+                rawList = rawList.filter(hd => {
+                    const info = getContractStatusInfo(hd);
+                    return info.subStage === hauKyStatusFilter;
+                });
+            }
+        }
+        // Tab In ảnh: Chỉ hiển thị HĐ ở Giai đoạn 3 (In ảnh)
+        if (activeTab === 'inAnh') {
+            rawList = rawList.filter(hd => Number(hd.giaiDoan) === 3);
+        }
+        if (activeTab === 'makeUp') {
+            rawList = rawList.filter(hd => {
+                const hasScheduleMake = (hd.serviceSchedules || []).some(s => s.serviceType === 'makeup');
+                const hasLichMake = (hd.lichTrangDiem || []).length > 0;
+                const hasNgayMake = !!hd.cacNgay?.ngayTrangDiem;
+                const hasThoMake = !!hd.nguoiPhucVu?.thoMakeUp;
+                return hasScheduleMake || hasLichMake || hasNgayMake || hasThoMake;
+            });
+        }
+        return rawList;
+    }, [hopDong, isAdmin, user, isAssignedToUser, activeTab, hauKyStatusFilter]);
 
     // Lọc và Tìm kiếm
     const locThoiGian = [
@@ -272,6 +323,22 @@ function LichCuaHang() {
     const [isSyncingAlbum, setIsSyncingAlbum] = useState(false);
     const [confirmThoChupHinh, setConfirmThoChupHinh] = useState("");
     const [confirmThoMakeUp, setConfirmThoMakeUp] = useState("");
+    const [chupHinhSchedules, setChupHinhSchedules] = useState([]);
+
+    // Tab Makeup & Phân công trang điểm
+    const [openMakeUpDialog, setOpenMakeUpDialog] = useState(false);
+    const [selectedMakeUpContract, setSelectedMakeUpContract] = useState(null);
+    const [confirmMakeUpDate, setConfirmMakeUpDate] = useState("");
+    const [confirmMakeUpGio, setConfirmMakeUpGio] = useState("");
+    const [confirmMakeUpLocation, setConfirmMakeUpLocation] = useState("");
+    const [confirmMakeUpStaff, setConfirmMakeUpStaff] = useState("");
+    const [confirmMakeUpNote, setConfirmMakeUpNote] = useState("");
+    const [makeUpScheduleItems, setMakeUpScheduleItems] = useState([]);
+
+    // Tab Lịch tổng hợp (Google Calendar)
+    const [allLichSoanDo, setAllLichSoanDo] = useState([]);
+    const [calendarCategoryFilter, setCalendarCategoryFilter] = useState('all');
+    const [selectedDayModal, setSelectedDayModal] = useState(null);
 
     // dialog cập nhật lịch hậu kỳ cho Tab Hậu Kỳ
     const [openHauKyDialog, setOpenHauKyDialog] = useState(false);
@@ -280,6 +347,7 @@ function LichCuaHang() {
     const [confirmNgayChinhAnh, setConfirmNgayChinhAnh] = useState("");
     const [confirmNgayTraAnh, setConfirmNgayTraAnh] = useState("");
     const [confirmLinkAnhChinhSua, setConfirmLinkAnhChinhSua] = useState("");
+    const [confirmSubGiaiDoan, setConfirmSubGiaiDoan] = useState("cho_chinh");
 
     // dialog nhập kích thước & số lượng khi chuyển sang in ảnh
     const [openInAnhInputDialog, setOpenInAnhInputDialog] = useState(false);
@@ -294,17 +362,28 @@ function LichCuaHang() {
     const loadHopDong = useCallback((tabVal, timeVal, searchVal) => {
         showLoading("Đang tải lịch cửa hàng ...");
         let dateField = 'cacNgay.ngayChup';
-        let targetStage = [1, 2];
+        let targetStage = [1]; // Chỉ lấy giai đoạn 1 (Chụp hình). Khi chuyển sang hậu kỳ (giai đoạn 2), HĐ sẽ chuyển sang tab Hậu kỳ.
 
-        if (tabVal === 'hauKy') {
+        if (tabVal === 'makeUp') {
+            dateField = 'makeUp';
+            targetStage = 'all';
+        } else if (tabVal === 'hauKy') {
             dateField = 'cacNgay.ngayChinhAnh';
-            targetStage = 3;
+            targetStage = [2]; // Chỉ lấy giai đoạn 2 (Hậu kỳ). Khi chuyển sang in ảnh (giai đoạn 3), HĐ chuyển sang tab In ảnh.
         } else if (tabVal === 'inAnh') {
             dateField = 'cacNgay.ngayTraAnh';
-            targetStage = 4;
+            targetStage = [3]; // Chỉ lấy giai đoạn 3 (In ảnh). Khi hoàn thành (giai đoạn 4), HĐ hoàn tất quy trình.
         } else if (tabVal === 'anHoiVaCuoi') {
             dateField = 'anHoiVaCuoi';
             targetStage = 'all';
+        } else if (tabVal === 'tongHop') {
+            dateField = 'tongHop';
+            targetStage = 'all';
+            otherService.findAllLichSoanDo({})
+                .then(res => {
+                    if (res.data?.lichSoanDo) setAllLichSoanDo(res.data.lichSoanDo);
+                })
+                .catch(() => {});
         }
         
         const params = {
@@ -351,6 +430,79 @@ function LichCuaHang() {
             setConfirmThoChupHinh(hd.nguoiPhucVu?.thoChupHinh || "");
             setConfirmThoMakeUp(hd.nguoiPhucVu?.thoMakeUp || "");
             
+            // Khởi tạo danh sách ca chụp & makeup (serviceSchedules)
+            let initialSchedules = [];
+            if (Array.isArray(hd.serviceSchedules)) {
+                initialSchedules = JSON.parse(JSON.stringify(hd.serviceSchedules));
+            } else if (Array.isArray(hd.lichChup) && hd.lichChup.length > 0) {
+                initialSchedules = hd.lichChup.map((lc, idx) => ({
+                    id: lc.id || `sch-photo-${idx}-${Date.now()}`,
+                    serviceId: lc.dichVuId || 'MANUAL_PHOTO',
+                    serviceName: lc.tenDichVu || 'Chụp ảnh',
+                    serviceType: 'photo',
+                    luot: idx + 1,
+                    totalLuot: hd.lichChup.length,
+                    ngayGio: lc.ngayGio || lc.ngayChup,
+                    diaDiem: lc.diaDiem || hd.cacNgay?.diaDiemChup || 'Tại Studio',
+                    nhanVien: lc.nhanVien || lc.thoChupHinh || hd.nguoiPhucVu?.thoChupHinh || '',
+                    ghiChu: lc.ghiChu || ''
+                }));
+                if (Array.isArray(hd.lichTrangDiem)) {
+                    hd.lichTrangDiem.forEach((mk, idx) => {
+                        initialSchedules.push({
+                            id: mk.id || `sch-make-${idx}-${Date.now()}`,
+                            serviceId: mk.dichVuId || 'MANUAL_MAKEUP',
+                            serviceName: mk.tenDichVu || 'Trang điểm',
+                            serviceType: 'makeup',
+                            luot: idx + 1,
+                            totalLuot: hd.lichTrangDiem.length,
+                            ngayGio: mk.ngayTrangDiem || mk.ngay,
+                            diaDiem: mk.diaDiem || 'Tại Studio',
+                            nhanVien: mk.thoMakeUp || hd.nguoiPhucVu?.thoMakeUp || '',
+                            ghiChu: mk.ghiChu || ''
+                        });
+                    });
+                }
+            } else if (hd.cacNgay?.ngayChup) {
+                initialSchedules = [{
+                    id: `sch-photo-${Date.now()}`,
+                    serviceId: 'MANUAL_PHOTO',
+                    serviceName: 'Chụp ảnh',
+                    serviceType: 'photo',
+                    luot: 1,
+                    totalLuot: 1,
+                    ngayGio: hd.cacNgay.ngayChup,
+                    diaDiem: hd.cacNgay.diaDiemChup || 'Tại Studio',
+                    nhanVien: hd.nguoiPhucVu?.thoChupHinh || '',
+                    ghiChu: ''
+                }];
+                if (hd.cacNgay?.ngayTrangDiem || hd.nguoiPhucVu?.thoMakeUp) {
+                    initialSchedules.push({
+                        id: `sch-make-${Date.now()}`,
+                        serviceId: 'MANUAL_MAKEUP',
+                        serviceName: 'Trang điểm',
+                        serviceType: 'makeup',
+                        luot: 1,
+                        totalLuot: 1,
+                        ngayGio: hd.cacNgay?.ngayTrangDiem || hd.cacNgay?.ngayChup,
+                        diaDiem: hd.cacNgay?.diaDiemTrangDiem || 'Tại Studio',
+                        nhanVien: hd.nguoiPhucVu?.thoMakeUp || '',
+                        ghiChu: ''
+                    });
+                }
+            }
+            setChupHinhSchedules(initialSchedules);
+
+            const firstPhotoTask = initialSchedules.find(s => s.serviceType === 'photo');
+            if (firstPhotoTask) {
+                if (firstPhotoTask.nhanVien) setConfirmThoChupHinh(firstPhotoTask.nhanVien);
+                if (firstPhotoTask.diaDiem) setConfirmDiaDiem(firstPhotoTask.diaDiem);
+            }
+            const firstMakeTask = initialSchedules.find(s => s.serviceType === 'makeup');
+            if (firstMakeTask && firstMakeTask.nhanVien) {
+                setConfirmThoMakeUp(firstMakeTask.nhanVien);
+            }
+            
             setChupHinhTab(0);
             setAlbumData(null);
             if (hd.maHopDong) {
@@ -367,6 +519,45 @@ function LichCuaHang() {
             }
 
             setOpenChupHinhDialog(true);
+        } else if (activeTab === 'makeUp') {
+            setSelectedMakeUpContract(hd);
+            setConfirmMakeUpStaff(hd.nguoiPhucVu?.thoMakeUp || "");
+            setConfirmMakeUpLocation(hd.cacNgay?.diaDiemTrangDiem || "Tại Studio");
+            setConfirmMakeUpDate(formatDateTimeInput(hd.cacNgay?.ngayTrangDiem) || "");
+            setConfirmMakeUpGio(hd.cacNgay?.gioTrangDiem || "");
+            setConfirmMakeUpNote(hd.ghiChu || "");
+
+            let makeItems = [];
+            if (Array.isArray(hd.serviceSchedules) && hd.serviceSchedules.length > 0) {
+                makeItems = hd.serviceSchedules.filter(s => s.serviceType === 'makeup').map((s, idx) => ({ ...s, luot: s.luot || idx + 1 }));
+            } else if (Array.isArray(hd.lichTrangDiem) && hd.lichTrangDiem.length > 0) {
+                makeItems = hd.lichTrangDiem.map((mk, idx) => ({
+                    id: mk.id || `mk-${idx}-${Date.now()}`,
+                    serviceId: mk.dichVuId || 'MANUAL_MAKEUP',
+                    serviceName: mk.tenDichVu || 'Trang điểm',
+                    serviceType: 'makeup',
+                    luot: idx + 1,
+                    ngayGio: mk.ngayTrangDiem || mk.ngay,
+                    diaDiem: mk.diaDiem || hd.cacNgay?.diaDiemTrangDiem || 'Tại Studio',
+                    nhanVien: mk.thoMakeUp || hd.nguoiPhucVu?.thoMakeUp || '',
+                    ghiChu: mk.ghiChu || ''
+                }));
+            }
+            if (makeItems.length === 0 && (hd.cacNgay?.ngayTrangDiem || hd.nguoiPhucVu?.thoMakeUp)) {
+                makeItems = [{
+                    id: `mk-single-${Date.now()}`,
+                    serviceId: 'MANUAL_MAKEUP',
+                    serviceName: 'Trang điểm',
+                    serviceType: 'makeup',
+                    luot: 1,
+                    ngayGio: hd.cacNgay?.ngayTrangDiem,
+                    diaDiem: hd.cacNgay?.diaDiemTrangDiem || 'Tại Studio',
+                    nhanVien: hd.nguoiPhucVu?.thoMakeUp || '',
+                    ghiChu: ''
+                }];
+            }
+            setMakeUpScheduleItems(makeItems);
+            setOpenMakeUpDialog(true);
         } else if (activeTab === 'hauKy') {
             setSelectedHauKyContract(hd);
             setConfirmThoChinhAnh(hd.nguoiPhucVu?.thoChinhAnh || "");
@@ -374,6 +565,18 @@ function LichCuaHang() {
             setConfirmNgayTraAnh(formatTimestampToDateInput(hd.cacNgay?.ngayTraAnh) || "");
             setConfirmLinkAnh(hd.linkAnhGoc || "");
             setConfirmLinkAnhChinhSua(hd.linkAnhChinhSua || "");
+            
+            let initialSub = hd.subGiaiDoan || 'cho_chinh';
+            if (['cho_chinh', 'da_giao_file_goc', 'khach_da_chon_anh'].includes(initialSub)) {
+                initialSub = 'cho_chinh';
+            } else if (['cho_khach_duyet', 'khach_duyet_anh', 'cho_khach_duyet_layout', 'khach_da_duyet_layout'].includes(initialSub)) {
+                initialSub = 'cho_khach_duyet';
+            } else if (initialSub === 'hoan_thanh') {
+                initialSub = 'hoan_thanh';
+            } else {
+                initialSub = 'dang_chinh';
+            }
+            setConfirmSubGiaiDoan(initialSub);
             
             setAlbumData(null);
             if (hd.maHopDong) {
@@ -444,61 +647,359 @@ function LichCuaHang() {
             });
     };
 
+    const handleConfirmThoChupHinhChange = (val) => {
+        setConfirmThoChupHinh(val);
+        setChupHinhSchedules(prev => {
+            if (!prev || prev.length === 0) return prev;
+            return prev.map(s => s.serviceType === 'photo' ? { ...s, nhanVien: val } : s);
+        });
+    };
+
+    const handleConfirmThoMakeUpChange = (val) => {
+        setConfirmThoMakeUp(val);
+        setChupHinhSchedules(prev => {
+            if (!prev || prev.length === 0) return prev;
+            return prev.map(s => s.serviceType === 'makeup' ? { ...s, nhanVien: val } : s);
+        });
+    };
+
+    const handleConfirmDiaDiemChange = (val) => {
+        setConfirmDiaDiem(val);
+        setChupHinhSchedules(prev => {
+            if (!prev || prev.length === 0) return prev;
+            return prev.map(s => s.serviceType === 'photo' ? { ...s, diaDiem: val } : s);
+        });
+    };
+
+    const handleChupHinhScheduleChange = (scheduleId, fieldName, value) => {
+        setChupHinhSchedules(prev => {
+            const nextList = (prev || []).map(sch => {
+                if (sch.id === scheduleId || (sch._id && sch._id === scheduleId)) {
+                    return { ...sch, [fieldName]: value };
+                }
+                return sch;
+            });
+            const firstPhoto = nextList.find(s => s.serviceType === 'photo');
+            if (firstPhoto && (firstPhoto.id === scheduleId || firstPhoto._id === scheduleId)) {
+                if (fieldName === 'nhanVien') setConfirmThoChupHinh(value);
+                if (fieldName === 'diaDiem') setConfirmDiaDiem(value);
+            }
+            const firstMake = nextList.find(s => s.serviceType === 'makeup');
+            if (firstMake && (firstMake.id === scheduleId || firstMake._id === scheduleId)) {
+                if (fieldName === 'nhanVien') setConfirmThoMakeUp(value);
+            }
+            return nextList;
+        });
+    };
+
+    const handleRemoveChupHinhSchedule = (scheduleId) => {
+        setChupHinhSchedules(prev => {
+            const nextList = (prev || []).filter(sch => (sch.id ? sch.id !== scheduleId : sch._id !== scheduleId));
+            const remainingPhotos = nextList.filter(s => s.serviceType === 'photo');
+            const remainingMakes = nextList.filter(s => s.serviceType === 'makeup');
+
+            if (remainingPhotos.length === 0) {
+                setConfirmThoChupHinh("");
+            } else {
+                setConfirmThoChupHinh(remainingPhotos[0].nhanVien || "");
+                setConfirmDiaDiem(remainingPhotos[0].diaDiem || "");
+            }
+
+            if (remainingMakes.length === 0) {
+                setConfirmThoMakeUp("");
+            } else {
+                setConfirmThoMakeUp(remainingMakes[0].nhanVien || "");
+            }
+
+            return nextList;
+        });
+    };
+
+    const handleAddChupHinhSchedule = (type) => {
+        const isPhoto = type === 'photo';
+        const existingCount = (chupHinhSchedules || []).filter(s => s.serviceType === type).length;
+        const newSch = {
+            id: `sch-${type}-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+            serviceId: isPhoto ? `MANUAL_PHOTO_${Date.now()}` : `MANUAL_MAKEUP_${Date.now()}`,
+            serviceName: isPhoto ? (existingCount === 0 ? 'Chụp ảnh' : `Chụp ảnh lượt ${existingCount + 1}`) : (existingCount === 0 ? 'Trang điểm' : `Trang điểm lượt ${existingCount + 1}`),
+            serviceType: type,
+            luot: existingCount + 1,
+            totalLuot: existingCount + 1,
+            ngayGio: selectedChupHinhContract?.cacNgay?.ngayChup ? (formatDateTimeInput(selectedChupHinhContract.cacNgay.ngayChup)) : new Date().toISOString().slice(0, 16),
+            diaDiem: confirmDiaDiem || 'Tại Studio',
+            nhanVien: isPhoto ? confirmThoChupHinh : confirmThoMakeUp,
+            ghiChu: ''
+        };
+        setChupHinhSchedules(prev => [...(prev || []), newSch]);
+    };
+
+    const handleUpdateMakeUp = () => {
+        if (!selectedMakeUpContract) return;
+        showLoading("Đang cập nhật lịch makeup...");
+
+        let updatedServiceSchedules = [...(selectedMakeUpContract.serviceSchedules || [])];
+        updatedServiceSchedules = updatedServiceSchedules.filter(s => s.serviceType !== 'makeup');
+        updatedServiceSchedules = [...updatedServiceSchedules, ...makeUpScheduleItems];
+
+        const firstMake = makeUpScheduleItems[0] || null;
+        const newNgayTrangDiem = firstMake ? (firstMake.ngayGio ? new Date(firstMake.ngayGio).toISOString() : null) : (confirmMakeUpDate ? new Date(confirmMakeUpDate).toISOString() : null);
+        const computedMakeStaff = firstMake ? (firstMake.nhanVien || confirmMakeUpStaff) : confirmMakeUpStaff;
+        const newThoMakeUp = canAssignCrew ? computedMakeStaff : (selectedMakeUpContract.nguoiPhucVu?.thoMakeUp || "");
+        const newDiaDiemTrangDiem = firstMake ? (firstMake.diaDiem || confirmMakeUpLocation) : confirmMakeUpLocation;
+
+        const payload = {
+            _id: selectedMakeUpContract._id,
+            maHopDong: selectedMakeUpContract.maHopDong,
+            serviceSchedules: updatedServiceSchedules,
+            lichTrangDiem: makeUpScheduleItems.map((mk, idx) => ({
+                id: mk.id,
+                dichVuId: mk.serviceId || "",
+                tenDichVu: mk.serviceName || `Trang điểm lượt ${idx + 1}`,
+                luot: mk.luot || idx + 1,
+                ngayTrangDiem: mk.ngayGio ? new Date(mk.ngayGio).toISOString() : null,
+                diaDiem: mk.diaDiem || "Tại Studio",
+                thoMakeUp: mk.nhanVien || "",
+                ghiChu: mk.ghiChu || ""
+            })),
+            cacNgay: {
+                ...selectedMakeUpContract.cacNgay,
+                ngayTrangDiem: newNgayTrangDiem,
+                diaDiemTrangDiem: newDiaDiemTrangDiem
+            },
+            nguoiPhucVu: {
+                ...selectedMakeUpContract.nguoiPhucVu,
+                thoMakeUp: newThoMakeUp
+            },
+            newAuditEntry: {
+                action: "Cập nhật & Phân công lịch makeup",
+                reason: `Phân công thợ makeup: ${newThoMakeUp || 'Chưa gán'}. Gồm ${makeUpScheduleItems.length} ca makeup.`,
+                performedBy: user?.tenNhanVien || user?.fullname || user?.username || "Nhân viên",
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        otherService.UPDATE_HOPDONG(payload)
+            .then(() => {
+                toast.success("Cập nhật lịch makeup thành công!");
+                setOpenMakeUpDialog(false);
+                setSelectedMakeUpContract(null);
+                loadHopDong(activeTab, selectedTime?.id, searchInput);
+                hideLoading();
+            })
+            .catch((err) => {
+                console.error(err);
+                toast.error("Lỗi cập nhật lịch makeup: " + (err.response?.data?.message || err.message));
+                hideLoading();
+            });
+    };
+
+    const handleAddMakeUpSchedule = () => {
+        const nextLuot = (makeUpScheduleItems || []).length + 1;
+        const newItem = {
+            id: 'mk-' + Date.now(),
+            serviceId: 'MANUAL_MAKEUP',
+            serviceName: 'Trang điểm ca ' + nextLuot,
+            serviceType: 'makeup',
+            luot: nextLuot,
+            ngayGio: confirmMakeUpDate ? new Date(confirmMakeUpDate).toISOString() : new Date().toISOString(),
+            diaDiem: confirmMakeUpLocation || 'Tại Studio',
+            nhanVien: confirmMakeUpStaff || '',
+            ghiChu: ''
+        };
+        setMakeUpScheduleItems(prev => [...(prev || []), newItem]);
+    };
+
+    const handleRemoveMakeUpSchedule = (id) => {
+        setMakeUpScheduleItems(prev => (prev || []).filter(item => item.id !== id));
+    };
+
+    const handleUpdateMakeUpScheduleItem = (id, field, value) => {
+        setMakeUpScheduleItems(prev => (prev || []).map(item => {
+            if (item.id === id) {
+                return { ...item, [field]: value };
+            }
+            return item;
+        }));
+    };
+
+    const handleCalendarEventClick = (evt) => {
+        if (!evt || !evt.contract) return;
+        if (evt.category === 'makeup') {
+            setSelectedMakeUpContract(evt.contract);
+            setConfirmMakeUpStaff(evt.contract.nguoiPhucVu?.thoMakeUp || evt.staff || '');
+            setConfirmMakeUpLocation(evt.contract.cacNgay?.diaDiemTrangDiem || 'Tại Studio');
+            setConfirmMakeUpDate(formatDateTimeInput(evt.contract.cacNgay?.ngayTrangDiem) || '');
+            setConfirmMakeUpGio(evt.contract.cacNgay?.gioTrangDiem || '');
+            setConfirmMakeUpNote(evt.contract.ghiChu || '');
+
+            let makeItems = [];
+            if (Array.isArray(evt.contract.serviceSchedules) && evt.contract.serviceSchedules.length > 0) {
+                makeItems = evt.contract.serviceSchedules.filter(s => s.serviceType === 'makeup').map((s, idx) => ({ ...s, luot: s.luot || idx + 1 }));
+            } else if (Array.isArray(evt.contract.lichTrangDiem) && evt.contract.lichTrangDiem.length > 0) {
+                makeItems = evt.contract.lichTrangDiem.map((mk, idx) => ({
+                    id: mk.id || ('mk-' + idx + '-' + Date.now()),
+                    serviceId: mk.dichVuId || 'MANUAL_MAKEUP',
+                    serviceName: mk.tenDichVu || 'Trang điểm',
+                    serviceType: 'makeup',
+                    luot: idx + 1,
+                    ngayGio: mk.ngayTrangDiem || mk.ngay,
+                    diaDiem: mk.diaDiem || evt.contract.cacNgay?.diaDiemTrangDiem || 'Tại Studio',
+                    nhanVien: mk.thoMakeUp || evt.contract.nguoiPhucVu?.thoMakeUp || '',
+                    ghiChu: mk.ghiChu || ''
+                }));
+            }
+            if (makeItems.length === 0 && (evt.contract.cacNgay?.ngayTrangDiem || evt.contract.nguoiPhucVu?.thoMakeUp)) {
+                makeItems = [{
+                    id: 'mk-single-' + Date.now(),
+                    serviceId: 'MANUAL_MAKEUP',
+                    serviceName: 'Trang điểm',
+                    serviceType: 'makeup',
+                    luot: 1,
+                    ngayGio: evt.contract.cacNgay?.ngayTrangDiem,
+                    diaDiem: evt.contract.cacNgay?.diaDiemTrangDiem || 'Tại Studio',
+                    nhanVien: evt.contract.nguoiPhucVu?.thoMakeUp || '',
+                    ghiChu: ''
+                }];
+            }
+            setMakeUpScheduleItems(makeItems);
+            setOpenMakeUpDialog(true);
+        } else if (evt.category === 'chup') {
+            handleRowClick(evt.contract);
+        } else if (evt.category === 'photoshop' || evt.category === 'inanh' || evt.category === 'cuoihoi') {
+            setSendData(evt.contract);
+            setOpenDetailDialog(true);
+        } else if (evt.category === 'soando') {
+            if (evt.contract?._id) {
+                setSendData(evt.contract);
+                setOpenDetailDialog(true);
+            } else {
+                toast.info('Lịch soạn đồ #' + (evt.contract?.maHopDong || '') + '. Bạn có thể quản lý chi tiết trong menu Lịch Soạn Đồ.');
+            }
+        } else {
+            handleRowClick(evt.contract);
+        }
+    };
+
     const handleUpdateChupHinh = (shouldTransitionToHauKy = false) => {
         if (!selectedChupHinhContract) return;
 
         if (shouldTransitionToHauKy) {
-            if (!confirmThoChupHinh) {
-                toast.error("Vui lòng chọn thợ chụp hình trước khi chuyển sang hậu kỳ!");
-                return;
-            }
-            if (!confirmThoMakeUp) {
-                toast.error("Vui lòng chọn thợ makeup trước khi chuyển sang hậu kỳ!");
-                return;
-            }
-            if (!confirmDiaDiem || !confirmDiaDiem.trim()) {
-                toast.error("Vui lòng nhập địa điểm chụp trước khi chuyển sang hậu kỳ!");
-                return;
-            }
+            // Cho phép chọn độc lập thợ chụp hoặc makeup, không bắt buộc chọn tất cả
             if (!confirmLinkAnh || !confirmLinkAnh.trim()) {
-                toast.error("Vui lòng nhập đường dẫn ảnh gốc (link ảnh) trước khi chuyển sang hậu kỳ!");
-                return;
+                toast.warning("Chưa có đường dẫn ảnh gốc (link ảnh). Bạn có thể bổ sung sau nếu cần.");
             }
         }
 
-        showLoading(shouldTransitionToHauKy ? "Đang chuyển trạng thái sang hậu kỳ..." : "Đang cập nhật lịch chụp...");
+        showLoading(shouldTransitionToHauKy ? "Đang chuyển trạng thái sang hậu kỳ..." : "Đang cập nhật lịch chụp & đồng bộ nhiệm vụ...");
+
+        // Đồng bộ danh sách photoSchedules & makeupSchedules từ chupHinhSchedules
+        const photoSchedules = (chupHinhSchedules || []).filter(s => s.serviceType === 'photo' && s.ngayGio).map((sch, idx) => {
+            let ngayIso = null;
+            let gioStr = '';
+            if (sch.ngayGio) {
+                const dt = new Date(sch.ngayGio);
+                if (!isNaN(dt.getTime())) {
+                    ngayIso = dt.toISOString();
+                    gioStr = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+                }
+            }
+            return {
+                id: sch.id,
+                dichVuId: sch.serviceId || "",
+                tenDichVu: sch.serviceName || `Chụp ảnh lượt ${sch.luot || (idx + 1)}`,
+                luot: sch.luot || idx + 1,
+                ngayGio: ngayIso,
+                ngayChup: ngayIso,
+                gioChup: gioStr,
+                diaDiem: sch.diaDiem || confirmDiaDiem || "Tại Studio",
+                thoChupHinh: sch.nhanVien || confirmThoChupHinh || "",
+                nhanVien: sch.nhanVien || confirmThoChupHinh || "",
+                ghiChu: sch.ghiChu || ""
+            };
+        });
+
+        const makeupSchedules = (chupHinhSchedules || []).filter(s => s.serviceType === 'makeup' && s.ngayGio).map((sch, idx) => {
+            let ngayIso = null;
+            let gioStr = '';
+            if (sch.ngayGio) {
+                const dt = new Date(sch.ngayGio);
+                if (!isNaN(dt.getTime())) {
+                    ngayIso = dt.toISOString();
+                    gioStr = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+                }
+            }
+            return {
+                id: sch.id,
+                dichVuId: sch.serviceId || "",
+                tenDichVu: sch.serviceName || `Trang điểm lượt ${sch.luot || (idx + 1)}`,
+                luot: sch.luot || idx + 1,
+                ngayTrangDiem: ngayIso,
+                gioTrangDiem: gioStr,
+                diaDiem: sch.diaDiem || "Tại Studio",
+                thoMakeUp: sch.nhanVien || confirmThoMakeUp || "",
+                ghiChu: sch.ghiChu || ""
+            };
+        });
+
+        const allPhoto = (chupHinhSchedules || []).filter(s => s.serviceType === 'photo');
+        const allMake = (chupHinhSchedules || []).filter(s => s.serviceType === 'makeup');
+
+        const firstPhoto = photoSchedules[0] || null;
+        const firstMakeup = makeupSchedules[0] || null;
+        const hasDefinedSchedules = Array.isArray(chupHinhSchedules);
+
+        const newNgayChup = firstPhoto ? firstPhoto.ngayChup : (hasDefinedSchedules && allPhoto.length === 0 ? null : (selectedChupHinhContract.cacNgay?.ngayChup || null));
+        const newGioChup = firstPhoto ? (firstPhoto.gioChup || "") : (hasDefinedSchedules && allPhoto.length === 0 ? "" : (selectedChupHinhContract.cacNgay?.gioChup || ""));
+        const newDiaDiemChup = firstPhoto ? (firstPhoto.diaDiem || confirmDiaDiem || "") : (hasDefinedSchedules && allPhoto.length === 0 ? "" : (confirmDiaDiem || selectedChupHinhContract.cacNgay?.diaDiemChup || ""));
+        const computedThoChup = firstPhoto ? (firstPhoto.thoChupHinh || confirmThoChupHinh || "") : (hasDefinedSchedules && allPhoto.length === 0 ? "" : (confirmThoChupHinh || selectedChupHinhContract.nguoiPhucVu?.thoChupHinh || ""));
+        const newThoChupHinh = canAssignCrew ? computedThoChup : (selectedChupHinhContract.nguoiPhucVu?.thoChupHinh || "");
+
+        const newNgayTrangDiem = firstMakeup ? firstMakeup.ngayTrangDiem : (hasDefinedSchedules && allMake.length === 0 ? null : (selectedChupHinhContract.cacNgay?.ngayTrangDiem || null));
+        const newGioTrangDiem = firstMakeup ? (firstMakeup.gioTrangDiem || "") : (hasDefinedSchedules && allMake.length === 0 ? "" : (selectedChupHinhContract.cacNgay?.gioTrangDiem || ""));
+        const newDiaDiemTrangDiem = firstMakeup ? (firstMakeup.diaDiem || "") : (hasDefinedSchedules && allMake.length === 0 ? "" : (selectedChupHinhContract.cacNgay?.diaDiemTrangDiem || ""));
+        const computedThoMake = firstMakeup ? (firstMakeup.thoMakeUp || confirmThoMakeUp || "") : (hasDefinedSchedules && allMake.length === 0 ? "" : (confirmThoMakeUp || selectedChupHinhContract.nguoiPhucVu?.thoMakeUp || ""));
+        const newThoMakeUp = canAssignCrew ? computedThoMake : (selectedChupHinhContract.nguoiPhucVu?.thoMakeUp || "");
 
         const payload = {
+            _id: selectedChupHinhContract._id,
             maHopDong: selectedChupHinhContract.maHopDong,
             cacNgay: {
                 ...selectedChupHinhContract.cacNgay,
-                gioChup: (() => {
-                    const ngayChup = selectedChupHinhContract.cacNgay?.ngayChup;
-                    if (!ngayChup) return "";
-                    const date = new Date(ngayChup);
-                    if (isNaN(date.getTime())) return "";
-                    const hh = String(date.getHours()).padStart(2, '0');
-                    const mm = String(date.getMinutes()).padStart(2, '0');
-                    return `${hh}:${mm}`;
-                })(),
-                diaDiemChup: confirmDiaDiem,
-                chotLich: confirmChotLich
+                ngayChup: newNgayChup,
+                gioChup: newGioChup,
+                diaDiemChup: newDiaDiemChup,
+                chotLich: confirmChotLich,
+                ngayTrangDiem: newNgayTrangDiem,
+                gioTrangDiem: newGioTrangDiem,
+                diaDiemTrangDiem: newDiaDiemTrangDiem
             },
             nguoiPhucVu: {
                 ...selectedChupHinhContract.nguoiPhucVu,
-                thoChupHinh: confirmThoChupHinh,
-                thoMakeUp: confirmThoMakeUp
+                thoChupHinh: newThoChupHinh,
+                thoMakeUp: newThoMakeUp
             },
-            linkAnhGoc: confirmLinkAnh
+            linkAnhGoc: confirmLinkAnh,
+            serviceSchedules: chupHinhSchedules,
+            lichChup: photoSchedules,
+            lichTrangDiem: makeupSchedules,
+            newAuditEntry: {
+                action: shouldTransitionToHauKy ? "Chuyển sang hậu kỳ & Đồng bộ lịch nhiệm vụ" : "Xác nhận lịch chụp & Đồng bộ phân công nhiệm vụ",
+                reason: `Chốt lịch: ${confirmChotLich}. Ekip: Chụp (${newThoChupHinh || 'Chưa gán'}), Make (${newThoMakeUp || 'Chưa gán'}). Gồm ${(chupHinhSchedules || []).length} nhiệm vụ.`,
+                performedBy: user?.tenNhanVien || user?.fullname || user?.username || "Nhân viên",
+                timestamp: new Date().toISOString()
+            }
         };
 
         if (shouldTransitionToHauKy) {
-            payload.giaiDoan = 3; // Chuyển sang hậu kỳ
+            payload.giaiDoan = 2; // Chuyển sang hậu kỳ
+            payload.subGiaiDoan = 'cho_chinh';
+        } else {
+            payload.subGiaiDoan = confirmLinkAnh ? 'hoan_thanh' : 'dang_thuc_hien';
         }
 
         otherService.UPDATE_HOPDONG(payload)
             .then((response) => {
-                toast.success(shouldTransitionToHauKy ? "Đã chuyển sang hậu kỳ thành công!" : "Cập nhật thông tin chụp thành công!");
+                toast.success(shouldTransitionToHauKy ? "Đã chuyển sang hậu kỳ & đồng bộ phân công thành công!" : "Cập nhật thông tin chụp & đồng bộ phân công thành công!");
                 setOpenChupHinhDialog(false);
                 setSelectedChupHinhContract(null);
                 loadHopDong(activeTab, selectedTime?.id, searchInput);
@@ -523,7 +1024,8 @@ function LichCuaHang() {
             showLoading("Đang chuyển trạng thái sang hoàn thành...");
             otherService.UPDATE_HOPDONG({
                 maHopDong: contract.maHopDong,
-                giaiDoan: 5
+                giaiDoan: 4,
+                subGiaiDoan: 'hoan_thanh'
             })
             .then(() => {
                 toast.success("Hợp đồng đã hoàn thành!");
@@ -564,7 +1066,8 @@ function LichCuaHang() {
 
         const payload = {
             maHopDong: paymentContract.maHopDong,
-            giaiDoan: 5,
+            giaiDoan: 4,
+            subGiaiDoan: 'hoan_thanh',
             thanhToan: {
                 ...paymentContract.thanhToan,
                 cacLuotThanhToan: cacLuotThanhToan
@@ -623,12 +1126,15 @@ function LichCuaHang() {
                 ...selectedHauKyContract.nguoiPhucVu,
                 thoChinhAnh: confirmThoChinhAnh
             },
-            linkAnhChinhSua: confirmLinkAnhChinhSua
+            linkAnhChinhSua: confirmLinkAnhChinhSua,
+            subGiaiDoan: confirmSubGiaiDoan
         };
 
         if (targetStage) {
-            payload.giaiDoan = targetStage;
-            if (targetStage === 4) {
+            // Chuyển sang in ảnh: giai đoạn 3 (hoặc 4 ở legacy), đánh dấu hậu kỳ hoàn tất
+            payload.giaiDoan = 3;
+            payload.subGiaiDoan = 'hoan_thanh';
+            if (targetStage === 4 || targetStage === 3) {
                 payload.danhSachAnhIn = tempDanhSachAnhIn;
                 if (newlyAddedPhotos.length > 0) {
                     const originalCart = [...(selectedHauKyContract?.gioHang || [])];
@@ -745,97 +1251,219 @@ function LichCuaHang() {
         };
 
         filteredHopDong.forEach(hd => {
-            if (activeTab === 'chupHinh') {
-                if (isSameDay(dayDate, hd.cacNgay?.ngayChup)) {
-                    const time = getTimeFromDate(hd.cacNgay?.ngayChup) || hd.cacNgay?.gioChup || 'Chưa giờ';
+            // 1. Chụp hình
+            if (activeTab === 'chupHinh' || activeTab === 'tongHop') {
+                if (Array.isArray(hd.serviceSchedules) && hd.serviceSchedules.length > 0) {
+                    hd.serviceSchedules.filter(s => s.serviceType === 'photo' && s.ngayGio).forEach(task => {
+                        if (isSameDay(dayDate, task.ngayGio)) {
+                            const time = getTimeFromDate(task.ngayGio);
+                            events.push({
+                                id: `ev-chup-${hd._id}-${task.id || task._id}`,
+                                category: 'chup',
+                                type: 'chupHinh',
+                                contract: hd,
+                                title: task.serviceName || 'Chụp ảnh',
+                                time: time,
+                                label: `${time ? time + ' ' : ''}📸 [Chụp] ${hd.khachHang1?.tenKhachHang || ''} (${task.nhanVien || 'Chưa gán'})`,
+                                staff: task.nhanVien || hd.nguoiPhucVu?.thoChupHinh,
+                                color: '#0284c7'
+                            });
+                        }
+                    });
+                } else if (hd.cacNgay?.ngayChup && isSameDay(dayDate, hd.cacNgay.ngayChup)) {
+                    const time = getTimeFromDate(hd.cacNgay?.ngayChup) || hd.cacNgay?.gioChup || '';
                     events.push({
+                        id: `ev-chup-${hd._id}`,
+                        category: 'chup',
                         type: 'chupHinh',
                         contract: hd,
-                        label: `${time} - ${hd.khachHang1?.tenKhachHang || ''}`,
-                        color: '#3498db'
+                        title: 'Chụp ảnh',
+                        time: time,
+                        label: `${time ? time + ' ' : ''}📸 [Chụp] ${hd.khachHang1?.tenKhachHang || ''}`,
+                        staff: hd.nguoiPhucVu?.thoChupHinh,
+                        color: '#0284c7'
                     });
                 }
-            } else if (activeTab === 'hauKy') {
+            }
+
+            // 2. Makeup
+            if (activeTab === 'makeUp' || activeTab === 'tongHop') {
+                if (Array.isArray(hd.serviceSchedules) && hd.serviceSchedules.length > 0) {
+                    hd.serviceSchedules.filter(s => s.serviceType === 'makeup' && s.ngayGio).forEach(task => {
+                        if (isSameDay(dayDate, task.ngayGio)) {
+                            const time = getTimeFromDate(task.ngayGio);
+                            events.push({
+                                id: `ev-make-${hd._id}-${task.id || task._id}`,
+                                category: 'makeup',
+                                type: 'makeup',
+                                contract: hd,
+                                title: task.serviceName || 'Trang điểm',
+                                time: time,
+                                label: `${time ? time + ' ' : ''}💄 [Make] ${hd.khachHang1?.tenKhachHang || ''} (${task.nhanVien || 'Chưa gán'})`,
+                                staff: task.nhanVien || hd.nguoiPhucVu?.thoMakeUp,
+                                color: '#db2777'
+                            });
+                        }
+                    });
+                } else if (hd.cacNgay?.ngayTrangDiem && isSameDay(dayDate, hd.cacNgay.ngayTrangDiem)) {
+                    const time = getTimeFromDate(hd.cacNgay?.ngayTrangDiem) || hd.cacNgay?.gioTrangDiem || '';
+                    events.push({
+                        id: `ev-make-${hd._id}`,
+                        category: 'makeup',
+                        type: 'makeup',
+                        contract: hd,
+                        title: 'Trang điểm',
+                        time: time,
+                        label: `${time ? time + ' ' : ''}💄 [Make] ${hd.khachHang1?.tenKhachHang || ''}`,
+                        staff: hd.nguoiPhucVu?.thoMakeUp,
+                        color: '#db2777'
+                    });
+                }
+            }
+
+            // 3. Hậu kỳ (Photoshop)
+            if (activeTab === 'hauKy' || activeTab === 'tongHop') {
                 if (isSameDay(dayDate, hd.cacNgay?.ngayChinhAnh)) {
                     events.push({
+                        id: `ev-pts-${hd._id}`,
+                        category: 'photoshop',
                         type: 'hauKy_chinh',
                         contract: hd,
-                        label: `Bắt đầu chỉnh: ${hd.khachHang1?.tenKhachHang || ''}`,
-                        color: '#9b59b6'
+                        title: 'Hậu kỳ ảnh',
+                        label: `🪄 [PTS] ${hd.khachHang1?.tenKhachHang || ''}`,
+                        staff: hd.nguoiPhucVu?.thoChinhAnh,
+                        color: '#7c3aed'
                     });
                 }
-                if (isSameDay(dayDate, hd.cacNgay?.ngayTraAnh)) {
+                if (isSameDay(dayDate, hd.cacNgay?.ngayTraAnh) && Number(hd.giaiDoan) === 2) {
                     events.push({
+                        id: `ev-tra-pts-${hd._id}`,
+                        category: 'photoshop',
                         type: 'hauKy_tra',
                         contract: hd,
-                        label: `Trả ảnh: ${hd.khachHang1?.tenKhachHang || ''}`,
-                        color: '#e67e22'
+                        title: 'Hẹn trả ảnh',
+                        label: `📅 [Trả ảnh PTS] ${hd.khachHang1?.tenKhachHang || ''}`,
+                        staff: hd.nguoiPhucVu?.thoChinhAnh,
+                        color: '#9333ea'
                     });
                 }
-            } else if (activeTab === 'inAnh') {
-                if (isSameDay(dayDate, hd.cacNgay?.ngayTraAnh)) {
+            }
+
+            // 4. In ảnh
+            if (activeTab === 'inAnh' || activeTab === 'tongHop') {
+                if (isSameDay(dayDate, hd.cacNgay?.ngayTraAnh) && Number(hd.giaiDoan) >= 3) {
                     events.push({
+                        id: `ev-in-${hd._id}`,
+                        category: 'inanh',
                         type: 'inAnh',
                         contract: hd,
-                        label: `Bàn giao ảnh: ${hd.khachHang1?.tenKhachHang || ''}`,
-                        color: '#f39c12'
+                        title: 'Bàn giao ảnh in',
+                        label: `🖨️ [In ảnh] ${hd.khachHang1?.tenKhachHang || ''}`,
+                        color: '#ea580c'
                     });
                 }
-            } else if (activeTab === 'anHoiVaCuoi') {
+            }
+
+            // 5. Ăn hỏi & Cưới
+            if (activeTab === 'anHoiVaCuoi' || activeTab === 'tongHop') {
                 if (isSameDay(dayDate, hd.cacNgay?.ngayAnHoi)) {
                     const time = getTimeFromDate(hd.cacNgay?.ngayAnHoi);
-                    const timeLabel = time ? `${time} - ` : '';
                     events.push({
+                        id: `ev-anhoi-${hd._id}`,
+                        category: 'cuoihoi',
                         type: 'anHoi',
                         contract: hd,
-                        label: `${timeLabel}${hd.khachHang1?.tenKhachHang || ''} (Ăn Hỏi)`,
-                        color: '#e74c3c'
+                        title: 'Lễ Ăn Hỏi',
+                        time: time,
+                        label: `${time ? time + ' ' : ''}💍 [Ăn Hỏi] ${hd.khachHang1?.tenKhachHang || ''}`,
+                        color: '#dc2626'
                     });
                 }
                 if (isSameDay(dayDate, hd.cacNgay?.ngayCuoi)) {
                     const time = getTimeFromDate(hd.cacNgay?.ngayCuoi);
-                    const timeLabel = time ? `${time} - ` : '';
                     events.push({
+                        id: `ev-cuoi-${hd._id}`,
+                        category: 'cuoihoi',
                         type: 'cuoi',
                         contract: hd,
-                        label: `${timeLabel}${hd.khachHang1?.tenKhachHang || ''} (Cưới)`,
-                        color: '#2ecc71'
+                        title: 'Tiệc Cưới',
+                        time: time,
+                        label: `${time ? time + ' ' : ''}❤️ [Cưới] ${hd.khachHang1?.tenKhachHang || ''}`,
+                        color: '#16a34a'
                     });
                 }
             }
         });
+
+        // 6. Soạn đồ (cho tab Lịch tổng hợp)
+        if (activeTab === 'tongHop') {
+            (allLichSoanDo || []).forEach(sd => {
+                const targetDate = sd.ngaySoan || sd.ngayMuon;
+                if (targetDate && isSameDay(dayDate, targetDate)) {
+                    const matchedHD = (filteredHopDong || []).find(h => h.maHopDong === sd.maHopDong || h._id === sd.hopDongId);
+                    events.push({
+                        id: `ev-soan-${sd._id || sd.maHopDong}`,
+                        category: 'soando',
+                        type: 'soanDo',
+                        contract: matchedHD || { maHopDong: sd.maHopDong },
+                        title: 'Lịch soạn đồ',
+                        label: `👗 [Soạn đồ] #${sd.maHopDong} - ${matchedHD?.khachHang1?.tenKhachHang || sd.khachHang || ''}`,
+                        staff: sd.nguoiKiem,
+                        color: '#0d9488'
+                    });
+                }
+            });
+        }
+
+        // Lọc theo bộ lọc danh mục của Google Calendar
+        if (activeTab === 'tongHop' && calendarCategoryFilter !== 'all') {
+            return events.filter(e => e.category === calendarCategoryFilter);
+        }
+
         return events;
     };
 
     const getEventBackground = (type) => {
         switch (type) {
             case 'chupHinh':
-                return '#e8f0fe';
+                return '#e0f2fe';
+            case 'makeup':
+                return '#fce7f3';
             case 'hauKy_chinh':
-                return '#f3e8fd';
+                return '#ede9fe';
             case 'hauKy_tra':
                 return '#fef3c7';
             case 'inAnh':
-                return '#fef3c7';
+                return '#ffedd5';
             case 'anHoi':
                 return '#fee2e2';
             case 'cuoi':
                 return '#dcfce7';
+            case 'soanDo':
+                return '#ccfbf1';
             default:
-                return '#f1f3f4';
+                return '#f1f5f9';
         }
     };
 
     const getEventTextColor = (type) => {
         switch (type) {
             case 'chupHinh':
-                return '#1a73e8';
+                return '#0284c7';
+            case 'makeup':
+                return '#be185d';
             case 'hauKy_chinh':
-                return '#9333ea';
+                return '#7c3aed';
             case 'hauKy_tra':
                 return '#d97706';
             case 'inAnh':
-                return '#d97706';
+                return '#ea580c';
+            case 'anHoi':
+                return '#dc2626';
+            case 'cuoi':
+                return '#16a34a';
+            case 'soanDo':
+                return '#0f766e';
             case 'anHoi':
                 return '#dc2626';
             case 'cuoi':
@@ -872,50 +1500,82 @@ function LichCuaHang() {
     const renderMonthlyCalendar = () => {
         const daysGrid = getDaysInMonthGrid(currentYear, currentMonth);
         const dayNames = ['CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-        
+
+        // Thống kê số sự kiện trong tháng
+        let totalMonthEvents = 0;
+        daysGrid.forEach(d => {
+            if (d.isCurrentMonth) {
+                totalMonthEvents += getEventsForDay(d.date).length;
+            }
+        });
+
         return (
-            <Paper elevation={1} style={{ padding: '20px', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
+            <Paper elevation={0} style={{ padding: '20px', borderRadius: '16px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.04)', marginBottom: '20px' }}>
                 <style>{`
+                    .gcal-day-cell {
+                        transition: background-color 0.15s ease;
+                    }
+                    .gcal-day-cell:hover {
+                        background-color: #f8fafc;
+                    }
                     .calendar-event-badge {
-                        transition: all 0.2s ease-in-out;
+                        transition: all 0.15s ease-in-out;
+                        user-select: none;
                     }
                     .calendar-event-badge:hover {
-                        filter: brightness(0.92);
-                        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+                        filter: brightness(0.94);
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.12);
                         transform: translateY(-1px);
                     }
                 `}</style>
-                {/* Lịch Header / Điều hướng */}
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
-                    <Box display="flex" alignItems="center" gap={1}>
+
+                {/* Google Calendar Header / Navigation Bar */}
+                <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2} mb={2.5}>
+                    <Box display="flex" alignItems="center" gap={1.2}>
                         <Button 
                             variant="outlined" 
                             onClick={handleGoToToday}
-                            style={{ textTransform: 'none', fontWeight: 'bold' }}
+                            sx={{ 
+                                textTransform: 'none', 
+                                fontWeight: 700, 
+                                borderRadius: '8px', 
+                                borderColor: '#cbd5e1', 
+                                color: '#1e293b',
+                                px: 2,
+                                '&:hover': { bgcolor: '#f1f5f9', borderColor: '#94a3b8' }
+                            }}
                         >
                             Hôm nay
                         </Button>
-                        <Button 
-                            variant="outlined" 
-                            onClick={handlePrevMonth}
-                            style={{ minWidth: '40px', padding: '6px' }}
-                            title="Tháng trước"
-                        >
-                            <i className="fa-solid fa-chevron-left"></i>
-                        </Button>
-                        <Button 
-                            variant="outlined" 
-                            onClick={handleNextMonth}
-                            style={{ minWidth: '40px', padding: '6px' }}
-                            title="Tháng sau"
-                        >
-                            <i className="fa-solid fa-chevron-right"></i>
-                        </Button>
+                        <Box display="flex" alignItems="center">
+                            <IconButton 
+                                onClick={handlePrevMonth}
+                                size="small"
+                                sx={{ border: '1px solid #e2e8f0', mr: 0.5, '&:hover': { bgcolor: '#f1f5f9' } }}
+                                title="Tháng trước"
+                            >
+                                <i className="fa-solid fa-chevron-left" style={{ fontSize: '0.85rem' }}></i>
+                            </IconButton>
+                            <IconButton 
+                                onClick={handleNextMonth}
+                                size="small"
+                                sx={{ border: '1px solid #e2e8f0', '&:hover': { bgcolor: '#f1f5f9' } }}
+                                title="Tháng sau"
+                            >
+                                <i className="fa-solid fa-chevron-right" style={{ fontSize: '0.85rem' }}></i>
+                            </IconButton>
+                        </Box>
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', ml: 1, letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 1 }}>
+                            Tháng {currentMonth + 1}, {currentYear}
+                            <Chip 
+                                label={`${totalMonthEvents} sự kiện`} 
+                                size="small" 
+                                sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 700, fontSize: '0.78rem' }}
+                            />
+                        </Typography>
                     </Box>
-                    <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 'bold', color: '#1976d2' }}>
-                        Tháng {currentMonth + 1} năm {currentYear}
-                    </h3>
-                    <Box display="flex" alignItems="center">
+
+                    <Box display="flex" alignItems="center" gap={2}>
                         <FormControlLabel
                             control={
                                 <Switch
@@ -925,35 +1585,38 @@ function LichCuaHang() {
                                     size="small"
                                 />
                             }
-                            label={<span style={{ fontSize: '0.85rem', fontWeight: '500', color: '#5f6368' }}>Lịch âm</span>}
+                            label={<span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>Âm lịch</span>}
                         />
                     </Box>
                 </Box>
 
-                {/* Lưới ngày và thứ */}
+                {/* Google Calendar Grid */}
                 <Box 
                     display="grid" 
                     gridTemplateColumns="repeat(7, 1fr)" 
-                    gridAutoRows="minmax(130px, auto)"
                     borderTop="1px solid #dadce0"
                     borderLeft="1px solid #dadce0"
+                    borderRadius="8px"
+                    overflow="hidden"
                 >
-                    {/* Hàng thứ trong tuần */}
+                    {/* Header: 7 ngày trong tuần */}
                     {dayNames.map((name, idx) => (
                         <Box 
                             key={`header-${idx}`} 
                             textAlign="center" 
-                            fontWeight="bold" 
-                            fontSize="0.9rem"
-                            color={idx === 0 ? '#d32f2f' : idx === 6 ? '#1976d2' : '#5f6368'}
+                            fontWeight="700" 
+                            fontSize="0.84rem"
+                            color={idx === 0 ? '#dc2626' : idx === 6 ? '#0284c7' : '#475569'}
                             borderRight="1px solid #dadce0"
                             borderBottom="1px solid #dadce0"
-                            padding="12px 4px"
-                            backgroundColor="#f1f3f4"
+                            padding="10px 4px"
+                            backgroundColor="#f8fafc"
                         >
                             {name}
                         </Box>
                     ))}
+
+                    {/* Lưới các ô ngày */}
                     {daysGrid.map((day, idx) => {
                         const dayEvents = getEventsForDay(day.date);
                         const isDayToday = isToday(day.date);
@@ -964,34 +1627,45 @@ function LichCuaHang() {
                             dayLabel = `1 thg ${day.monthNum + 1}`;
                         }
 
+                        const maxVisible = 3;
+                        const visibleEvents = dayEvents.slice(0, maxVisible);
+                        const hiddenCount = dayEvents.length - maxVisible;
+
                         const tooltipTitle = lunarInfo ? (
-                            <Box style={{ padding: '8px', fontSize: '0.8rem', lineHeight: '1.4' }}>
-                                <div style={{ fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '4px', marginBottom: '6px', fontSize: '0.85rem' }}>
+                            <Box style={{ padding: '6px', fontSize: '0.78rem', lineHeight: '1.4' }}>
+                                <div style={{ fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '3px', marginBottom: '4px' }}>
                                     {lunarInfo.solarStr}
                                 </div>
                                 <div><strong>Âm lịch:</strong> {lunarInfo.fullLunarStr}</div>
-                                <div><strong>Can Chi:</strong> Ngày {lunarInfo.dayName}, tháng {lunarInfo.monthName}, năm {lunarInfo.yearName}</div>
+                                <div><strong>Can Chi:</strong> Ngày {lunarInfo.dayName}, tháng {lunarInfo.monthName}</div>
                                 <div><strong>Tiết khí:</strong> {lunarInfo.solarTerm || 'Không có'}</div>
-                                <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px' }}>
-                                    <strong>Giờ hoàng đạo:</strong>
-                                    <div style={{ color: '#ffb74d', marginTop: '2px' }}>{lunarInfo.luckyHoursStr || 'Không có'}</div>
-                                </div>
                             </Box>
                         ) : "";
 
                         return (
-                            <Tooltip key={idx} title={tooltipTitle} arrow enterDelay={400} placement="top">
-                                <Box 
-                                    borderRight="1px solid #dadce0"
-                                    borderBottom="1px solid #dadce0"
-                                    padding="8px"
-                                    backgroundColor={day.isCurrentMonth ? '#fff' : '#f8f9fa'}
-                                    display="flex"
-                                    flexDirection="column"
-                                    style={{ minHeight: '130px', position: 'relative' }}
-                                >
-                                    {/* Ngày số & Ngày âm */}
-                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} width="100%">
+                            <Box 
+                                key={idx}
+                                className="gcal-day-cell"
+                                borderRight="1px solid #dadce0"
+                                borderBottom="1px solid #dadce0"
+                                padding="6px"
+                                backgroundColor={isDayToday ? '#f0f9ff' : (day.isCurrentMonth ? '#ffffff' : '#f8fafc')}
+                                display="flex"
+                                flexDirection="column"
+                                onClick={() => {
+                                    if (dayEvents.length > 0) {
+                                        setSelectedDayModal({ open: true, date: day.date, events: dayEvents });
+                                    }
+                                }}
+                                style={{ 
+                                    minHeight: '135px', 
+                                    position: 'relative',
+                                    cursor: dayEvents.length > 0 ? 'pointer' : 'default'
+                                }}
+                            >
+                                {/* Số ngày & Lịch âm */}
+                                <Tooltip title={tooltipTitle} arrow enterDelay={500} placement="top">
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.8} width="100%">
                                         <Box display="flex" alignItems="center">
                                             {isDayToday ? (
                                                 <span style={{
@@ -999,21 +1673,22 @@ function LichCuaHang() {
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
                                                     backgroundColor: '#1a73e8',
-                                                    color: '#fff',
-                                                    width: '28px',
-                                                    height: '28px',
+                                                    color: '#ffffff',
+                                                    width: '26px',
+                                                    height: '26px',
                                                     borderRadius: '50%',
-                                                    fontSize: '0.85rem',
-                                                    fontWeight: 'bold'
+                                                    fontSize: '0.84rem',
+                                                    fontWeight: 'bold',
+                                                    boxShadow: '0 2px 4px rgba(26,115,232,0.4)'
                                                 }}>
                                                     {day.dayNum}
                                                 </span>
                                             ) : (
                                                 <span style={{
-                                                    fontSize: '0.85rem',
-                                                    fontWeight: day.isCurrentMonth ? '600' : 'normal',
-                                                    color: day.isCurrentMonth ? (day.date.getDay() === 0 ? '#d32f2f' : '#3c4043') : '#70757a',
-                                                    padding: '4px'
+                                                    fontSize: '0.82rem',
+                                                    fontWeight: day.isCurrentMonth ? '700' : '500',
+                                                    color: day.isCurrentMonth ? (day.date.getDay() === 0 ? '#dc2626' : '#1e293b') : '#94a3b8',
+                                                    padding: '2px 4px'
                                                 }}>
                                                     {dayLabel}
                                                 </span>
@@ -1022,13 +1697,13 @@ function LichCuaHang() {
 
                                         {showLunar && lunarInfo && (
                                             <span style={{
-                                                fontSize: '0.72rem',
-                                                color: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? '#e67e22' : '#7f8c8d',
+                                                fontSize: '0.7rem',
+                                                color: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? '#d97706' : '#64748b',
                                                 fontWeight: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? 'bold' : 'normal',
-                                                backgroundColor: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? '#fff3e0' : 'transparent',
+                                                backgroundColor: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? '#fef3c7' : 'transparent',
                                                 padding: '1px 4px',
                                                 borderRadius: '4px',
-                                                border: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? '1px solid #ffe0b2' : 'none'
+                                                border: (lunarInfo.lunarDay === 1 || lunarInfo.lunarDay === 15) ? '1px solid #fde68a' : 'none'
                                             }}>
                                                 {lunarInfo.lunarDay === 1 
                                                     ? `${lunarInfo.lunarDay}/${lunarInfo.lunarMonth}${lunarInfo.isLeapMonth ? 'N' : ''}` 
@@ -1037,41 +1712,67 @@ function LichCuaHang() {
                                             </span>
                                         )}
                                     </Box>
+                                </Tooltip>
 
-                                    {/* Sự kiện trong ngày */}
-                                    <Box 
-                                        flexGrow={1} 
-                                        display="flex" 
-                                        flexDirection="column" 
-                                        gap="5px"
-                                        style={{ overflowY: 'auto', maxHeight: '110px' }}
-                                    >
-                                        {dayEvents.map((evt, eIdx) => (
-                                            <div
-                                                key={eIdx}
-                                                onClick={() => handleRowClick(evt.contract)}
-                                                style={{
-                                                    backgroundColor: getEventBackground(evt.type),
-                                                    color: getEventTextColor(evt.type),
-                                                    borderLeft: `4px solid ${evt.color}`,
-                                                    padding: '4px 8px',
-                                                    borderRadius: '4px',
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: '600',
-                                                    cursor: 'pointer',
-                                                    whiteSpace: 'nowrap',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                }}
-                                                className="calendar-event-badge"
-                                                title={evt.label}
-                                            >
-                                                {evt.label}
-                                            </div>
-                                        ))}
-                                    </Box>
+                                {/* Danh sách sự kiện (Google Calendar Event Pills) */}
+                                <Box 
+                                    flexGrow={1} 
+                                    display="flex" 
+                                    flexDirection="column" 
+                                    gap="4px"
+                                    style={{ overflowY: 'hidden' }}
+                                >
+                                    {visibleEvents.map((evt, eIdx) => (
+                                        <div
+                                            key={eIdx}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleCalendarEventClick(evt);
+                                            }}
+                                            style={{
+                                                backgroundColor: getEventBackground(evt.type),
+                                                color: getEventTextColor(evt.type),
+                                                borderLeft: `3.5px solid ${evt.color || '#0284c7'}`,
+                                                padding: '3px 6px',
+                                                borderRadius: '4px',
+                                                fontSize: '0.72rem',
+                                                fontWeight: '700',
+                                                cursor: 'pointer',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                lineHeight: 1.3
+                                            }}
+                                            className="calendar-event-badge"
+                                            title={evt.label}
+                                        >
+                                            {evt.label}
+                                        </div>
+                                    ))}
+
+                                    {/* Link xem thêm +X sự kiện */}
+                                    {hiddenCount > 0 && (
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedDayModal({ open: true, date: day.date, events: dayEvents });
+                                            }}
+                                            style={{
+                                                fontSize: '0.72rem',
+                                                fontWeight: 700,
+                                                color: '#1a73e8',
+                                                padding: '2px 4px',
+                                                cursor: 'pointer',
+                                                textAlign: 'left'
+                                            }}
+                                            onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                                            onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                                        >
+                                            + {hiddenCount} sự kiện nữa
+                                        </div>
+                                    )}
                                 </Box>
-                            </Tooltip>
+                            </Box>
                         );
                     })}
                 </Box>
@@ -1079,7 +1780,7 @@ function LichCuaHang() {
         );
     };
 
-    const commonHeight = 56;
+        const commonHeight = 56;
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
@@ -1100,27 +1801,67 @@ function LichCuaHang() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hopDong, sendData?._id]);
 
-    const renderTrangThaiBadge = (giaiDoan) => {
-        const states = {
-            1: { label: "Tạo hợp đồng", color: "#7f8c8d" }, // Ghi
-            2: { label: "Chụp hình", color: "#f39c12" },   // Vàng
-            3: { label: "Hậu kỳ", color: "#3498db" },      // Xanh nước biển
-            4: { label: "In ảnh", color: "#8d6e63" },      // Nâu
-            5: { label: "Hoàn thành", color: "#2ecc71" }   // Xanh lá cây
-        };
-        const st = states[giaiDoan] || { label: "Không rõ", color: "#95a5a6" };
+    const renderTrangThaiBadge = (giaiDoan, maybeSub) => {
+        const hdObj = typeof giaiDoan === 'object' && giaiDoan !== null 
+            ? giaiDoan 
+            : { giaiDoan, subGiaiDoan: maybeSub };
+        const info = getContractStatusInfo(hdObj);
+        const stageNum = Number(hdObj.giaiDoan) || 1;
+
+        // Hiển thị chi tiết 4 trạng thái nếu ở giai đoạn Hậu kỳ hoặc Tab Hậu kỳ
+        if (stageNum === 2 || activeTab === 'hauKy') {
+            const sub = info.subStage;
+            const subCfg = HAU_KY_SUB_STAGES.find(s => s.id === sub) || HAU_KY_SUB_STAGES[0];
+            return (
+                <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    backgroundColor: subCfg.bg,
+                    border: `1px solid ${subCfg.border}`,
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    color: subCfg.color,
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                }}>
+                    <span>{subCfg.icon}</span>
+                    <span>{subCfg.name}</span>
+                </div>
+            );
+        }
+
+        const isDone = info.subStage === 'hoan_thanh';
+
         return (
-            <span style={{
-                backgroundColor: st.color,
-                color: '#fff',
-                padding: '4px 8px',
+            <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 8px',
                 borderRadius: '12px',
-                fontSize: '0.8rem',
-                fontWeight: '500',
+                backgroundColor: info.bgColor,
+                border: `1px solid ${info.stageConfig.borderColor}`,
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                color: '#1e293b',
                 whiteSpace: 'nowrap'
             }}>
-                {st.label}
-            </span>
+                <span>{info.stageConfig.icon}</span>
+                <span>{info.stageConfig.shortName}</span>
+                <span style={{
+                    fontSize: '0.68rem',
+                    padding: '1px 5px',
+                    borderRadius: '8px',
+                    backgroundColor: isDone ? '#059669' : '#d97706',
+                    color: '#fff',
+                    fontWeight: 700
+                }}>
+                    {isDone ? '✓ Xong' : '⏳ Đang làm'}
+                </span>
+            </div>
         );
     };
 
@@ -1143,47 +1884,74 @@ function LichCuaHang() {
                 </div>
             </div>
 
-            {/* 2. 4-TAB NAVIGATION */}
+            {/* 2. 6-TAB NAVIGATION (Thứ tự: Lịch tổng hợp -> Lịch makeup -> Lịch chụp hình -> Lịch hậu kỳ -> Lịch in ảnh -> Lịch ăn hỏi & cưới) */}
             <div className="schedule-tabs-container glass-panel">
+                <button
+                    className={`schedule-tab-btn ${activeTab === 'tongHop' ? 'active' : ''}`}
+                    onClick={() => {
+                        setActiveTab('tongHop');
+                        setViewMode('calendar');
+                        setSendData({});
+                    }}
+                    style={{ background: activeTab === 'tongHop' ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : undefined }}
+                >
+                    <i className="fa-solid fa-calendar-days"></i>
+                    LỊCH TỔNG HỢP (THÁNG)
+                </button>
+                <button
+                    className={`schedule-tab-btn ${activeTab === 'makeUp' ? 'active' : ''}`}
+                    onClick={() => {
+                        setActiveTab('makeUp');
+                        setViewMode('list');
+                        setSendData({});
+                    }}
+                >
+                    <i className="fa-solid fa-paintbrush"></i>
+                    LỊCH MAKEUP
+                </button>
                 <button
                     className={`schedule-tab-btn ${activeTab === 'chupHinh' ? 'active' : ''}`}
                     onClick={() => {
                         setActiveTab('chupHinh');
+                        setViewMode('list');
                         setSendData({});
                     }}
                 >
                     <i className="fa-solid fa-camera"></i>
-                    QUẢN LÝ LỊCH CHỤP HÌNH
+                    LỊCH CHỤP HÌNH
                 </button>
                 <button
                     className={`schedule-tab-btn ${activeTab === 'hauKy' ? 'active' : ''}`}
                     onClick={() => {
                         setActiveTab('hauKy');
+                        setViewMode('list');
                         setSendData({});
                     }}
                 >
                     <i className="fa-solid fa-wand-magic-sparkles"></i>
-                    QUẢN LÝ LỊCH HẬU KỲ
+                    LỊCH HẬU KỲ
                 </button>
                 <button
                     className={`schedule-tab-btn ${activeTab === 'inAnh' ? 'active' : ''}`}
                     onClick={() => {
                         setActiveTab('inAnh');
+                        setViewMode('list');
                         setSendData({});
                     }}
                 >
                     <i className="fa-solid fa-print"></i>
-                    QUẢN LÝ LỊCH IN ẢNH
+                    LỊCH IN ẢNH
                 </button>
                 <button
                     className={`schedule-tab-btn ${activeTab === 'anHoiVaCuoi' ? 'active' : ''}`}
                     onClick={() => {
                         setActiveTab('anHoiVaCuoi');
+                        setViewMode('list');
                         setSendData({});
                     }}
                 >
                     <i className="fa-solid fa-heart"></i>
-                    QUẢN LÝ LỊCH ĂN HỎI & CƯỚI
+                    LỊCH ĂN HỎI & CƯỚI
                 </button>
             </div>
 
@@ -1227,6 +1995,61 @@ function LichCuaHang() {
                                 <MenuItem value="hôm nay">Hôm nay</MenuItem>
                                 <MenuItem value="tuần này">Tuần này</MenuItem>
                                 <MenuItem value="tháng này">Tháng này</MenuItem>
+                            </Select>
+                        </FormControl>
+                    )}
+
+                    {activeTab === 'tongHop' && (
+                        <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.82rem' }}>
+                                <i className="fa-solid fa-filter" style={{ color: '#0284c7', marginRight: '4px' }}></i> Lọc:
+                            </Typography>
+                            {[
+                                { id: 'all', label: 'Tất cả', color: '#1e293b', bg: '#f1f5f9' },
+                                { id: 'chup', label: '📸 Chụp ảnh', color: '#0369a1', bg: '#e0f2fe' },
+                                { id: 'makeup', label: '💄 Makeup', color: '#be185d', bg: '#fce7f3' },
+                                { id: 'photoshop', label: '🪄 Hậu kỳ', color: '#7c3aed', bg: '#ede9fe' },
+                                { id: 'inanh', label: '🖨️ In ảnh', color: '#ea580c', bg: '#ffedd5' },
+                                { id: 'cuoihoi', label: '💍 Cưới & Hỏi', color: '#dc2626', bg: '#fee2e2' },
+                                { id: 'soando', label: '👗 Soạn đồ', color: '#0d9488', bg: '#ccfbf1' },
+                            ].map(cat => (
+                                <Chip
+                                    key={cat.id}
+                                    label={cat.label}
+                                    onClick={() => setCalendarCategoryFilter(cat.id)}
+                                    size="small"
+                                    sx={{
+                                        fontWeight: 700,
+                                        fontSize: '0.78rem',
+                                        cursor: 'pointer',
+                                        bgcolor: calendarCategoryFilter === cat.id ? cat.color : cat.bg,
+                                        color: calendarCategoryFilter === cat.id ? '#ffffff' : cat.color,
+                                        border: `1.5px solid ${calendarCategoryFilter === cat.id ? cat.color : 'transparent'}`,
+                                        '&:hover': {
+                                            opacity: 0.9,
+                                            bgcolor: calendarCategoryFilter === cat.id ? cat.color : cat.bg
+                                        }
+                                    }}
+                                />
+                            ))}
+                        </Box>
+                    )}
+
+                    {activeTab === 'hauKy' && viewMode === 'list' && (
+                        <FormControl size="small" sx={{ minWidth: 190 }}>
+                            <InputLabel id="hau-ky-status-filter-label">Trạng thái Hậu kỳ</InputLabel>
+                            <Select
+                                labelId="hau-ky-status-filter-label"
+                                value={hauKyStatusFilter}
+                                label="Trạng thái Hậu kỳ"
+                                onChange={(e) => setHauKyStatusFilter(e.target.value)}
+                                sx={{ borderRadius: '8px' }}
+                            >
+                                <MenuItem value="all">⚡ Tất cả trạng thái</MenuItem>
+                                <MenuItem value="cho_chinh">⏳ Chờ Chỉnh</MenuItem>
+                                <MenuItem value="dang_chinh">🎨 Đang Chỉnh</MenuItem>
+                                <MenuItem value="cho_khach_duyet">💬 Chờ khách duyệt</MenuItem>
+                                <MenuItem value="hoan_thanh">✓ Hoàn thành</MenuItem>
                             </Select>
                         </FormControl>
                     )}
@@ -1274,30 +2097,6 @@ function LichCuaHang() {
                         <i className="fa-solid fa-circle-info" style={{ marginRight: '6px' }}></i>
                         Tra cứu Lịch Âm
                     </Button>
-
-                    <Button
-                        variant="contained"
-                        onClick={() => setOpenWeddingDateLookup(true)}
-                        size="small"
-                        sx={{ 
-                            height: 40, 
-                            textTransform: 'none', 
-                            fontWeight: 700, 
-                            fontSize: '0.85rem', 
-                            borderRadius: '10px', 
-                            px: 2, 
-                            whiteSpace: 'nowrap',
-                            background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
-                            color: '#fff',
-                            boxShadow: '0 4px 12px rgba(236,72,153,0.3)',
-                            '&:hover': {
-                                background: 'linear-gradient(135deg, #db2777 0%, #be185d 100%)',
-                            }
-                        }}
-                    >
-                        <i className="fa-solid fa-heart" style={{ marginRight: '6px' }}></i>
-                        Ngày đẹp Cưới Hỏi
-                    </Button>
                 </div>
             </div>
 
@@ -1318,8 +2117,8 @@ function LichCuaHang() {
                             <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
                                 <Stack spacing={2}>
                                 {filteredHopDong.map((hd, index) => {
-                                    const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null)) : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
-                                    const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab);
+                                    const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'makeUp' ? (hd.cacNgay?.ngayTrangDiem || hd.lichTrangDiem?.[0]?.ngayTrangDiem) : activeTab === 'hauKy' ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null)) : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
+                                    const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab, hd.subGiaiDoan);
                 
                                     return (
                                         <Card 
@@ -1339,7 +2138,7 @@ function LichCuaHang() {
                                                     <Typography variant="subtitle1" fontWeight="800" color="#0284c7">
                                                         Mã HĐ: {hd.maHopDong}
                                                     </Typography>
-                                                    {renderTrangThaiBadge(hd.giaiDoan)}
+                                                    {renderTrangThaiBadge(hd)}
                                                 </Box>
                 
                                                 <Grid container spacing={1} mt={1}>
@@ -1390,6 +2189,25 @@ function LichCuaHang() {
                                                         <Typography variant="body2" fontWeight="600" color="#0369a1">{getDichVuChinhLabel(hd.dichVuChinh)}</Typography>
                                                     </Grid>
                 
+                                                    {activeTab === 'makeUp' && (
+                                                        <>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày makeup:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? '#dc2626' : '#db2777'}>
+                                                                    {hd.cacNgay?.ngayTrangDiem ? formatDateTime(hd.cacNgay.ngayTrangDiem) : 'Chưa cập nhật'}
+                                                                    {isOverdue && ' (Trễ lịch)'}
+                                                                </Typography>
+                                                            </Grid>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Địa điểm:</Typography></Grid>
+                                                            <Grid item xs={8}><Typography variant="body2">{hd.cacNgay?.diaDiemTrangDiem || hd.cacNgay?.diaDiemChup || 'Tại Studio'}</Typography></Grid>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Thợ makeup:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" fontWeight="600" color="#db2777">
+                                                                    {hd.nguoiPhucVu?.thoMakeUp || 'Chưa phân công'}
+                                                                </Typography>
+                                                            </Grid>
+                                                        </>
+                                                    )}
                                                     {activeTab === 'chupHinh' && (
                                                         <>
                                                             <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày chụp:</Typography></Grid>
@@ -1510,6 +2328,18 @@ function LichCuaHang() {
                                         <TableCell align='center' style={{ width: 150 }}>EKIP</TableCell>
                                         <TableCell align='center' style={{ width: 130 }}>CHỐT LỊCH</TableCell>
                                     </TableRow>
+                                ) : activeTab === 'makeUp' ? (
+                                    <TableRow>
+                                        <TableCell align='center' style={{ width: 60 }}>STT</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>NGÀY MAKEUP</TableCell>
+                                        <TableCell align='center' style={{ width: 105 }}>MÃ SỐ HĐ</TableCell>
+                                        <TableCell align='left' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
+                                        <TableCell align='left' style={{ width: 120 }}>LIÊN HỆ</TableCell>
+                                        <TableCell align='center' style={{ width: 120 }}>DỊCH VỤ / GÓI MAKE</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>ĐỊA ĐIỂM MAKEUP</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>THỢ MAKEUP</TableCell>
+                                        <TableCell align='center' style={{ width: 110 }}>THAO TÁC</TableCell>
+                                    </TableRow>
                                 ) : activeTab === 'hauKy' ? (
                                     <TableRow>
                                         <TableCell align='center' style={{ width: 60 }}>STT</TableCell>
@@ -1552,7 +2382,7 @@ function LichCuaHang() {
                                 {filteredHopDong && filteredHopDong.length > 0 ? (
                                     filteredHopDong.map((hd, index) => {
                                         const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null)) : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
-                                        const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab);
+                                        const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab, hd.subGiaiDoan);
          
                                         return (
                                             <TableRow 
@@ -1564,6 +2394,30 @@ function LichCuaHang() {
                                                 <TableCell align='center' style={{ fontWeight: 600, color: '#64748b' }}>{index + 1}</TableCell>
 
                                                 {/* 2. Ngày tháng */}
+                                                {activeTab === 'makeUp' && (
+                                                    <TableCell align='center'>
+                                                        {(() => {
+                                                            const mkDate = hd.cacNgay?.ngayTrangDiem || (hd.lichTrangDiem && hd.lichTrangDiem[0]?.ngayTrangDiem);
+                                                            return mkDate ? (
+                                                                <>
+                                                                    <div style={{ fontWeight: 700, color: isOverdue ? '#dc2626' : '#be185d' }}>
+                                                                        💄 {formatDateTime(mkDate)}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                                                                        (Âm: {formatLunarDateShort(mkDate)})
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <span style={{ color: '#e11d48', fontWeight: 600, fontSize: '0.8rem' }}>⚠️ Chưa xếp lịch</span>
+                                                            );
+                                                        })()}
+                                                        {isOverdue && (
+                                                            <span style={{ display: 'inline-block', fontSize: '0.72rem', color: '#dc2626', fontWeight: 800, marginTop: '2px' }}>
+                                                                (Trễ lịch)
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                )}
                                                 {activeTab === 'chupHinh' && (
                                                     <TableCell align='center'>
                                                         {hd.cacNgay?.ngayChup ? (
@@ -1702,6 +2556,50 @@ function LichCuaHang() {
                                                 </TableCell>
 
                                                 {/* 6. Các cột thông tin còn lại sau SĐT */}
+                                                {activeTab === 'makeUp' && (
+                                                    <>
+                                                        <TableCell align='center'>
+                                                            <span className="badge-service-tag" style={{ background: '#fce7f3', color: '#be185d' }}>
+                                                                {getDichVuChinhLabel(hd.dichVuChinh) || 'Gói Makeup'}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell align='center' style={{ fontSize: '0.85rem' }}>
+                                                            {hd.cacNgay?.diaDiemTrangDiem || hd.cacNgay?.diaDiemChup || "Tại Studio"}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            {hd.nguoiPhucVu?.thoMakeUp ? (
+                                                                <span className="badge-ekip" style={{ background: '#fdf2f8', color: '#db2777', borderColor: '#fbcfe8' }}>
+                                                                    💄 {hd.nguoiPhucVu.thoMakeUp}
+                                                                </span>
+                                                            ) : (
+                                                                <span style={{ color: '#e11d48', fontSize: '0.82rem', fontWeight: 600 }}>Chưa giao</span>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            <Button
+                                                                size="small"
+                                                                variant="outlined"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleRowClick(hd);
+                                                                }}
+                                                                sx={{
+                                                                    textTransform: 'none',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 700,
+                                                                    borderRadius: '6px',
+                                                                    color: '#db2777',
+                                                                    borderColor: '#f472b6',
+                                                                    py: 0.2,
+                                                                    px: 1,
+                                                                    '&:hover': { bgcolor: '#fdf2f8', borderColor: '#db2777' }
+                                                                }}
+                                                            >
+                                                                Phân công
+                                                            </Button>
+                                                        </TableCell>
+                                                    </>
+                                                )}
                                                 {activeTab === 'chupHinh' && (
                                                     <>
                                                         <TableCell align='center'>
@@ -1745,8 +2643,7 @@ function LichCuaHang() {
                                                         </TableCell>
                                                     </>
                                                 )}
-
-                                                {activeTab === 'hauKy' && (
+                                                {(activeTab === 'hauKy' || activeTab === 'inAnh') && (
                                                     <>
                                                         <TableCell align='center' style={{ fontWeight: 600, color: '#334155' }}>
                                                             {hd.nguoiPhucVu?.thoChinhAnh ? <span className="badge-ekip">{hd.nguoiPhucVu.thoChinhAnh}</span> : <span style={{ color: '#94a3b8' }}>Chưa giao</span>}
@@ -1756,20 +2653,7 @@ function LichCuaHang() {
                                                                 {getDichVuChinhLabel(hd.dichVuChinh)}
                                                             </span>
                                                         </TableCell>
-                                                        <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
-                                                    </>
-                                                )}
-                                                {activeTab === 'inAnh' && (
-                                                    <>
-                                                        <TableCell align='center' style={{ fontWeight: 600, color: '#334155' }}>
-                                                            {hd.nguoiPhucVu?.thoChinhAnh ? <span className="badge-ekip">{hd.nguoiPhucVu.thoChinhAnh}</span> : <span style={{ color: '#94a3b8' }}>Chưa giao</span>}
-                                                        </TableCell>
-                                                        <TableCell align='center'>
-                                                            <span className="badge-service-tag">
-                                                                {getDichVuChinhLabel(hd.dichVuChinh)}
-                                                            </span>
-                                                        </TableCell>
-                                                        <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
+                                                        <TableCell align='center'>{renderTrangThaiBadge(hd)}</TableCell>
                                                     </>
                                                 )}
 
@@ -1780,7 +2664,7 @@ function LichCuaHang() {
                                                                 {getDichVuChinhLabel(hd.dichVuChinh)}
                                                             </span>
                                                         </TableCell>
-                                                        <TableCell align='center'>{renderTrangThaiBadge(hd.giaiDoan)}</TableCell>
+                                                        <TableCell align='center'>{renderTrangThaiBadge(hd)}</TableCell>
                                                     </>
                                                 )}
                                             </TableRow>
@@ -1788,7 +2672,7 @@ function LichCuaHang() {
                                     })
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={activeTab === 'chupHinh' ? 9 : activeTab === 'hauKy' ? 9 : activeTab === 'inAnh' ? 9 : 8} align="center" sx={{ py: 6, color: "#94a3b8" }}>
+                                        <TableCell colSpan={activeTab === 'chupHinh' ? 9 : activeTab === 'makeUp' ? 9 : activeTab === 'hauKy' ? 9 : activeTab === 'inAnh' ? 9 : 8} align="center" sx={{ py: 6, color: "#94a3b8" }}>
                                             <i className="fa-solid fa-calendar-xmark" style={{ fontSize: '2.5rem', marginBottom: '10px', display: 'block', color: '#cbd5e1' }}></i>
                                             Không có dữ liệu lịch làm việc trong khoảng thời gian này.
                                         </TableCell>
@@ -2002,7 +2886,7 @@ function LichCuaHang() {
                                             fullWidth
                                             size="small"
                                             value={confirmDiaDiem}
-                                            onChange={(e) => setConfirmDiaDiem(e.target.value)}
+                                            onChange={(e) => handleConfirmDiaDiemChange(e.target.value)}
                                             placeholder="Ví dụ: Studio Long Wedding, Phim trường..."
                                             InputProps={{ style: { borderRadius: '8px' } }}
                                         />
@@ -2014,7 +2898,7 @@ function LichCuaHang() {
                                             <Select
                                                 labelId="confirm-tho-chup-label"
                                                 value={confirmThoChupHinh}
-                                                onChange={(e) => setConfirmThoChupHinh(e.target.value)}
+                                                onChange={(e) => handleConfirmThoChupHinhChange(e.target.value)}
                                                 label="Thợ chụp hình (Photo)"
                                                 sx={{ borderRadius: '8px' }}
                                             >
@@ -2039,7 +2923,7 @@ function LichCuaHang() {
                                             <Select
                                                 labelId="confirm-tho-makeup-label"
                                                 value={confirmThoMakeUp}
-                                                onChange={(e) => setConfirmThoMakeUp(e.target.value)}
+                                                onChange={(e) => handleConfirmThoMakeUpChange(e.target.value)}
                                                 label="Thợ makeup (Trang điểm)"
                                                 sx={{ borderRadius: '8px' }}
                                             >
@@ -2056,6 +2940,130 @@ function LichCuaHang() {
                                                 })()}
                                             </Select>
                                         </FormControl>
+                                    </Grid>
+
+                                    {/* Bảng đồng bộ danh sách nhiệm vụ phân công chi tiết */}
+                                    <Grid item xs={12}>
+                                        <Box mt={2} pt={2} borderTop="1px dashed #cbd5e1">
+                                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5} flexWrap="wrap" gap={1}>
+                                                <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span style={{ color: '#0284c7' }}>📅</span> Lịch phân công nhiệm vụ chi tiết ({chupHinhSchedules.length})
+                                                </Typography>
+                                                <Box display="flex" gap={1}>
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        onClick={() => handleAddChupHinhSchedule('photo')}
+                                                        sx={{ textTransform: 'none', fontSize: '0.78rem', py: 0.3, px: 1.2, borderColor: '#38bdf8', color: '#0284c7', fontWeight: 600, borderRadius: '6px' }}
+                                                    >
+                                                        + Thêm ca chụp
+                                                    </Button>
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        onClick={() => handleAddChupHinhSchedule('makeup')}
+                                                        sx={{ textTransform: 'none', fontSize: '0.78rem', py: 0.3, px: 1.2, borderColor: '#f472b6', color: '#db2777', fontWeight: 600, borderRadius: '6px' }}
+                                                    >
+                                                        + Thêm ca make-up
+                                                    </Button>
+                                                </Box>
+                                            </Box>
+
+                                            {chupHinhSchedules.length === 0 ? (
+                                                <Box p={2.5} textAlign="center" bgcolor="#f8fafc" borderRadius="8px" border="1px dashed #cbd5e1" color="#64748b" fontSize="0.84rem">
+                                                    Chưa có nhiệm vụ phân công nào. Bấm nút phía trên để thêm ca chụp hoặc trang điểm.
+                                                </Box>
+                                            ) : (
+                                                <Box display="flex" flexDirection="column" gap={1.5}>
+                                                    {chupHinhSchedules.map((sch, schIdx) => {
+                                                        const isPhoto = sch.serviceType === 'photo';
+                                                        const isMake = sch.serviceType === 'makeup';
+                                                        const isVideo = sch.serviceType === 'video';
+                                                        const isBTS = sch.serviceType === 'bts';
+                                                        const bgTag = isPhoto ? '#e0f2fe' : isMake ? '#fce7f3' : isVideo ? '#e0e7ff' : isBTS ? '#ffedd5' : '#f1f5f9';
+                                                        const colorTag = isPhoto ? '#0369a1' : isMake ? '#be185d' : isVideo ? '#3730a3' : isBTS ? '#c2410c' : '#475569';
+                                                        const iconTag = isPhoto ? '📸' : isMake ? '💄' : isVideo ? '🎥' : isBTS ? '🎬' : '📋';
+
+                                                        return (
+                                                            <Box 
+                                                                key={sch.id || sch._id || schIdx}
+                                                                p={1.5} 
+                                                                borderRadius="8px" 
+                                                                bgcolor="#f8fafc" 
+                                                                border="1px solid #e2e8f0"
+                                                                sx={{ transition: 'all 0.2s', '&:hover': { borderColor: '#cbd5e1', bgcolor: '#ffffff', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' } }}
+                                                            >
+                                                                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                                                    <Box display="flex" alignItems="center" gap={1}>
+                                                                        <span style={{ backgroundColor: bgTag, color: colorTag, fontWeight: 700, fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px' }}>
+                                                                            {iconTag} {isPhoto ? 'Chụp ảnh' : isMake ? 'Trang điểm' : isVideo ? 'Quay phim' : isBTS ? 'Hậu trường' : 'Nhiệm vụ'} {sch.luot ? `(Lượt ${sch.luot})` : ''}
+                                                                        </span>
+                                                                    </Box>
+                                                                    <Button 
+                                                                        size="small" 
+                                                                        color="error" 
+                                                                        onClick={() => handleRemoveChupHinhSchedule(sch.id || sch._id)}
+                                                                        sx={{ textTransform: 'none', fontSize: '0.75rem', minWidth: 'auto', p: '2px 8px', fontWeight: 600 }}
+                                                                    >
+                                                                        ✕ Xóa
+                                                                    </Button>
+                                                                </Box>
+
+                                                                <Grid container spacing={1.5}>
+                                                                    <Grid item xs={12} sm={4}>
+                                                                        <TextField
+                                                                            fullWidth
+                                                                            size="small"
+                                                                            label="Nội dung nhiệm vụ"
+                                                                            value={sch.serviceName || ''}
+                                                                            onChange={(e) => handleChupHinhScheduleChange(sch.id || sch._id, 'serviceName', e.target.value)}
+                                                                            InputProps={{ style: { fontSize: '0.82rem', borderRadius: '6px' } }}
+                                                                            InputLabelProps={{ style: { fontSize: '0.8rem' } }}
+                                                                        />
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={4}>
+                                                                        <TextField
+                                                                            fullWidth
+                                                                            size="small"
+                                                                            label="Thời gian thực hiện"
+                                                                            type="datetime-local"
+                                                                            value={sch.ngayGio ? (sch.ngayGio.includes('T') ? sch.ngayGio.slice(0, 16) : sch.ngayGio) : ''}
+                                                                            onChange={(e) => handleChupHinhScheduleChange(sch.id || sch._id, 'ngayGio', e.target.value)}
+                                                                            InputLabelProps={{ shrink: true, style: { fontSize: '0.8rem' } }}
+                                                                            InputProps={{ style: { fontSize: '0.82rem', borderRadius: '6px' } }}
+                                                                        />
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sm={4}>
+                                                                        <FormControl fullWidth size="small">
+                                                                            <InputLabel style={{ fontSize: '0.8rem' }}>Nhân sự phụ trách</InputLabel>
+                                                                            <Select
+                                                                                value={sch.nhanVien || ''}
+                                                                                onChange={(e) => handleChupHinhScheduleChange(sch.id || sch._id, 'nhanVien', e.target.value)}
+                                                                                label="Nhân sự phụ trách"
+                                                                                sx={{ fontSize: '0.82rem', borderRadius: '6px' }}
+                                                                            >
+                                                                                <MenuItem value=""><em>-- Chưa phân công --</em></MenuItem>
+                                                                                {(() => {
+                                                                                    const role = isPhoto ? 'Thợ chụp hình' : isMake ? 'Thợ trang điểm' : isVideo ? 'Thợ quay phim' : null;
+                                                                                    const staff = role ? listStaff.filter(s => s.positon === role) : listStaff;
+                                                                                    const names = staff.map(s => s.fullname || s.username);
+                                                                                    if (sch.nhanVien && !names.includes(sch.nhanVien)) names.push(sch.nhanVien);
+                                                                                    return names.map((name, i) => (
+                                                                                        <MenuItem key={i} value={name} sx={{ fontSize: '0.82rem' }}>
+                                                                                            {iconTag} {name}
+                                                                                        </MenuItem>
+                                                                                    ));
+                                                                                })()}
+                                                                            </Select>
+                                                                        </FormControl>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            </Box>
+                                                        );
+                                                    })}
+                                                </Box>
+                                            )}
+                                        </Box>
                                     </Grid>
                                 </Grid>
                             </Box>
@@ -2354,12 +3362,124 @@ function LichCuaHang() {
                                     )}
                                 </Box>
                             )}
+                            <Box display="flex" alignItems="center" gap={0.8} ml="auto">
+                                <span>Tiến trình:</span>
+                                <strong style={{ color: confirmSubGiaiDoan === 'hoan_thanh' ? '#0d9488' : confirmSubGiaiDoan === 'cho_khach_duyet' ? '#7c3aed' : confirmSubGiaiDoan === 'dang_chinh' ? '#2563eb' : '#ea580c' }}>
+                                    {confirmSubGiaiDoan === 'cho_chinh' ? '⏳ Chờ chỉnh' : confirmSubGiaiDoan === 'dang_chinh' ? '🎨 Đang chỉnh' : confirmSubGiaiDoan === 'cho_khach_duyet' ? '💬 Khách duyệt' : '✓ Hoàn thành'}
+                                </strong>
+                            </Box>
                         </Box>
                     )}
                 </Box>
 
                 <DialogContent dividers sx={{ p: 3, bgcolor: '#f8fafc' }}>
                     <Box display="flex" flexDirection="column" gap={2.5}>
+                        {/* Section 0: 4 Trạng thái tiến trình Hậu kỳ */}
+                        <Box p={2.5} borderRadius="12px" bgcolor="#ffffff" boxShadow="0 1px 3px rgba(0,0,0,0.05)" border="1px solid #e2e8f0">
+                            <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} mb={2}>
+                                <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ color: '#8b5cf6' }}>🚀</span> Trạng thái tiến trình hậu kỳ
+                                </Typography>
+                                <Chip 
+                                    label={
+                                        confirmSubGiaiDoan === 'cho_chinh' ? '⏳ Chờ chỉnh' :
+                                        confirmSubGiaiDoan === 'dang_chinh' ? '🎨 Đang chỉnh' :
+                                        confirmSubGiaiDoan === 'cho_khach_duyet' ? '💬 Khách duyệt' :
+                                        '✓ Hoàn thành'
+                                    }
+                                    size="small"
+                                    sx={{ 
+                                        fontWeight: 700, 
+                                        fontSize: '0.74rem',
+                                        bgcolor: 
+                                            confirmSubGiaiDoan === 'cho_chinh' ? '#fff7ed' :
+                                            confirmSubGiaiDoan === 'dang_chinh' ? '#eff6ff' :
+                                            confirmSubGiaiDoan === 'cho_khach_duyet' ? '#f5f3ff' : '#f0fdfa',
+                                        color: 
+                                            confirmSubGiaiDoan === 'cho_chinh' ? '#ea580c' :
+                                            confirmSubGiaiDoan === 'dang_chinh' ? '#2563eb' :
+                                            confirmSubGiaiDoan === 'cho_khach_duyet' ? '#7c3aed' : '#0d9488',
+                                        border: '1px solid currentColor'
+                                    }}
+                                />
+                            </Box>
+
+                            <Grid container spacing={1.5}>
+                                {HAU_KY_SUB_STAGES.map((stg) => {
+                                    const isSelected = confirmSubGiaiDoan === stg.id;
+                                    return (
+                                        <Grid item xs={6} sm={3} key={stg.id}>
+                                            <Box 
+                                                onClick={() => {
+                                                    setConfirmSubGiaiDoan(stg.id);
+                                                    if (stg.id === 'dang_chinh' && !confirmNgayChinhAnh) {
+                                                        const today = new Date().toISOString().split('T')[0];
+                                                        setConfirmNgayChinhAnh(today);
+                                                        if (!confirmNgayTraAnh) {
+                                                            const d = new Date();
+                                                            d.setDate(d.getDate() + 3);
+                                                            setConfirmNgayTraAnh(d.toISOString().split('T')[0]);
+                                                        }
+                                                    }
+                                                }}
+                                                sx={{
+                                                    p: 1.5,
+                                                    borderRadius: '10px',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                    border: isSelected ? `2px solid ${stg.color}` : '1px solid #e2e8f0',
+                                                    bgcolor: isSelected ? stg.bg : '#ffffff',
+                                                    boxShadow: isSelected ? `0 4px 12px ${stg.badgeBg}` : 'none',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: 0.5,
+                                                    position: 'relative',
+                                                    overflow: 'hidden',
+                                                    userSelect: 'none',
+                                                    '&:hover': {
+                                                        borderColor: stg.color,
+                                                        transform: 'translateY(-2px)',
+                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
+                                                    }
+                                                }}
+                                            >
+                                                {isSelected && (
+                                                    <Box 
+                                                        sx={{ 
+                                                            position: 'absolute', 
+                                                            top: 6, 
+                                                            right: 6, 
+                                                            width: 16, 
+                                                            height: 16, 
+                                                            borderRadius: '50%', 
+                                                            bgcolor: stg.color, 
+                                                            color: '#fff', 
+                                                            display: 'flex', 
+                                                            alignItems: 'center', 
+                                                            justifyContent: 'center',
+                                                            fontSize: '0.65rem',
+                                                            fontWeight: 900
+                                                        }}
+                                                    >
+                                                        ✓
+                                                    </Box>
+                                                )}
+                                                <Box display="flex" alignItems="center" gap={0.8}>
+                                                    <span style={{ fontSize: '1.15rem' }}>{stg.icon}</span>
+                                                    <Typography variant="body2" style={{ fontWeight: 800, color: isSelected ? stg.color : '#1e293b', fontSize: '0.85rem' }}>
+                                                        {stg.name}
+                                                    </Typography>
+                                                </Box>
+                                                <Typography variant="caption" style={{ color: isSelected ? '#334155' : '#64748b', fontSize: '0.72rem', lineHeight: 1.3 }}>
+                                                    {stg.desc}
+                                                </Typography>
+                                            </Box>
+                                        </Grid>
+                                    );
+                                })}
+                            </Grid>
+                        </Box>
+
                         {/* Section 1: Phân công & Lịch hậu kỳ */}
                         <Box p={2.5} borderRadius="12px" bgcolor="#ffffff" boxShadow="0 1px 3px rgba(0,0,0,0.05)" border="1px solid #e2e8f0">
                             <Typography variant="subtitle2" style={{ fontWeight: 700, color: '#1e293b', marginBottom: '16px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2498,6 +3618,10 @@ function LichCuaHang() {
                                     >
                                         {isSyncingAlbumChinhSua ? "Đang đồng bộ..." : "⚡ Đồng bộ ảnh C.Sửa"}
                                     </Button>
+                                </Box>
+                                <Box p={1} bgcolor="#f0f9ff" border="1px solid #bae6fd" borderRadius="8px" fontSize="0.76rem" color="#0369a1" display="flex" alignItems="center" gap={0.8}>
+                                    <span>💡</span>
+                                    <span><strong>Mẹo đồng bộ nhanh & ổn định:</strong> Thư mục Google Drive cần bật quyền <em>"Bất kỳ ai có đường liên kết đều có thể xem"</em>. Ưu tiên dùng Google Drive để quét ảnh nhanh và giữ nguyên tên file gốc.</span>
                                 </Box>
                             </Box>
                         </Box>
@@ -3062,6 +4186,450 @@ function LichCuaHang() {
                 </DialogActions>
             </Dialog>
 
+            {/* Dialog Quản lý & Phân công lịch makeup */}
+            <Dialog 
+                open={openMakeUpDialog} 
+                onClose={() => setOpenMakeUpDialog(false)} 
+                maxWidth="md" 
+                fullWidth
+                PaperProps={{
+                    style: {
+                        borderRadius: '16px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        overflow: 'hidden'
+                    }
+                }}
+            >
+                <Box 
+                    sx={{ 
+                        p: 2.5, 
+                        background: 'linear-gradient(135deg, #831843 0%, #be185d 100%)', 
+                        color: '#ffffff',
+                        position: 'relative'
+                    }}
+                >
+                    <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1.5}>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                            <Box 
+                                sx={{ 
+                                    width: 44, 
+                                    height: 44, 
+                                    borderRadius: '12px', 
+                                    background: 'rgba(255, 255, 255, 0.2)', 
+                                    backdropFilter: 'blur(8px)',
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    color: '#ffffff',
+                                    fontSize: '1.25rem',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                                }}
+                            >
+                                <i className="fa-solid fa-wand-magic-sparkles"></i>
+                            </Box>
+                            <Box>
+                                <Typography variant="h6" style={{ fontWeight: 700, fontSize: '1.1rem', letterSpacing: '-0.2px', color: '#ffffff' }}>
+                                    QUẢN LÝ & PHÂN CÔNG LỊCH MAKEUP
+                                </Typography>
+                                <Typography variant="caption" style={{ color: '#fbcfe8', fontSize: '0.78rem' }}>
+                                    Sắp xếp lịch trang điểm, địa điểm và phân công thợ makeup
+                                </Typography>
+                            </Box>
+                        </Box>
+
+                        <Box display="flex" alignItems="center" gap={1}>
+                            <Chip 
+                                label={`Mã HĐ: ${selectedMakeUpContract?.maHopDong || ''}`} 
+                                sx={{ 
+                                    bgcolor: 'rgba(255,255,255,0.2)', 
+                                    color: '#ffffff', 
+                                    fontWeight: 700, 
+                                    fontSize: '0.82rem',
+                                    border: '1px solid rgba(255,255,255,0.3)'
+                                }} 
+                            />
+                        </Box>
+                    </Box>
+
+                    {selectedMakeUpContract && (
+                        <Box 
+                            mt={2} 
+                            p={1.5} 
+                            borderRadius="10px" 
+                            sx={{ 
+                                backgroundColor: 'rgba(255,255,255,0.1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                                gap: 2,
+                                fontSize: '0.85rem'
+                            }}
+                        >
+                            <div>
+                                <strong>Khách hàng:</strong> {selectedMakeUpContract.khachHang1?.tenKhachHang || selectedMakeUpContract.hoTen || 'Chưa có tên'}
+                                {selectedMakeUpContract.khachHang2?.tenKhachHang ? ` & ${selectedMakeUpContract.khachHang2.tenKhachHang}` : ''}
+                            </div>
+                            <div>
+                                <strong>SĐT:</strong> {selectedMakeUpContract.khachHang1?.soDienThoai || selectedMakeUpContract.soDienThoai || '---'}
+                            </div>
+                            <div>
+                                <strong>Gói:</strong> {getDichVuChinhLabel(selectedMakeUpContract.dichVuChinh)}
+                            </div>
+                        </Box>
+                    )}
+                </Box>
+
+                <DialogContent sx={{ p: 3, backgroundColor: '#f8fafc' }}>
+                    <Paper elevation={0} sx={{ p: 2.5, borderRadius: '12px', border: '1px solid #e2e8f0', bgcolor: '#ffffff', mb: 2.5 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#be185d', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <i className="fa-solid fa-user-tag"></i> THÔNG TIN PHÂN CÔNG MAKEUP CHÍNH
+                        </Typography>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    type="datetime-local"
+                                    label="Ngày & Giờ makeup chính"
+                                    value={confirmMakeUpDate}
+                                    onChange={(e) => setConfirmMakeUpDate(e.target.value)}
+                                    InputLabelProps={{ shrink: true }}
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel id="makeup-staff-select-label">Thợ makeup phụ trách chính</InputLabel>
+                                    <Select
+                                        labelId="makeup-staff-select-label"
+                                        value={confirmMakeUpStaff}
+                                        onChange={(e) => setConfirmMakeUpStaff(e.target.value)}
+                                        label="Thợ makeup phụ trách chính"
+                                    >
+                                        <MenuItem value=""><em>-- Chưa phân công --</em></MenuItem>
+                                        {(() => {
+                                            const staff = (listStaff || []).filter(s => s.positon === 'Thợ trang điểm' || s.chucVu === 'Thợ trang điểm' || s.position === 'Thợ trang điểm');
+                                            const allNames = (staff.length > 0 ? staff : (listStaff || [])).map(s => s.fullname || s.username);
+                                            if (confirmMakeUpStaff && !allNames.includes(confirmMakeUpStaff)) {
+                                                allNames.push(confirmMakeUpStaff);
+                                            }
+                                            return allNames.map((name, idx) => (
+                                                <MenuItem key={idx} value={name}>💄 {name}</MenuItem>
+                                            ));
+                                        })()}
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Địa điểm makeup"
+                                    value={confirmMakeUpLocation}
+                                    onChange={(e) => setConfirmMakeUpLocation(e.target.value)}
+                                    placeholder="Tại Studio / Nhà gái / Phim trường..."
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Ghi chú tone / phong cách makeup"
+                                    value={confirmMakeUpNote}
+                                    onChange={(e) => setConfirmMakeUpNote(e.target.value)}
+                                    placeholder="Tone Thái, Hàn Quốc, phong cách tự nhiên..."
+                                />
+                            </Grid>
+                        </Grid>
+                    </Paper>
+
+                    {/* Danh sách ca makeup chi tiết */}
+                    <Paper elevation={0} sx={{ p: 2.5, borderRadius: '12px', border: '1px solid #e2e8f0', bgcolor: '#ffffff' }}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5} flexWrap="wrap" gap={1}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <i className="fa-solid fa-list-check" style={{ color: '#be185d' }}></i> Danh sách ca makeup trong hợp đồng ({makeUpScheduleItems.length})
+                            </Typography>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={handleAddMakeUpSchedule}
+                                sx={{
+                                    textTransform: 'none',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 700,
+                                    borderColor: '#f43f5e',
+                                    color: '#be185d',
+                                    '&:hover': { bgcolor: '#fdf2f8', borderColor: '#be185d' }
+                                }}
+                            >
+                                + Thêm ca makeup
+                            </Button>
+                        </Box>
+
+                        {makeUpScheduleItems.length === 0 ? (
+                            <Box textAlign="center" py={3} color="#94a3b8">
+                                Chưa có ca makeup chi tiết. Bấm "+ Thêm ca makeup" để thêm ca mới.
+                            </Box>
+                        ) : (
+                            <Stack spacing={1.5}>
+                                {makeUpScheduleItems.map((item, idx) => (
+                                    <Box
+                                        key={item.id || idx}
+                                        sx={{
+                                            p: 1.5,
+                                            borderRadius: '10px',
+                                            border: '1px solid #fbcfe8',
+                                            bgcolor: '#fff5f7',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 1.5
+                                        }}
+                                    >
+                                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                                            <Box display="flex" alignItems="center" gap={1}>
+                                                <Chip label={`Ca ${idx + 1}`} size="small" sx={{ bgcolor: '#be185d', color: '#fff', fontWeight: 700 }} />
+                                                <TextField
+                                                    size="small"
+                                                    variant="standard"
+                                                    value={item.serviceName || ''}
+                                                    onChange={(e) => handleUpdateMakeUpScheduleItem(item.id, 'serviceName', e.target.value)}
+                                                    placeholder="Tên ca make (Ăn hỏi / Ngày cưới / Chụp ảnh...)"
+                                                    InputProps={{ style: { fontWeight: 600, fontSize: '0.88rem' } }}
+                                                    sx={{ minWidth: 200 }}
+                                                />
+                                            </Box>
+                                            <IconButton size="small" color="error" onClick={() => handleRemoveMakeUpSchedule(item.id)}>
+                                                <i className="fa-solid fa-trash-can" style={{ fontSize: '0.85rem' }}></i>
+                                            </IconButton>
+                                        </Box>
+                                        <Grid container spacing={1.5}>
+                                            <Grid item xs={12} sm={4}>
+                                                <TextField
+                                                    fullWidth
+                                                    size="small"
+                                                    type="datetime-local"
+                                                    label="Thời gian"
+                                                    value={formatDateTimeInput(item.ngayGio)}
+                                                    onChange={(e) => handleUpdateMakeUpScheduleItem(item.id, 'ngayGio', e.target.value ? new Date(e.target.value).toISOString() : '')}
+                                                    InputLabelProps={{ shrink: true }}
+                                                />
+                                            </Grid>
+                                            <Grid item xs={12} sm={4}>
+                                                <FormControl fullWidth size="small">
+                                                    <InputLabel>Thợ makeup</InputLabel>
+                                                    <Select
+                                                        value={item.nhanVien || ''}
+                                                        onChange={(e) => handleUpdateMakeUpScheduleItem(item.id, 'nhanVien', e.target.value)}
+                                                        label="Thợ makeup"
+                                                    >
+                                                        <MenuItem value=""><em>-- Chọn thợ --</em></MenuItem>
+                                                        {(() => {
+                                                            const staff = (listStaff || []).filter(s => s.positon === 'Thợ trang điểm' || s.chucVu === 'Thợ trang điểm' || s.position === 'Thợ trang điểm');
+                                                            const allNames = (staff.length > 0 ? staff : (listStaff || [])).map(s => s.fullname || s.username);
+                                                            if (item.nhanVien && !allNames.includes(item.nhanVien)) {
+                                                                allNames.push(item.nhanVien);
+                                                            }
+                                                            return allNames.map((name, i) => (
+                                                                <MenuItem key={i} value={name}>💄 {name}</MenuItem>
+                                                            ));
+                                                        })()}
+                                                    </Select>
+                                                </FormControl>
+                                            </Grid>
+                                            <Grid item xs={12} sm={4}>
+                                                <TextField
+                                                    fullWidth
+                                                    size="small"
+                                                    label="Địa điểm make"
+                                                    value={item.diaDiem || ''}
+                                                    onChange={(e) => handleUpdateMakeUpScheduleItem(item.id, 'diaDiem', e.target.value)}
+                                                    placeholder="Studio / Nhà gái..."
+                                                />
+                                            </Grid>
+                                        </Grid>
+                                    </Box>
+                                ))}
+                            </Stack>
+                        )}
+                    </Paper>
+                </DialogContent>
+
+                <DialogActions sx={{ p: 2, bgcolor: '#ffffff', borderTop: '1px solid #e2e8f0', justifyContent: 'space-between' }}>
+                    <Button onClick={() => setOpenMakeUpDialog(false)} color="inherit" sx={{ fontWeight: 600 }}>
+                        Hủy bỏ
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleUpdateMakeUp}
+                        sx={{
+                            background: 'linear-gradient(135deg, #be185d 0%, #db2777 100%)',
+                            color: '#ffffff',
+                            fontWeight: 700,
+                            px: 3,
+                            boxShadow: '0 4px 12px rgba(190,24,93,0.3)',
+                            '&:hover': { background: 'linear-gradient(135deg, #9d174d 0%, #be185d 100%)' }
+                        }}
+                    >
+                        <i className="fa-solid fa-floppy-disk" style={{ marginRight: '6px' }}></i> Lưu & Cập nhật makeup
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog xem chi tiết toàn bộ sự kiện trong ngày khi click trên lịch tháng Google Calendar */}
+            <Dialog 
+                open={Boolean(selectedDayModal && selectedDayModal.open)} 
+                onClose={() => setSelectedDayModal({ open: false, date: null, events: [] })} 
+                maxWidth="md" 
+                fullWidth
+                PaperProps={{
+                    style: {
+                        borderRadius: '16px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        overflow: 'hidden'
+                    }
+                }}
+            >
+                {(() => {
+                    const modalDate = selectedDayModal?.date ? new Date(selectedDayModal.date) : null;
+                    const lunarInfo = modalDate ? getDetailedLunarInfo(modalDate) : null;
+                    const events = selectedDayModal?.events || [];
+
+                    return (
+                        <>
+                            <Box 
+                                sx={{ 
+                                    p: 2.5, 
+                                    background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', 
+                                    color: '#ffffff',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                <Box>
+                                    <Box display="flex" alignItems="center" gap={1.5}>
+                                        <Typography variant="h6" sx={{ fontWeight: 800, color: '#38bdf8' }}>
+                                            📅 {modalDate ? `LỊCH TRÌNH NGÀY ${modalDate.getDate()}/${modalDate.getMonth() + 1}/${modalDate.getFullYear()}` : 'LỊCH TRÌNH TRONG NGÀY'}
+                                        </Typography>
+                                        <Chip 
+                                            label={`${events.length} sự kiện`} 
+                                            size="small" 
+                                            sx={{ bgcolor: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', fontWeight: 700 }}
+                                        />
+                                    </Box>
+                                    {lunarInfo && (
+                                        <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block', mt: 0.5 }}>
+                                            Âm lịch: {lunarInfo.fullLunarStr} (Ngày {lunarInfo.dayName}, tháng {lunarInfo.monthName}, năm {lunarInfo.yearName})
+                                        </Typography>
+                                    )}
+                                </Box>
+                                <IconButton onClick={() => setSelectedDayModal({ open: false, date: null, events: [] })} sx={{ color: '#ffffff' }}>
+                                    <i className="fa-solid fa-xmark"></i>
+                                </IconButton>
+                            </Box>
+
+                            <DialogContent sx={{ p: 2.5, bgcolor: '#f8fafc', maxHeight: '65vh', overflowY: 'auto' }}>
+                                {events.length === 0 ? (
+                                    <Box textAlign="center" py={6} color="#94a3b8">
+                                        <i className="fa-regular fa-calendar-check" style={{ fontSize: '2.5rem', marginBottom: '10px', display: 'block', color: '#cbd5e1' }}></i>
+                                        Không có lịch trình nào được xếp trong ngày này.
+                                    </Box>
+                                ) : (
+                                    <Stack spacing={1.5}>
+                                        {events.map((evt, idx) => (
+                                            <Paper 
+                                                key={idx}
+                                                elevation={0}
+                                                sx={{ 
+                                                    p: 2, 
+                                                    borderRadius: '12px', 
+                                                    border: '1px solid #e2e8f0',
+                                                    borderLeft: `5px solid ${evt.color || '#0284c7'}`,
+                                                    bgcolor: '#ffffff',
+                                                    transition: 'all 0.2s',
+                                                    '&:hover': {
+                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                                                        borderColor: evt.color || '#0284c7'
+                                                    }
+                                                }}
+                                            >
+                                                <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
+                                                    <Box display="flex" alignItems="center" gap={1.2}>
+                                                        <span 
+                                                            style={{
+                                                                padding: '3px 8px',
+                                                                borderRadius: '6px',
+                                                                fontSize: '0.78rem',
+                                                                fontWeight: 700,
+                                                                backgroundColor: getEventBackground(evt.type),
+                                                                color: getEventTextColor(evt.type)
+                                                            }}
+                                                        >
+                                                            {evt.title || 'Sự kiện'}
+                                                        </span>
+                                                        {evt.time && (
+                                                            <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>
+                                                                ⏰ {evt.time}
+                                                            </span>
+                                                        )}
+                                                    </Box>
+                                                    <Chip 
+                                                        label={`#${evt.contract?.maHopDong || 'HĐ'}`} 
+                                                        size="small" 
+                                                        sx={{ bgcolor: '#f1f5f9', color: '#0284c7', fontWeight: 700 }}
+                                                    />
+                                                </Box>
+
+                                                <Box mt={1.5} display="flex" flexDirection="column" gap={0.5} fontSize="0.86rem">
+                                                    <div>
+                                                        <strong>Khách hàng:</strong> {evt.contract?.khachHang1?.tenKhachHang || evt.contract?.hoTen || 'Khách hàng'}
+                                                        {evt.contract?.khachHang1?.soDienThoai && ` (${evt.contract.khachHang1.soDienThoai})`}
+                                                    </div>
+                                                    {evt.staff && (
+                                                        <div>
+                                                            <strong>Nhân sự phụ trách:</strong> <span style={{ color: '#0284c7', fontWeight: 600 }}>{evt.staff}</span>
+                                                        </div>
+                                                    )}
+                                                    {evt.contract?.cacNgay?.diaDiemChup && (
+                                                        <div>
+                                                            <strong>Địa điểm:</strong> {evt.contract.cacNgay.diaDiemChup}
+                                                        </div>
+                                                    )}
+                                                </Box>
+
+                                                <Box mt={1.5} display="flex" justifyContent="flex-end">
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        onClick={() => {
+                                                            setSelectedDayModal({ open: false, date: null, events: [] });
+                                                            handleCalendarEventClick(evt);
+                                                        }}
+                                                        sx={{
+                                                            textTransform: 'none',
+                                                            fontSize: '0.8rem',
+                                                            fontWeight: 700,
+                                                            borderRadius: '8px'
+                                                        }}
+                                                    >
+                                                        Chi tiết / Phân công →
+                                                    </Button>
+                                                </Box>
+                                            </Paper>
+                                        ))}
+                                    </Stack>
+                                )}
+                            </DialogContent>
+
+                            <DialogActions sx={{ p: 2, bgcolor: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
+                                <Button onClick={() => setSelectedDayModal({ open: false, date: null, events: [] })} color="inherit" sx={{ fontWeight: 600 }}>
+                                    Đóng
+                                </Button>
+                            </DialogActions>
+                        </>
+                    );
+                })()}
+            </Dialog>
+
             {/* Dialog Tra cứu Lịch Âm */}
             <Dialog 
                 open={openLunarLookup} 
@@ -3090,18 +4658,6 @@ function LichCuaHang() {
                             style={{ flex: 1, textTransform: 'none', fontWeight: 'bold' }}
                         >
                             Âm lịch ➔ Dương lịch
-                        </Button>
-                        <Button 
-                            variant="outlined" 
-                            color="secondary"
-                            onClick={() => {
-                                setOpenLunarLookup(false);
-                                setOpenWeddingDateLookup(true);
-                            }}
-                            style={{ textTransform: 'none', fontWeight: 'bold', borderColor: '#e91e63', color: '#e91e63' }}
-                        >
-                            <i className="fa-solid fa-heart" style={{ marginRight: '4px' }}></i>
-                            Ngày đẹp Cưới Hỏi
                         </Button>
                     </Box>
 
@@ -3292,14 +4848,6 @@ function LichCuaHang() {
                     </Button>
                 </DialogActions>
             </Dialog>
-
-            {/* Dialog Tổng hợp Ngày đẹp Cưới Hỏi */}
-            <WeddingDateLookupModal 
-                open={openWeddingDateLookup}
-                onClose={() => setOpenWeddingDateLookup(false)}
-                initialYear={currentYear}
-                initialMonth={currentMonth + 1}
-            />
         </div>
     );
 }

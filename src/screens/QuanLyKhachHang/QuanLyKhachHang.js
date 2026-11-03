@@ -55,6 +55,14 @@ function QuanLyKhachHang() {
     const [openAddDialog, setOpenAddDialog] = useState(false);
     const [openEditDialog, setOpenEditDialog] = useState(false);
 
+    // Dialog Đăng Ký Tài Khoản Khách Hàng (Tạo Thiệp Cưới)
+    const [openRegisterDialog, setOpenRegisterDialog] = useState(false);
+    const [regTenKhachHang, setRegTenKhachHang] = useState('');
+    const [regContact, setRegContact] = useState('');
+    const [regPassword, setRegPassword] = useState('123456');
+    const [regDiaChi, setRegDiaChi] = useState('');
+    const [createdAccountResult, setCreatedAccountResult] = useState(null);
+
     // Form fields state
     const [selectedCustomerId, setSelectedCustomerId] = useState('');
     const [tenKhachHang, setTenKhachHang] = useState('');
@@ -168,6 +176,63 @@ function QuanLyKhachHang() {
         setDiaChi('');
         setNgayCapCCCD('');
         setFacebookId('');
+    };
+
+    const handleRegisterCustomerAccount = () => {
+        if (!regTenKhachHang.trim()) {
+            toast.warning("Vui lòng nhập Họ và tên khách hàng!");
+            return;
+        }
+        if (!regContact.trim()) {
+            toast.warning("Vui lòng nhập Số điện thoại hoặc Link Facebook!");
+            return;
+        }
+        if (!regPassword.trim()) {
+            toast.warning("Vui lòng nhập Mật khẩu đăng nhập!");
+            return;
+        }
+        if (!regDiaChi.trim()) {
+            toast.warning("Vui lòng nhập Địa chỉ khách hàng!");
+            return;
+        }
+
+        const isFb = regContact.includes("facebook.com") || regContact.includes("fb.com");
+        const payload = {
+            tenKhachHang: regTenKhachHang.trim(),
+            soDienThoai: isFb ? "" : regContact.trim(),
+            facebookId: isFb ? regContact.trim() : "",
+            maDangNhap: regPassword.trim(),
+            diaChi: regDiaChi.trim(),
+            gioiTinh: "Nam"
+        };
+
+        showLoading("Đang khởi tạo tài khoản khách hàng...");
+        otherService.createKhachHang(payload)
+            .then((res) => {
+                toast.success("Đăng ký tài khoản khách hàng thành công!");
+                setOpenRegisterDialog(false);
+                setCreatedAccountResult({
+                    name: regTenKhachHang.trim(),
+                    account: regContact.trim(),
+                    password: regPassword.trim(),
+                    address: regDiaChi.trim(),
+                    websiteUrl: window.location.origin.includes(':3000') 
+                        ? 'http://localhost:3001/khach-hang?redirect=/tao-thiep-online' 
+                        : 'http://localhost:3000/khach-hang?redirect=/tao-thiep-online'
+                });
+                loadData();
+            })
+            .catch(err => {
+                toast.error("Lỗi khi tạo tài khoản: " + (err.message || ''));
+            })
+            .finally(() => hideLoading());
+    };
+
+    const handleCopyAccountInfo = () => {
+        if (!createdAccountResult) return;
+        const msg = `LONG WEDDING STUDIO - THÔNG TIN TÀI KHOẢN KHÁCH HÀNG\n\nKính gửi: ${createdAccountResult.name}\n- Tài khoản đăng nhập (SĐT/Link FB): ${createdAccountResult.account}\n- Mật khẩu: ${createdAccountResult.password}\n- Địa chỉ: ${createdAccountResult.address}\n\n✨ Đăng nhập để Tạo & Quản lý Thiệp Mời Cưới Online độc quyền tại:\n${createdAccountResult.websiteUrl}\n\nTrân trọng cảm ơn quý khách!`;
+        navigator.clipboard.writeText(msg);
+        toast.success("Đã sao chép thông tin tài khoản để gửi cho khách!");
     };
 
     const handleCreateCustomer = () => {
@@ -337,14 +402,38 @@ function QuanLyKhachHang() {
                         <i className="fa-solid fa-users"></i> LONG WEDDING CRM & CUSTOMER DIRECTORY
                     </div>
                     <h2>
-                        <i className="fa-solid fa-address-book" style={{ color: '#2563eb' }}></i> QUẢN LÝ KHÁCH HÀNG STUDIO
+                        <i className="fa-solid fa-address-book" style={{ color: '#2563eb' }}></i> CRM - CUSTOMER RELATIONSHIP MANAGEMENT
                     </h2>
                     <p className="customer-subtitle">
                         Lưu trữ hồ sơ, quản lý thông tin liên hệ, ngày sinh nhật, mạng xã hội và lịch sử hợp đồng của khách hàng
                     </p>
                 </div>
 
-                <div className="customer-header-actions">
+                <div className="customer-header-actions" style={{ display: 'flex', gap: '10px' }}>
+                    <Button
+                        variant="contained"
+                        onClick={() => {
+                            setRegTenKhachHang('');
+                            setRegContact('');
+                            setRegPassword(Math.floor(100000 + Math.random() * 900000).toString());
+                            setRegDiaChi('');
+                            setOpenRegisterDialog(true);
+                        }}
+                        startIcon={<i className="fa-solid fa-user-shield"></i>}
+                        sx={{
+                            bgcolor: '#059669',
+                            color: '#fff',
+                            fontWeight: 700,
+                            borderRadius: 2,
+                            px: 2.2,
+                            py: 1,
+                            boxShadow: '0 4px 14px rgba(5,150,105,0.3)',
+                            '&:hover': { bgcolor: '#047857' }
+                        }}
+                    >
+                        Đăng Ký Tài Khoản Khách Hàng
+                    </Button>
+
                     <Button
                         variant="contained"
                         className="btn-add-customer"
@@ -354,7 +443,7 @@ function QuanLyKhachHang() {
                         }}
                         startIcon={<i className="fa-solid fa-user-plus"></i>}
                     >
-                        Thêm Khách Hàng
+                        Thêm Hồ Sơ Khách Hàng
                     </Button>
                 </div>
             </div>
@@ -990,6 +1079,148 @@ function QuanLyKhachHang() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* 7. DIALOG ĐĂNG KÝ TÀI KHOẢN KHÁCH HÀNG (TẠO THIỆP MỜI) */}
+            <Dialog 
+                open={openRegisterDialog} 
+                onClose={() => setOpenRegisterDialog(false)} 
+                maxWidth="sm" 
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+            >
+                <DialogTitle sx={{ bgcolor: '#064e3b', color: '#fff', display: 'flex', alignItems: 'center', gap: 1.5, py: 2 }}>
+                    <i className="fa-solid fa-user-lock" style={{ color: '#34d399' }}></i>
+                    <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                        ĐĂNG KÝ TÀI KHOẢN KHÁCH HÀNG (TẠO THIỆP MỜI ONLINE)
+                    </Typography>
+                </DialogTitle>
+
+                <DialogContent dividers sx={{ p: 3 }}>
+                    <Box display="flex" flexDirection="column" gap={2.5}>
+                        <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '12px 16px', borderRadius: '8px', color: '#065f46', fontSize: '0.9rem' }}>
+                            <i className="fa-solid fa-circle-info" style={{ marginRight: '8px' }}></i>
+                            Tài khoản sau khi đăng ký sẽ dùng để đăng nhập vào Website tạo thiệp cưới online và quản lý hợp đồng studio.
+                        </div>
+
+                        <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Họ và tên khách hàng"
+                                    required
+                                    fullWidth
+                                    value={regTenKhachHang}
+                                    onChange={(e) => setRegTenKhachHang(e.target.value)}
+                                    placeholder="Ví dụ: Nguyễn Văn Long, Mai Phương Thảo..."
+                                />
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Số điện thoại hoặc Link Facebook"
+                                    required
+                                    fullWidth
+                                    value={regContact}
+                                    onChange={(e) => setRegContact(e.target.value.trim())}
+                                    placeholder="Ví dụ: 0868663637 hoặc https://facebook.com/username..."
+                                    helperText="Dùng số điện thoại hoặc liên kết Facebook làm tên tài khoản đăng nhập"
+                                />
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Mật khẩu đăng nhập"
+                                    required
+                                    fullWidth
+                                    value={regPassword}
+                                    onChange={(e) => setRegPassword(e.target.value)}
+                                    placeholder="Ví dụ: 123456"
+                                    helperText="Mật khẩu khách hàng sẽ nhập khi đăng nhập trên website"
+                                />
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Địa chỉ cư trú"
+                                    required
+                                    fullWidth
+                                    value={regDiaChi}
+                                    onChange={(e) => setRegDiaChi(e.target.value)}
+                                    placeholder="Ví dụ: Xóm Bình Nghĩa, Nghĩa Đàn, Nghệ An"
+                                />
+                            </Grid>
+                        </Grid>
+                    </Box>
+                </DialogContent>
+
+                <DialogActions sx={{ p: 2.5, bgcolor: '#f8fafc' }}>
+                    <Button onClick={() => setOpenRegisterDialog(false)} color="inherit" sx={{ fontWeight: 600 }}>
+                        Hủy
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleRegisterCustomerAccount}
+                        startIcon={<i className="fa-solid fa-check"></i>}
+                        sx={{ bgcolor: '#059669', fontWeight: 700, borderRadius: 2, '&:hover': { bgcolor: '#047857' } }}
+                    >
+                        Tạo Tài Khoản Khách Hàng
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* 8. DIALOG HIỂN THỊ KẾT QUẢ TÀI KHOẢN ĐÃ CẤP */}
+            <Dialog 
+                open={Boolean(createdAccountResult)} 
+                onClose={() => setCreatedAccountResult(null)} 
+                maxWidth="xs" 
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+            >
+                <DialogTitle sx={{ bgcolor: '#0f172a', color: '#fff', textAlign: 'center', py: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#38bdf8' }}>
+                        TÀI KHOẢN ĐÃ SẴN SÀNG!
+                    </Typography>
+                </DialogTitle>
+
+                <DialogContent sx={{ p: 3, bgcolor: '#f8fafc' }}>
+                    {createdAccountResult && (
+                        <Box display="flex" flexDirection="column" gap={2}>
+                            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px' }}>
+                                <Typography variant="subtitle2" color="text.secondary">Khách hàng:</Typography>
+                                <Typography variant="h6" fontWeight={700} color="#1e293b">{createdAccountResult.name}</Typography>
+                                
+                                <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '12px 0' }} />
+                                
+                                <Typography variant="caption" color="text.secondary">Tên đăng nhập (SĐT/FB):</Typography>
+                                <Typography variant="body1" fontWeight={700} color="#2563eb">{createdAccountResult.account}</Typography>
+
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>Mật khẩu:</Typography>
+                                <Typography variant="body1" fontWeight={700} color="#e11d48">{createdAccountResult.password}</Typography>
+
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>Địa chỉ:</Typography>
+                                <Typography variant="body2" color="#475569">{createdAccountResult.address}</Typography>
+                            </div>
+
+                            <Button 
+                                variant="contained" 
+                                color="primary" 
+                                fullWidth 
+                                onClick={handleCopyAccountInfo}
+                                startIcon={<i className="fa-solid fa-copy"></i>}
+                                sx={{ py: 1.2, fontWeight: 700, borderRadius: 2 }}
+                            >
+                                Sao Chép Thông Tin Gửi Khách
+                            </Button>
+                        </Box>
+                    )}
+                </DialogContent>
+
+                <DialogActions sx={{ p: 1.5, justifyContent: 'center' }}>
+                    <Button onClick={() => setCreatedAccountResult(null)} color="inherit">
+                        Đóng
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
         </div>
     );
 }

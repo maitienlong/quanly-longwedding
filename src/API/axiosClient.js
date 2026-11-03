@@ -1,6 +1,7 @@
 import axios from "axios";
-import { isTokenExpired, logoutAndRedirect } from "../utils/authUtils";
+import { isTokenExpired, logoutAndRedirect, isRememberMeEnabled } from "../utils/authUtils";
 import { formatFriendlyErrorMessage } from "../utils/errorHandler";
+import { getDeviceCredentials } from "../utils/pinAuthUtils";
 
 const axiosClient = axios.create({
   baseURL: process.env.REACT_APP_API_URL,
@@ -8,6 +9,18 @@ const axiosClient = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+const subscribeTokenRefresh = (cb) => {
+  refreshSubscribers.push(cb);
+};
+
+const onRefreshed = (token) => {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+};
 
 // ✅ Thêm interceptor để tự động gắn token & kiểm tra hết hạn
 axiosClient.interceptors.request.use(
@@ -17,7 +30,7 @@ axiosClient.interceptors.request.use(
       if (isTokenExpired(token)) {
         console.warn("Token expired! Logging out...");
         logoutAndRedirect("expired");
-        return Promise.reject(new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."));
+        return Promise.reject(new Error("Phiên đăng nhập đã hết hạn (giới hạn 1 ngày). Vui lòng đăng nhập lại."));
       }
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -41,15 +54,55 @@ axiosClient.interceptors.response.use(
     }
     return response.data;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
     const status = error.response?.status;
     const rawData = error.response?.data;
     const rawMsg = rawData?.message || rawData?.error || rawData?.msg || (typeof rawData === "string" ? rawData : null);
-    const url = String(error.config?.url || "");
+    const url = String(originalRequest?.url || "");
 
     const isLoginEndpoint = url.includes("/login") || url.includes("/loginUser") || url.includes("/auth/");
-    if (!isLoginEndpoint && (status === 401 || (status === 403 && rawMsg && (String(rawMsg).toLowerCase().includes("token") || String(rawMsg).toLowerCase().includes("hết hạn"))))) {
-      console.warn(`Unauthorized/Expired Token (${status})! Redirecting to login...`);
+    const isTokenError = status === 401 || (status === 403 && rawMsg && (String(rawMsg).toLowerCase().includes("token") || String(rawMsg).toLowerCase().includes("hết hạn")));
+
+    if (!isLoginEndpoint && isTokenError) {
+      // Nếu thiết bị được cho phép ghi nhớ, tự động gia hạn token ngầm qua /auth/refreshToken (không cần lưu password)
+      const currentToken = localStorage.getItem("access_token");
+      if (isRememberMeEnabled() && currentToken && originalRequest && !originalRequest._retry) {
+        const credentials = getDeviceCredentials();
+        if (credentials && credentials.username) {
+          if (!isRefreshing) {
+            isRefreshing = true;
+            originalRequest._retry = true;
+
+            try {
+              const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/refreshToken`, {
+                token: currentToken,
+              });
+
+              const newToken = res.data?.data?.token || res.data?.token;
+              if (newToken) {
+                localStorage.setItem("access_token", newToken);
+                isRefreshing = false;
+                onRefreshed(newToken);
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                return axiosClient(originalRequest);
+              }
+            } catch (refreshErr) {
+              isRefreshing = false;
+              console.warn("Tự động gia hạn phiên ngầm thất bại:", refreshErr);
+            }
+          } else {
+            return new Promise((resolve) => {
+              subscribeTokenRefresh((newToken) => {
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                resolve(axiosClient(originalRequest));
+              });
+            });
+          }
+        }
+      }
+
+      console.warn(`Phiên đăng nhập hết hạn (${status})! Đang chuyển về màn hình đăng nhập...`);
       logoutAndRedirect("expired");
     }
 
@@ -76,4 +129,3 @@ axiosClient.interceptors.response.use(
 );
 
 export default axiosClient;
-
