@@ -8,7 +8,7 @@ import ThemHopDongKHDialog from './ThemHopDongKHDialog';
 import DetailHopDongKhachHangDialog from './DetailHopDongKhachHangDialog';
 import { formatDate } from '../utils/convertDate';
 import { formatLunarDateShort } from '../../utils/lunarDateUtils';
-import { getContractStatusInfo, isUnscheduledShooting, QUICK_STATUS_OPTIONS, CONTRACT_ROW_COLOR_LEGEND } from '../../utils/contractStatusHelper';
+import { getContractStatusInfo, isUnscheduledShooting, QUICK_STATUS_OPTIONS, CONTRACT_ROW_COLOR_LEGEND, getNearestShootOrRecordSchedule, checkContractCompletionEligibility } from '../../utils/contractStatusHelper';
 import HopDongKanbanBoard from './HopDongKanbanBoard';
 import './hopdongkhachhang.css';
 
@@ -72,6 +72,10 @@ function HopDongKhachHang() {
     const { getDichVuChinhLabel } = useContractTypes();
     const { user } = useAuth();
     const [hopDong, setHopDong] = useState([]);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [totalRecords, setTotalRecords] = useState(0);
     const { showLoading, hideLoading } = useLoading();
 
     // Kiểm tra quyền Quản trị viên / Quản lý
@@ -143,6 +147,15 @@ function HopDongKhachHang() {
         };
         const targetSub = targetStage === 2 ? 'cho_chinh' : (targetStage === 4 ? 'hoan_thanh' : 'dang_thuc_hien');
 
+        // Bổ sung kiểm tra điều kiện hoàn thành hợp đồng
+        if (targetStage === 4) {
+            const check = checkContractCompletionEligibility(contract);
+            if (!check.eligible) {
+                toast.error(check.message);
+                return;
+            }
+        }
+
         if (!window.confirm(`Bạn có chắc chắn muốn chuyển hợp đồng #${contract.maHopDong} sang bước: "${stageNames[targetStage]}" không?`)) {
             return;
         }
@@ -170,9 +183,16 @@ function HopDongKhachHang() {
         setOpenDialogHD(true);
     };
 
-    const loadHopDong = useCallback((timeVal, searchVal) => {
-        showLoading("Đang tải hợp đồng ...");
-        const params = {};
+    const loadHopDong = useCallback((timeVal, searchVal, pageNum = 1, isLoadMore = false) => {
+        if (isLoadMore) {
+            setIsLoadingMore(true);
+        } else {
+            showLoading("Đang tải hợp đồng ...");
+        }
+        const params = {
+            page: pageNum,
+            limit: 20
+        };
         if (timeVal && timeVal !== 'all') {
             params.filter = timeVal;
         }
@@ -182,20 +202,57 @@ function HopDongKhachHang() {
 
         otherService.LIST_HOPDONG(params)
             .then((response) => {
-                setHopDong(response.data.hopDong || []);
-                hideLoading();
+                const newContracts = response.data.hopDong || [];
+                const total = response.data.count !== undefined ? response.data.count : newContracts.length;
+                const more = response.data.hasMore !== undefined ? response.data.hasMore : (pageNum * 20 < total);
+
+                if (isLoadMore) {
+                    setHopDong(prev => {
+                        const existingIds = new Set(prev.map(x => x._id || x.maHopDong));
+                        const filteredNew = newContracts.filter(x => !existingIds.has(x._id || x.maHopDong));
+                        return [...prev, ...filteredNew];
+                    });
+                } else {
+                    setHopDong(newContracts);
+                }
+
+                setHasMore(more);
+                setPage(pageNum);
+                setTotalRecords(total);
+
+                if (isLoadMore) {
+                    setIsLoadingMore(false);
+                } else {
+                    hideLoading();
+                }
             })
             .catch((error) => {
                 console.error('Error fetching data:', error);
                 toast.error("Đã có lỗi xảy ra: " + error.message);
-                hideLoading();
+                if (isLoadMore) {
+                    setIsLoadingMore(false);
+                } else {
+                    hideLoading();
+                }
             });
     }, [showLoading, hideLoading]);
+
+    const handleScroll = useCallback((e) => {
+        const target = e.currentTarget;
+        if (!target) return;
+        const { scrollTop, scrollHeight, clientHeight } = target;
+        if (scrollTop + clientHeight >= scrollHeight - 80) {
+            if (hasMore && !isLoadingMore) {
+                loadHopDong(timeFilter, searchInput, page + 1, true);
+            }
+        }
+    }, [hasMore, isLoadingMore, loadHopDong, timeFilter, searchInput, page]);
 
     const handleCloseDialog = (value) => {
         setOpenDialogHD(false);
         setSelectedValueDialog(value);
-        loadHopDong(timeFilter, searchInput);
+        setPage(1);
+        loadHopDong(timeFilter, searchInput, 1, false);
     };
 
     const handleClickOpenDetailDialog = () => {
@@ -205,13 +262,15 @@ function HopDongKhachHang() {
     const handleCloseDetailDialog = (updated) => {
         setOpenDetailDialog(false);
         if (updated === true) {
-            loadHopDong(timeFilter, searchInput);
+            setPage(1);
+            loadHopDong(timeFilter, searchInput, 1, false);
         }
     };
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
-            loadHopDong(timeFilter, searchInput);
+            setPage(1);
+            loadHopDong(timeFilter, searchInput, 1, false);
         }, 400);
 
         return () => clearTimeout(delayDebounceFn);
@@ -312,17 +371,18 @@ function HopDongKhachHang() {
         if (info.isUnscheduled) {
             return (
                 <Chip 
-                    icon={<i className="fa-solid fa-triangle-exclamation" style={{ color: '#fff', fontSize: '0.72rem', marginLeft: '6px' }}></i>}
+                    icon={<i className="fa-solid fa-triangle-exclamation" style={{ color: '#78350f', fontSize: '0.72rem', marginLeft: '6px' }}></i>}
                     label="Chưa xếp lịch" 
                     size="small" 
                     sx={{ 
-                        bgcolor: '#dc2626', 
-                        color: '#fff',
+                        bgcolor: '#fde047', 
+                        color: '#78350f',
                         fontWeight: 800,
                         fontSize: '0.74rem',
                         height: '24px',
-                        boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
-                        '& .MuiChip-icon': { color: '#fff' }
+                        border: '1px solid #eab308',
+                        boxShadow: '0 2px 4px rgba(234, 179, 8, 0.25)',
+                        '& .MuiChip-icon': { color: '#78350f' }
                     }} 
                 />
             );
@@ -348,7 +408,7 @@ function HopDongKhachHang() {
         }
 
         const isDone = info.subStage === 'hoan_thanh';
-        const subColor = info.subStageConfig?.color || (isDone ? '#059669' : info.color);
+        const subColor = info.subStageConfig?.color || (isDone ? '#0284c7' : info.color);
         const showSubStagePill = info.stage === 2 && !['bao_luu', 'huy'].includes(info.subStage);
 
         if (info.subStage === 'bao_luu' || info.subStage === 'huy') {
@@ -373,6 +433,31 @@ function HopDongKhachHang() {
             );
         }
 
+        // Giai đoạn 1 (Chụp hình): Màu trắng
+        if (info.stage === 1) {
+            return (
+                <Box 
+                    sx={{ 
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.6,
+                        px: 1.0,
+                        py: 0.35,
+                        borderRadius: '14px',
+                        bgcolor: '#ffffff',
+                        border: '1.5px solid #cbd5e1',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                        whiteSpace: 'nowrap'
+                    }} 
+                >
+                    <span style={{ fontSize: '0.82rem' }}>📸</span>
+                    <span style={{ fontSize: '0.76rem', fontWeight: 800, color: '#334155' }}>
+                        Chụp hình
+                    </span>
+                </Box>
+            );
+        }
+
         return (
             <Box 
                 sx={{ 
@@ -386,7 +471,7 @@ function HopDongKhachHang() {
                     border: `1.5px solid ${info.borderColor || info.stageConfig.borderColor}`,
                     boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                     whiteSpace: 'nowrap'
-                }}
+                }} 
             >
                 <span style={{ fontSize: '0.82rem' }}>{info.stageConfig.icon}</span>
                 <span style={{ fontSize: '0.76rem', fontWeight: 800, color: info.stageConfig.color }}>
@@ -410,6 +495,83 @@ function HopDongKhachHang() {
                     </span>
                 )}
             </Box>
+        );
+    };
+
+    // Render thông tin ngày chụp/quay: hiển thị lịch gần nhất khi trong hợp đồng có nhiều ngày chụp hoặc quay
+    const renderShootingDateCell = (hd, isCompact = false) => {
+        const scheduleInfo = getNearestShootOrRecordSchedule(hd);
+        const isCompleted = Number(hd.giaiDoan) > 1 || (Number(hd.giaiDoan) === 1 && hd.subGiaiDoan === 'hoan_thanh') || Number(hd.giaiDoan) === 5;
+
+        if (scheduleInfo && scheduleInfo.nearest) {
+            const { nearest, totalCount, hasMultiple, allSchedules } = scheduleInfo;
+            return (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: isCompact ? 'flex-end' : 'center', gap: '2px' }}>
+                    <div style={{ fontWeight: 700, color: '#0369a1', fontSize: isCompact ? '0.85rem' : '0.82rem' }}>
+                        {formatDate(nearest.date)}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                        (Âm: {formatLunarDateShort(nearest.date)})
+                    </div>
+                    {getShootingCountdownTag(nearest.date, isCompleted)}
+                    {hasMultiple && (
+                        <Tooltip 
+                            title={
+                                <div style={{ padding: '3px 5px', maxWidth: 280 }}>
+                                    <div style={{ fontWeight: 700, marginBottom: 4, color: '#f8fafc', fontSize: '0.78rem' }}>
+                                        📸 Tổng {totalCount} ca chụp & quay:
+                                    </div>
+                                    {allSchedules.map((s, sIdx) => {
+                                        const isNearest = s === nearest;
+                                        return (
+                                            <div key={sIdx} style={{ fontSize: '0.72rem', padding: '2px 0', color: isNearest ? '#fde047' : '#e2e8f0', fontWeight: isNearest ? 700 : 400 }}>
+                                                {isNearest ? '👉 ' : '• '}{s.label}: {formatDate(s.date)} ({s.diffDays >= 0 ? `Còn ${s.diffDays} ngày` : `Đã qua ${Math.abs(s.diffDays)} ngày`})
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            }
+                            arrow
+                        >
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                fontSize: '0.64rem',
+                                fontWeight: 700,
+                                color: '#0284c7',
+                                background: '#e0f2fe',
+                                border: '1px solid #bae6fd',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                marginTop: '2px',
+                                cursor: 'pointer'
+                            }}>
+                                📸 Lịch gần nhất ({totalCount} ca)
+                            </span>
+                        </Tooltip>
+                    )}
+                </div>
+            );
+        }
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: isCompact ? 'flex-end' : 'center' }}>
+                <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    color: '#854d0e',
+                    background: '#fef08a',
+                    border: '1px solid #facc15',
+                    padding: '2px 8px',
+                    borderRadius: '4px'
+                }}>
+                    ⚠️ Chưa xếp lịch
+                </span>
+            </div>
         );
     };
 
@@ -835,7 +997,7 @@ function HopDongKhachHang() {
 
             {/* 4. CONTENT: TABLE OR GRID VIEW */}
             {isMobile ? (
-                <Box className="contract-list-scroll" sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pb: 10 }}>
+                <Box className="contract-list-scroll" onScroll={handleScroll} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pb: 10 }}>
                     {filteredHopDong && filteredHopDong.length > 0 ? (
                         filteredHopDong.map((hd, index) => (
                             <Card 
@@ -909,18 +1071,7 @@ function HopDongKhachHang() {
                                             <Box sx={{ p: 1, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>Ngày chụp:</Typography>
                                                 <Box textAlign="right">
-                                                    {hd.cacNgay?.ngayChup ? (
-                                                        <>
-                                                            <strong style={{ fontSize: '0.85rem', color: '#d97706' }}>
-                                                                {formatDate(hd.cacNgay.ngayChup)}
-                                                            </strong>
-                                                            <div>{getShootingCountdownTag(hd.cacNgay.ngayChup, Number(hd.giaiDoan) > 1 || (Number(hd.giaiDoan) === 1 && hd.subGiaiDoan === 'hoan_thanh') || Number(hd.giaiDoan) === 5)}</div>
-                                                        </>
-                                                    ) : (
-                                                        <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 700 }}>
-                                                            ⚠️ Chưa xếp lịch
-                                                        </span>
-                                                    )}
+                                                    {renderShootingDateCell(hd, true)}
                                                 </Box>
                                             </Box>
                                         </Grid>
@@ -944,7 +1095,7 @@ function HopDongKhachHang() {
                 />
             ) : viewMode === 'grid' ? (
                 /* ===== DẠNG LƯỚI (GRID VIEW) ===== */
-                <Box className="contract-list-scroll" sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5, pb: 4, pt: 0.5 }}>
+                <Box className="contract-list-scroll" onScroll={handleScroll} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5, pb: 4, pt: 0.5 }}>
                     {filteredHopDong && filteredHopDong.length > 0 ? (
                         <Grid container spacing={2.5}>
                             {filteredHopDong.map((hd, index) => {
@@ -1069,18 +1220,7 @@ function HopDongKhachHang() {
                                                         <Box display="flex" justifyContent="space-between" alignItems="center">
                                                             <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Ngày chụp ảnh:</span>
                                                             <Box textAlign="right">
-                                                                {hd.cacNgay?.ngayChup ? (
-                                                                    <>
-                                                                        <strong style={{ fontSize: '0.78rem', color: '#d97706' }}>
-                                                                            {formatDate(hd.cacNgay.ngayChup)}
-                                                                        </strong>
-                                                                        <div>{getShootingCountdownTag(hd.cacNgay.ngayChup, Number(hd.giaiDoan) > 1 || (Number(hd.giaiDoan) === 1 && hd.subGiaiDoan === 'hoan_thanh') || Number(hd.giaiDoan) === 5)}</div>
-                                                                    </>
-                                                                ) : (
-                                                                    <strong style={{ fontSize: '0.78rem', color: '#dc2626' }}>
-                                                                        ⚠️ Chưa xếp lịch
-                                                                    </strong>
-                                                                )}
+                                                                {renderShootingDateCell(hd, true)}
                                                             </Box>
                                                         </Box>
 
@@ -1169,7 +1309,7 @@ function HopDongKhachHang() {
             ) : (
                 /* ===== DẠNG BẢNG (TABLE VIEW) ===== */
                 <Paper elevation={0} className="contract-table-container glass-panel">
-                    <TableContainer className="contract-list-scroll" sx={{ flex: 1, minHeight: 0, height: '100%', overflowY: 'auto', overflowX: 'auto' }}>
+                    <TableContainer className="contract-list-scroll" onScroll={handleScroll} sx={{ flex: 1, minHeight: 0, height: '100%', overflowY: 'auto', overflowX: 'auto' }}>
                         <Table stickyHeader size="small">
                             <TableHead sx={{ '& th': { bgcolor: '#f8fafc', color: '#334155', fontWeight: 800, py: 1.5, zIndex: 3 } }}>
                                 <TableRow>
@@ -1277,34 +1417,7 @@ function HopDongKhachHang() {
                                             </TableCell>
                                             {/* Cột 5: NGÀY CHỤP */}
                                             <TableCell align='center'>
-                                                {hd.cacNgay?.ngayChup ? (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                                                        <div style={{ fontWeight: 700, color: '#d97706', fontSize: '0.82rem' }}>
-                                                            {formatDate(hd.cacNgay.ngayChup)}
-                                                        </div>
-                                                        <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                                                            (Âm: {formatLunarDateShort(hd.cacNgay.ngayChup)})
-                                                        </div>
-                                                        {getShootingCountdownTag(hd.cacNgay.ngayChup, Number(hd.giaiDoan) > 1 || (Number(hd.giaiDoan) === 1 && hd.subGiaiDoan === 'hoan_thanh') || Number(hd.giaiDoan) === 5)}
-                                                    </div>
-                                                ) : (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                                        <span style={{
-                                                            display: 'inline-flex',
-                                                            alignItems: 'center',
-                                                            gap: '3px',
-                                                            fontSize: '0.72rem',
-                                                            fontWeight: 700,
-                                                            color: '#dc2626',
-                                                            background: '#fee2e2',
-                                                            border: '1px solid #fca5a5',
-                                                            padding: '2px 8px',
-                                                            borderRadius: '4px'
-                                                        }}>
-                                                            ⚠️ Chưa xếp lịch
-                                                        </span>
-                                                    </div>
-                                                )}
+                                                {renderShootingDateCell(hd, false)}
                                             </TableCell>
                                             <TableCell align='center'>
                                                 <span className="badge-service-tag">
@@ -1386,6 +1499,22 @@ function HopDongKhachHang() {
                                         <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#94a3b8' }}>
                                             <i className="fa-solid fa-folder-open" style={{ fontSize: '2.5rem', marginBottom: 10, display: 'block', color: '#cbd5e1' }}></i>
                                             Không tìm thấy dữ liệu hợp đồng nào phù hợp.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                {isLoadingMore && (
+                                    <TableRow>
+                                        <TableCell colSpan={9} align="center" sx={{ py: 2, bgcolor: '#f8fafc' }}>
+                                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#0284c7', fontSize: '0.82rem', fontWeight: 700 }}>
+                                                <i className="fa-solid fa-spinner fa-spin"></i> Đang tải thêm hợp đồng...
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                {!hasMore && filteredHopDong.length > 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={9} align="center" sx={{ py: 1.5, bgcolor: '#f8fafc', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
+                                            Đã hiển thị toàn bộ {totalRecords || filteredHopDong.length} hợp đồng
                                         </TableCell>
                                     </TableRow>
                                 )}

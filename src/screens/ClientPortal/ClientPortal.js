@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import otherService from '../../API/services/otherService';
 import logo from '../../assets/logo/logo-vang.png';
 import { toast } from 'sonner';
@@ -7,6 +7,12 @@ import './clientPortal.css';
 
 function ClientPortal() {
     const { maHopDong } = useParams();
+    const location = useLocation();
+    const searchParams = new URLSearchParams(location.search);
+    const urlToken = searchParams.get('token');
+    const [portalToken, setPortalToken] = useState(urlToken || localStorage.getItem(`portal_token_${maHopDong}`) || '');
+    const [authError, setAuthError] = useState(null);
+
     const [loading, setLoading] = useState(true);
     const [contract, setContract] = useState(null);
     const [album, setAlbum] = useState(null);
@@ -23,14 +29,23 @@ function ClientPortal() {
     // Countdown State
     const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
-    // Fetch Contract & Album data via Public Portal Endpoint
+    // Save token to localStorage if present in URL
+    useEffect(() => {
+        if (urlToken && maHopDong) {
+            localStorage.setItem(`portal_token_${maHopDong}`, urlToken);
+            setPortalToken(urlToken);
+        }
+    }, [urlToken, maHopDong]);
+
+    // Fetch Contract & Album data via Scoped Portal Endpoint
     useEffect(() => {
         let isMounted = true;
         setLoading(true);
 
         const fetchData = async () => {
             try {
-                const resPortal = await otherService.getPortalInfo(maHopDong);
+                setAuthError(null);
+                const resPortal = await otherService.getPortalInfo(maHopDong, portalToken);
                 const portalData = resPortal?.data || resPortal;
                 if (portalData?.contract && isMounted) {
                     setContract(portalData.contract);
@@ -46,6 +61,15 @@ function ClientPortal() {
                 }
             } catch (error) {
                 console.error("Lỗi tải thông tin cổng khách hàng:", error);
+                const status = error.response?.status;
+                const msg = error.response?.data?.message || "";
+                if (status === 401 || status === 403) {
+                    if (isMounted) setAuthError(msg || "Liên kết truy cập không hợp lệ hoặc đã hết hạn. Vui lòng liên hệ Long Wedding để nhận mã truy cập mới nhất!");
+                } else if (status === 404) {
+                    if (isMounted) setAuthError("Không tìm thấy thông tin hợp đồng trên hệ thống.");
+                } else {
+                    if (isMounted) setAuthError("Có lỗi xảy ra khi kết nối máy chủ. Vui lòng kiểm tra lại đường truyền mạng!");
+                }
             } finally {
                 if (isMounted) setLoading(false);
             }
@@ -55,56 +79,7 @@ function ClientPortal() {
             fetchData();
         }
         return () => { isMounted = false; };
-    }, [maHopDong]);
-
-    // Fallback Mock Photos if album is empty to allow demoing proofing
-    useEffect(() => {
-        if (!loading && photos.length === 0) {
-            const demoPhotos = [
-                {
-                    idDrive: 'demo_1',
-                    tenFile: 'LW_001.jpg',
-                    urlGoc: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1200&q=85',
-                    urlNen: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&q=80',
-                    isHearted: true,
-                    isCover: true,
-                    comments: [
-                        { noiDung: 'Bóp nhẹ eo bên trái', coordinateX: 42, coordinateY: 55, ngayTao: new Date() }
-                    ]
-                },
-                {
-                    idDrive: 'demo_2',
-                    tenFile: 'LW_002.jpg',
-                    urlGoc: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=1200&q=85',
-                    urlNen: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=600&q=80',
-                    isHearted: false,
-                    isCover: false,
-                    comments: []
-                },
-                {
-                    idDrive: 'demo_3',
-                    tenFile: 'LW_003.jpg',
-                    urlGoc: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=1200&q=85',
-                    urlNen: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=600&q=80',
-                    isHearted: true,
-                    isCover: false,
-                    comments: [
-                        { noiDung: 'Xóa bóng đổ trên mặt chú rể', coordinateX: 58, coordinateY: 32, ngayTao: new Date() }
-                    ]
-                },
-                {
-                    idDrive: 'demo_4',
-                    tenFile: 'LW_004.jpg',
-                    urlGoc: 'https://images.unsplash.com/photo-1532712938310-34cb3982ef74?w=1200&q=85',
-                    urlNen: 'https://images.unsplash.com/photo-1532712938310-34cb3982ef74?w=600&q=80',
-                    isHearted: false,
-                    isCover: false,
-                    comments: []
-                }
-            ];
-            setPhotos(demoPhotos);
-        }
-    }, [loading, photos.length]);
+    }, [maHopDong, portalToken]);
 
     // Countdown Timer calculation
     useEffect(() => {
@@ -146,13 +121,16 @@ function ClientPortal() {
     // SePay QR Link from Backend Config
     const sepayQrUrl = paymentQr?.sepayQrUrl || `https://qr.sepay.vn/img?acc=9990187764519&bank=MBBank&amount=${conLai}&des=${encodeURIComponent(maHopDong || 'THANH TOAN')}`;
 
-    // Toggle Heart on Photo (Persisted to Backend)
+    // Toggle Heart on Photo (Persisted to Backend after response)
     const handleToggleHeart = async (photoId, e) => {
         if (e) e.stopPropagation();
-        let nextHeartState = true;
+        const photo = photos.find(p => p.idDrive === photoId);
+        if (!photo) return;
+        const nextHeartState = !photo.isHearted;
+
+        // Optimistic UI update
         setPhotos(prev => prev.map(p => {
             if (p.idDrive === photoId) {
-                nextHeartState = !p.isHearted;
                 return { ...p, isHearted: nextHeartState };
             }
             return p;
@@ -160,60 +138,84 @@ function ClientPortal() {
         if (selectedPhoto && selectedPhoto.idDrive === photoId) {
             setSelectedPhoto(prev => prev ? { ...prev, isHearted: nextHeartState } : prev);
         }
-        toast.success(nextHeartState ? 'Đã thêm ảnh vào danh sách chọn!' : 'Đã bỏ chọn ảnh');
 
-        if (!String(photoId).startsWith('demo_')) {
-            try {
-                await otherService.portalPhotoAction(maHopDong, {
-                    idDrive: photoId,
-                    action: 'heart',
-                    isHearted: nextHeartState
-                });
-            } catch (err) {
-                console.warn('Lưu trạng thái chọn ảnh thất bại:', err);
+        try {
+            await otherService.portalPhotoAction(maHopDong, {
+                idDrive: photoId,
+                action: 'heart',
+                isHearted: nextHeartState
+            }, portalToken);
+            toast.success(nextHeartState ? 'Đã thêm ảnh vào danh sách chọn!' : 'Đã bỏ chọn ảnh');
+        } catch (err) {
+            console.warn('Lưu trạng thái chọn ảnh thất bại:', err);
+            // Rollback optimistic state on error
+            setPhotos(prev => prev.map(p => {
+                if (p.idDrive === photoId) {
+                    return { ...p, isHearted: !nextHeartState };
+                }
+                return p;
+            }));
+            if (selectedPhoto && selectedPhoto.idDrive === photoId) {
+                setSelectedPhoto(prev => prev ? { ...prev, isHearted: !nextHeartState } : prev);
             }
+            toast.error("Không thể lưu trạng thái chọn ảnh, vui lòng thử lại!");
         }
     };
 
-    // Toggle Cover Flag (Persisted to Backend)
+    // Toggle Cover Flag (Persisted to Backend after response)
     const handleToggleCover = async (photoId, e) => {
         if (e) e.stopPropagation();
-        let nextCoverState = true;
+        const photo = photos.find(p => p.idDrive === photoId);
+        if (!photo) return;
+        const nextCoverState = !photo.isCover;
+
+        // Optimistic UI update
         setPhotos(prev => prev.map(p => {
             if (p.idDrive === photoId) {
-                nextCoverState = !p.isCover;
                 return { ...p, isCover: nextCoverState, isHearted: true };
             }
             return p;
         }));
-        toast.success(nextCoverState ? 'Đã chọn làm Ảnh Phóng Cổng!' : 'Đã bỏ đánh dấu ảnh cổng');
 
-        if (!String(photoId).startsWith('demo_')) {
-            try {
-                await otherService.portalPhotoAction(maHopDong, {
-                    idDrive: photoId,
-                    action: 'cover',
-                    isCover: nextCoverState
-                });
-            } catch (err) {
-                console.warn('Lưu đánh dấu ảnh cổng thất bại:', err);
-            }
+        try {
+            await otherService.portalPhotoAction(maHopDong, {
+                idDrive: photoId,
+                action: 'cover',
+                isCover: nextCoverState
+            }, portalToken);
+            toast.success(nextCoverState ? 'Đã chọn làm Ảnh Phóng Cổng!' : 'Đã bỏ đánh dấu ảnh cổng');
+        } catch (err) {
+            console.warn('Lưu đánh dấu ảnh cổng thất bại:', err);
+            // Rollback on error
+            setPhotos(prev => prev.map(p => {
+                if (p.idDrive === photoId) {
+                    return { ...p, isCover: !nextCoverState };
+                }
+                return p;
+            }));
+            toast.error("Không thể lưu đánh dấu ảnh cổng, vui lòng thử lại!");
         }
     };
 
-    // Click on Image in Lightbox to drop Pin
+    // Click on Image in Lightbox to drop Pin (Normalized [0, 1] relative to natural image dimensions)
     const handleImageClickToPin = (e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
+        const imgEl = e.currentTarget.querySelector('img') || (e.target.tagName === 'IMG' ? e.target : e.currentTarget);
+        const rect = imgEl.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
 
-        const xPercent = Math.round((clickX / rect.width) * 100);
-        const yPercent = Math.round((clickY / rect.height) * 100);
+        const clampedX = Math.max(0, Math.min(rect.width, clickX));
+        const clampedY = Math.max(0, Math.min(rect.height, clickY));
 
-        setTempPinCoord({ x: xPercent, y: yPercent });
+        const normalizedX = Math.round((clampedX / rect.width) * 10000) / 10000;
+        const normalizedY = Math.round((clampedY / rect.height) * 10000) / 10000;
+        const xPercent = Math.round(normalizedX * 100);
+        const yPercent = Math.round(normalizedY * 100);
+
+        setTempPinCoord({ x: xPercent, y: yPercent, normalizedX, normalizedY });
     };
 
-    // Save Pin Annotation Comment (Persisted to Backend)
+    // Save Pin Annotation Comment (Persisted to Backend after response)
     const handleAddPinComment = async () => {
         if (!newCommentText.trim() || !tempPinCoord || !selectedPhoto) return;
 
@@ -221,35 +223,40 @@ function ClientPortal() {
             noiDung: newCommentText.trim(),
             coordinateX: tempPinCoord.x,
             coordinateY: tempPinCoord.y,
+            normalizedX: tempPinCoord.normalizedX,
+            normalizedY: tempPinCoord.normalizedY,
             ngayTao: new Date()
         };
 
-        setPhotos(prev => prev.map(p => {
-            if (p.idDrive === selectedPhoto.idDrive) {
-                const updatedComments = [...(p.comments || []), commentPayload];
-                const updatedPhoto = { ...p, comments: updatedComments, isHearted: true };
-                setSelectedPhoto(updatedPhoto);
-                return updatedPhoto;
-            }
-            return p;
-        }));
+        const targetId = selectedPhoto.idDrive;
 
-        setNewCommentText('');
-        setTempPinCoord(null);
-        toast.success("Đã ghim yêu cầu sửa ảnh thành công!");
+        try {
+            await otherService.portalPhotoAction(maHopDong, {
+                idDrive: targetId,
+                action: 'comment',
+                noiDung: commentPayload.noiDung,
+                coordinateX: commentPayload.coordinateX,
+                coordinateY: commentPayload.coordinateY,
+                normalizedX: commentPayload.normalizedX,
+                normalizedY: commentPayload.normalizedY
+            }, portalToken);
 
-        if (!String(selectedPhoto.idDrive).startsWith('demo_')) {
-            try {
-                await otherService.portalPhotoAction(maHopDong, {
-                    idDrive: selectedPhoto.idDrive,
-                    action: 'comment',
-                    noiDung: commentPayload.noiDung,
-                    coordinateX: commentPayload.coordinateX,
-                    coordinateY: commentPayload.coordinateY
-                });
-            } catch (err) {
-                console.warn('Lưu ghi chú ghim lên server thất bại:', err);
-            }
+            setPhotos(prev => prev.map(p => {
+                if (p.idDrive === targetId) {
+                    const updatedComments = [...(p.comments || []), commentPayload];
+                    const updatedPhoto = { ...p, comments: updatedComments, isHearted: true };
+                    setSelectedPhoto(updatedPhoto);
+                    return updatedPhoto;
+                }
+                return p;
+            }));
+
+            setNewCommentText('');
+            setTempPinCoord(null);
+            toast.success("Đã ghim yêu cầu sửa ảnh thành công!");
+        } catch (err) {
+            console.warn('Lưu ghi chú ghim lên server thất bại:', err);
+            toast.error("Không thể lưu ghi chú ghim ảnh, vui lòng thử lại!");
         }
     };
 
@@ -266,7 +273,7 @@ function ClientPortal() {
     const coverCount = photos.filter(p => p.isCover).length;
     const pinCount = photos.reduce((sum, p) => sum + (p.comments?.length || 0), 0);
 
-    // Complete Proofing Selection (Persisted to Backend)
+    // Complete Proofing Selection (Confirmed 200 API Response)
     const handleCompleteSelection = async () => {
         if (heartCount === 0) {
             toast.warning("Anh/Chị vui lòng chọn ít nhất một vài ảnh ưng ý trước khi gửi nhé!");
@@ -275,10 +282,11 @@ function ClientPortal() {
         try {
             await otherService.portalCompleteSelection(maHopDong, {
                 ghiChuKhachHang: `Khách đã chốt ${heartCount} ảnh (${coverCount} ảnh cổng, ${pinCount} ghi chú chỉnh sửa)`
-            });
+            }, portalToken);
             toast.success(`Long Wedding đã tiếp nhận ${heartCount} ảnh được chọn và ${pinCount} ghi chú chỉnh sửa! Ekip Photoshop sẽ bắt đầu hoàn thiện ngay.`);
         } catch (err) {
-            toast.success(`Đã ghi nhận ${heartCount} ảnh được chọn và ${pinCount} ghi chú chỉnh sửa!`);
+            console.error("Lỗi khi gửi danh sách chốt ảnh:", err);
+            toast.error("Gửi danh sách ảnh chốt thất bại. Vui lòng kiểm tra kết nối mạng và thử lại!");
         }
     };
 
@@ -303,6 +311,26 @@ function ClientPortal() {
                 <div style={{ textAlign: 'center' }}>
                     <img src={logo} alt="Logo" style={{ height: 60, marginBottom: 16 }} />
                     <div style={{ color: '#eab308', fontWeight: 600, fontSize: '1.1rem' }}>Đang tải không gian cưới của bạn...</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (authError) {
+        return (
+            <div className="client-portal-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 20 }}>
+                <div style={{ textAlign: 'center', maxWidth: 480, background: '#1e293b', padding: '36px 24px', borderRadius: 16, border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+                    <img src={logo} alt="Long Wedding Logo" style={{ height: 60, marginBottom: 20 }} />
+                    <div style={{ color: '#ef4444', fontSize: '2.5rem', marginBottom: 12 }}>
+                        <i className="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h2 style={{ color: '#f8fafc', fontSize: '1.25rem', fontWeight: 700, marginBottom: 10 }}>Không Thể Truy Cập Cổng Khách Hàng</h2>
+                    <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 24 }}>
+                        {authError}
+                    </p>
+                    <div style={{ fontSize: '0.85rem', color: '#cbd5e1', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: 10 }}>
+                        📞 <strong>Hotline hỗ trợ khách hàng:</strong> 090.xxx.xxxx | Long Wedding Studio
+                    </div>
                 </div>
             </div>
         );
@@ -546,56 +574,70 @@ function ClientPortal() {
                         </div>
 
                         {/* Gallery Grid */}
-                        <div className="cp-photo-grid">
-                            {filteredPhotos.map((p) => (
-                                <div
-                                    key={p.idDrive}
-                                    className={`cp-photo-card ${p.isHearted ? 'selected' : ''} ${p.isCover ? 'cover' : ''}`}
-                                    onClick={() => setSelectedPhoto(p)}
-                                >
-                                    <img src={p.urlNen || p.urlGoc} alt={p.tenFile} className="cp-photo-img" loading="lazy" />
-                                    <div className="cp-photo-overlay">
-                                        <div className="cp-photo-top-actions">
-                                            <button
-                                                className={`cp-heart-btn ${p.isHearted ? 'active' : ''}`}
-                                                onClick={(e) => handleToggleHeart(p.idDrive, e)}
-                                                title="Thả tim chọn vào Album"
-                                            >
-                                                <i className="fa-solid fa-heart"></i>
-                                            </button>
-                                            {p.comments && p.comments.length > 0 && (
-                                                <div className="cp-pin-badge">
-                                                    <i className="fa-solid fa-location-dot"></i>
-                                                    <span>{p.comments.length}</span>
-                                                </div>
-                                            )}
-                                        </div>
+                        {filteredPhotos.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                                <i className="fa-regular fa-images" style={{ fontSize: '2.5rem', marginBottom: 12, display: 'block', color: '#cbd5e1' }}></i>
+                                <div style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', marginBottom: 6 }}>
+                                    {photos.length === 0 ? "Chưa có ảnh trong album này" : "Không tìm thấy ảnh phù hợp bộ lọc"}
+                                </div>
+                                <p style={{ fontSize: '0.85rem', maxWidth: 450, margin: '0 auto', color: '#94a3b8' }}>
+                                    {photos.length === 0 
+                                        ? "Ekip Long Wedding đang tải lên và hoàn thiện bộ ảnh. Quý khách vui lòng quay lại sau ít phút hoặc liên hệ hotline studio!"
+                                        : "Vui lòng chọn bộ lọc khác để hiển thị danh sách ảnh."}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="cp-photo-grid">
+                                {filteredPhotos.map((p) => (
+                                    <div
+                                        key={p.idDrive}
+                                        className={`cp-photo-card ${p.isHearted ? 'selected' : ''} ${p.isCover ? 'cover' : ''}`}
+                                        onClick={() => setSelectedPhoto(p)}
+                                    >
+                                        <img src={p.urlNen || p.urlGoc} alt={p.tenFile} className="cp-photo-img" loading="lazy" />
+                                        <div className="cp-photo-overlay">
+                                            <div className="cp-photo-top-actions">
+                                                <button
+                                                    className={`cp-heart-btn ${p.isHearted ? 'active' : ''}`}
+                                                    onClick={(e) => handleToggleHeart(p.idDrive, e)}
+                                                    title="Thả tim chọn vào Album"
+                                                >
+                                                    <i className="fa-solid fa-heart"></i>
+                                                </button>
+                                                {p.comments && p.comments.length > 0 && (
+                                                    <div className="cp-pin-badge">
+                                                        <i className="fa-solid fa-location-dot"></i>
+                                                        <span>{p.comments.length}</span>
+                                                    </div>
+                                                )}
+                                            </div>
 
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '0.72rem', color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-                                                {p.tenFile}
-                                            </span>
-                                            <button
-                                                onClick={(e) => handleToggleCover(p.idDrive, e)}
-                                                style={{
-                                                    background: p.isCover ? '#0284c7' : 'rgba(0,0,0,0.6)',
-                                                    border: '1px solid rgba(255,255,255,0.2)',
-                                                    color: '#fff',
-                                                    borderRadius: 6,
-                                                    padding: '2px 6px',
-                                                    fontSize: '0.65rem',
-                                                    fontWeight: 700,
-                                                    cursor: 'pointer'
-                                                }}
-                                                title="Đánh dấu làm ảnh phóng cổng tiệc cưới"
-                                            >
-                                                🌟 {p.isCover ? 'Ảnh Cổng' : 'Đặt làm Cổng'}
-                                            </button>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <span style={{ fontSize: '0.72rem', color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                                                    {p.tenFile}
+                                                </span>
+                                                <button
+                                                    onClick={(e) => handleToggleCover(p.idDrive, e)}
+                                                    style={{
+                                                        background: p.isCover ? '#0284c7' : 'rgba(0,0,0,0.6)',
+                                                        border: '1px solid rgba(255,255,255,0.2)',
+                                                        color: '#fff',
+                                                        borderRadius: 6,
+                                                        padding: '2px 6px',
+                                                        fontSize: '0.65rem',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    title="Đánh dấu làm ảnh phóng cổng tiệc cưới"
+                                                >
+                                                    🌟 {p.isCover ? 'Ảnh Cổng' : 'Đặt làm Cổng'}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -734,23 +776,31 @@ function ClientPortal() {
                                     className="cp-lightbox-img"
                                 />
 
-                                {/* Render existing Pins */}
-                                {selectedPhoto.comments && selectedPhoto.comments.map((c, i) => (
-                                    <div
-                                        key={i}
-                                        className="cp-pin-point"
-                                        style={{ left: `${c.coordinateX}%`, top: `${c.coordinateY}%` }}
-                                        title={c.noiDung}
-                                    >
-                                        {i + 1}
-                                    </div>
-                                ))}
+                                {/* Render existing Pins with normalized coordinate scaling */}
+                                {selectedPhoto.comments && selectedPhoto.comments.map((c, i) => {
+                                    const pinLeft = c.normalizedX !== undefined ? (c.normalizedX * 100) : c.coordinateX;
+                                    const pinTop = c.normalizedY !== undefined ? (c.normalizedY * 100) : c.coordinateY;
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="cp-pin-point"
+                                            style={{ left: `${pinLeft}%`, top: `${pinTop}%` }}
+                                            title={c.noiDung}
+                                        >
+                                            {i + 1}
+                                        </div>
+                                    );
+                                })}
 
                                 {/* Render Temporary Dropped Pin */}
                                 {tempPinCoord && (
                                     <div
                                         className="cp-pin-point"
-                                        style={{ left: `${tempPinCoord.x}%`, top: `${tempPinCoord.y}%`, background: '#ef4444' }}
+                                        style={{
+                                            left: `${tempPinCoord.normalizedX !== undefined ? (tempPinCoord.normalizedX * 100) : tempPinCoord.x}%`,
+                                            top: `${tempPinCoord.normalizedY !== undefined ? (tempPinCoord.normalizedY * 100) : tempPinCoord.y}%`,
+                                            background: '#ef4444'
+                                        }}
                                     >
                                         +
                                     </div>

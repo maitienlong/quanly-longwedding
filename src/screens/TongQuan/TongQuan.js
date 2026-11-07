@@ -53,6 +53,7 @@ function TongQuan() {
     const [openDetailDialog, setOpenDetailDialog] = useState(false);
     const [selectedContract, setSelectedContract] = useState(null);
     const [reminders, setReminders] = useState(null);
+    const [unifiedSummary, setUnifiedSummary] = useState(null);
 
     // Fetch all required data
     const loadAllData = useCallback((showSpinner = true) => {
@@ -61,9 +62,10 @@ function TongQuan() {
             otherService.LIST_HOPDONG({}),
             otherService.LIST_CHITIEU({}),
             otherService.findAllLichSoanDo({}),
-            otherService.getReminders({})
+            otherService.getReminders({}),
+            otherService.getUnifiedFinancialSummary ? otherService.getUnifiedFinancialSummary({ periodType: 'month' }) : Promise.resolve(null)
         ])
-        .then(([resHD, resCT, resSD, resRem]) => {
+        .then(([resHD, resCT, resSD, resRem, resUnified]) => {
             if (resHD.status === 'fulfilled' && resHD.value?.data?.hopDong) {
                 setHopDongs(resHD.value.data.hopDong);
             }
@@ -75,6 +77,9 @@ function TongQuan() {
             }
             if (resRem.status === 'fulfilled' && resRem.value?.data?.data) {
                 setReminders(resRem.value.data.data);
+            }
+            if (resUnified?.status === 'fulfilled' && resUnified.value?.data?.data) {
+                setUnifiedSummary(resUnified.value.data.data);
             }
         })
         .catch(err => {
@@ -176,6 +181,20 @@ function TongQuan() {
         // d) Dòng tiền ròng (Thực thu - Chi tiêu)
         const netCashflow = totalPaidInMonth - totalExpensesInMonth;
 
+        if (unifiedSummary) {
+            return {
+                monthLabel: `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`,
+                countNewContracts: unifiedSummary.soLuongHopDong ?? countNewContracts,
+                totalValueNewContracts: unifiedSummary.tongTienHopDong ?? totalValueNewContracts,
+                newContractsInMonth,
+                totalPaidInMonth: unifiedSummary.soTienDaThuTrongKy ?? unifiedSummary.soTienDaThu ?? totalPaidInMonth,
+                countPaymentTransactions,
+                totalExpensesInMonth: unifiedSummary.tongTienKhoanChi ?? totalExpensesInMonth,
+                countExpenses,
+                netCashflow: (unifiedSummary.soTienDaThuTrongKy ?? unifiedSummary.soTienDaThu ?? totalPaidInMonth) - (unifiedSummary.tongTienKhoanChi ?? totalExpensesInMonth)
+            };
+        }
+
         return {
             monthLabel: `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`,
             countNewContracts,
@@ -187,7 +206,7 @@ function TongQuan() {
             countExpenses,
             netCashflow
         };
-    }, [hopDongs, chiTieus]);
+    }, [hopDongs, chiTieus, unifiedSummary]);
 
     // =========================================================================
     // 2. BẢNG TỔNG HỢP HỢP ĐỒNG TRỄ LỊCH (Chụp & Photoshop)

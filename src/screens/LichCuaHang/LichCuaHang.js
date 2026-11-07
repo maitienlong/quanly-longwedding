@@ -114,7 +114,7 @@ const isPastToday = (dateString, giaiDoan, tab, subGiaiDoan) => {
     const stageNum = Number(giaiDoan) || 1;
     const isSubDone = subGiaiDoan === 'hoan_thanh';
 
-    if (tab === 'chupHinh') {
+    if (tab === 'chupHinh' || tab === 'quayPhim' || tab === 'makeUp') {
         isCompleted = stageNum > 1 || (stageNum === 1 && isSubDone);
     } else if (tab === 'hauKy') {
         isCompleted = stageNum > 2 || (stageNum === 2 && isSubDone);
@@ -175,16 +175,19 @@ function LichCuaHang() {
         return checkMatch(npv.thoChupHinh) ||
                checkMatch(npv.thoMakeUp) ||
                checkMatch(npv.thoChinhAnh) ||
+               checkMatch(npv.thoQuayPhim) ||
                checkMatch(npv.banHang) ||
                checkMatch(npv.phucVu) ||
                checkMatch(hd?.createBy) ||
                checkMatch(hd?.nguoiTao) ||
-               checkMatch(hd?.soanDo?.nguoiKiem);
+               checkMatch(hd?.soanDo?.nguoiKiem) ||
+               (Array.isArray(hd?.serviceSchedules) && hd.serviceSchedules.some(s => checkMatch(s.nhanVien)));
     }, []);
 
 
 
     const [viewMode, setViewMode] = useState('calendar'); // 'calendar' hoặc 'list'
+    const [refreshing, setRefreshing] = useState(false);
     const todayDate = new Date();
     const [currentMonth, setCurrentMonth] = useState(todayDate.getMonth()); // 0 - 11
     const [currentYear, setCurrentYear] = useState(todayDate.getFullYear());
@@ -280,6 +283,15 @@ function LichCuaHang() {
                 return hasScheduleMake || hasLichMake || hasNgayMake || hasThoMake;
             });
         }
+        if (activeTab === 'quayPhim') {
+            rawList = rawList.filter(hd => {
+                const hasScheduleVideo = (hd.serviceSchedules || []).some(s => s.serviceType === 'video');
+                const hasLichVideo = (hd.lichQuayPhim || []).length > 0;
+                const hasNgayVideo = !!hd.cacNgay?.ngayQuayPhim;
+                const hasThoVideo = !!hd.nguoiPhucVu?.thoQuayPhim;
+                return hasScheduleVideo || hasLichVideo || hasNgayVideo || hasThoVideo;
+            });
+        }
         return rawList;
     }, [hopDong, isAdmin, user, isAssignedToUser, activeTab, hauKyStatusFilter]);
 
@@ -367,6 +379,9 @@ function LichCuaHang() {
         if (tabVal === 'makeUp') {
             dateField = 'makeUp';
             targetStage = 'all';
+        } else if (tabVal === 'quayPhim') {
+            dateField = 'quayPhim';
+            targetStage = 'all';
         } else if (tabVal === 'hauKy') {
             dateField = 'cacNgay.ngayChinhAnh';
             targetStage = [2]; // Chỉ lấy giai đoạn 2 (Hậu kỳ). Khi chuyển sang in ảnh (giai đoạn 3), HĐ chuyển sang tab In ảnh.
@@ -412,6 +427,16 @@ function LichCuaHang() {
                 hideLoading();
             });
     }, [showLoading, hideLoading]);
+
+    const handleReloadData = () => {
+        setRefreshing(true);
+        const timeFilter = viewMode === 'calendar' ? 'all' : selectedTime?.id;
+        loadHopDong(activeTab, timeFilter, searchInput);
+        setTimeout(() => {
+            setRefreshing(false);
+            toast.success("Đã làm mới dữ liệu lịch cửa hàng!");
+        }, 500);
+    };
 
     const handleCloseDetailDialog = (updated) => {
         setOpenDetailDialog(false);
@@ -863,7 +888,7 @@ function LichCuaHang() {
             }
             setMakeUpScheduleItems(makeItems);
             setOpenMakeUpDialog(true);
-        } else if (evt.category === 'chup') {
+        } else if (evt.category === 'chup' || evt.category === 'video') {
             handleRowClick(evt.contract);
         } else if (evt.category === 'photoshop' || evt.category === 'inanh' || evt.category === 'cuoihoi') {
             setSendData(evt.contract);
@@ -941,11 +966,38 @@ function LichCuaHang() {
             };
         });
 
+        const videoSchedules = (chupHinhSchedules || []).filter(s => s.serviceType === 'video' && s.ngayGio).map((sch, idx) => {
+            let ngayIso = null;
+            let gioStr = '';
+            if (sch.ngayGio) {
+                const dt = new Date(sch.ngayGio);
+                if (!isNaN(dt.getTime())) {
+                    ngayIso = dt.toISOString();
+                    gioStr = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+                }
+            }
+            return {
+                id: sch.id,
+                dichVuId: sch.serviceId || "",
+                tenDichVu: sch.serviceName || `Quay phim lượt ${sch.luot || (idx + 1)}`,
+                luot: sch.luot || idx + 1,
+                ngayGio: ngayIso,
+                ngayQuay: ngayIso,
+                gioQuay: gioStr,
+                diaDiem: sch.diaDiem || "Tại Studio",
+                thoQuayPhim: sch.nhanVien || "",
+                nhanVien: sch.nhanVien || "",
+                ghiChu: sch.ghiChu || ""
+            };
+        });
+
         const allPhoto = (chupHinhSchedules || []).filter(s => s.serviceType === 'photo');
         const allMake = (chupHinhSchedules || []).filter(s => s.serviceType === 'makeup');
+        const allVideo = (chupHinhSchedules || []).filter(s => s.serviceType === 'video');
 
         const firstPhoto = photoSchedules[0] || null;
         const firstMakeup = makeupSchedules[0] || null;
+        const firstVideo = videoSchedules[0] || null;
         const hasDefinedSchedules = Array.isArray(chupHinhSchedules);
 
         const newNgayChup = firstPhoto ? firstPhoto.ngayChup : (hasDefinedSchedules && allPhoto.length === 0 ? null : (selectedChupHinhContract.cacNgay?.ngayChup || null));
@@ -960,6 +1012,11 @@ function LichCuaHang() {
         const computedThoMake = firstMakeup ? (firstMakeup.thoMakeUp || confirmThoMakeUp || "") : (hasDefinedSchedules && allMake.length === 0 ? "" : (confirmThoMakeUp || selectedChupHinhContract.nguoiPhucVu?.thoMakeUp || ""));
         const newThoMakeUp = canAssignCrew ? computedThoMake : (selectedChupHinhContract.nguoiPhucVu?.thoMakeUp || "");
 
+        const newNgayQuayPhim = firstVideo ? firstVideo.ngayGio : (hasDefinedSchedules && allVideo.length === 0 ? null : (selectedChupHinhContract.cacNgay?.ngayQuayPhim || null));
+        const newGioQuayPhim = firstVideo ? (firstVideo.gioQuay || "") : (hasDefinedSchedules && allVideo.length === 0 ? "" : (selectedChupHinhContract.cacNgay?.gioQuayPhim || ""));
+        const newDiaDiemQuayPhim = firstVideo ? (firstVideo.diaDiem || "") : (hasDefinedSchedules && allVideo.length === 0 ? "" : (selectedChupHinhContract.cacNgay?.diaDiemQuayPhim || ""));
+        const newThoQuayPhim = firstVideo ? (firstVideo.thoQuayPhim || "") : (hasDefinedSchedules && allVideo.length === 0 ? "" : (selectedChupHinhContract.nguoiPhucVu?.thoQuayPhim || ""));
+
         const payload = {
             _id: selectedChupHinhContract._id,
             maHopDong: selectedChupHinhContract.maHopDong,
@@ -971,17 +1028,22 @@ function LichCuaHang() {
                 chotLich: confirmChotLich,
                 ngayTrangDiem: newNgayTrangDiem,
                 gioTrangDiem: newGioTrangDiem,
-                diaDiemTrangDiem: newDiaDiemTrangDiem
+                diaDiemTrangDiem: newDiaDiemTrangDiem,
+                ngayQuayPhim: newNgayQuayPhim,
+                gioQuayPhim: newGioQuayPhim,
+                diaDiemQuayPhim: newDiaDiemQuayPhim
             },
             nguoiPhucVu: {
                 ...selectedChupHinhContract.nguoiPhucVu,
                 thoChupHinh: newThoChupHinh,
-                thoMakeUp: newThoMakeUp
+                thoMakeUp: newThoMakeUp,
+                thoQuayPhim: newThoQuayPhim
             },
             linkAnhGoc: confirmLinkAnh,
             serviceSchedules: chupHinhSchedules,
             lichChup: photoSchedules,
             lichTrangDiem: makeupSchedules,
+            lichQuayPhim: videoSchedules,
             newAuditEntry: {
                 action: shouldTransitionToHauKy ? "Chuyển sang hậu kỳ & Đồng bộ lịch nhiệm vụ" : "Xác nhận lịch chụp & Đồng bộ phân công nhiệm vụ",
                 reason: `Chốt lịch: ${confirmChotLich}. Ekip: Chụp (${newThoChupHinh || 'Chưa gán'}), Make (${newThoMakeUp || 'Chưa gán'}). Gồm ${(chupHinhSchedules || []).length} nhiệm vụ.`,
@@ -1251,78 +1313,249 @@ function LichCuaHang() {
         };
 
         filteredHopDong.forEach(hd => {
+            const custName = hd.khachHang1?.tenKhachHang || hd.hoTen || '';
+            const defaultPkgName = hd.gioHang?.[0]?.tenDichVuSnapshot || '';
+
             // 1. Chụp hình
             if (activeTab === 'chupHinh' || activeTab === 'tongHop') {
-                if (Array.isArray(hd.serviceSchedules) && hd.serviceSchedules.length > 0) {
-                    hd.serviceSchedules.filter(s => s.serviceType === 'photo' && s.ngayGio).forEach(task => {
+                const photoTasks = Array.isArray(hd.serviceSchedules) 
+                    ? hd.serviceSchedules.filter(s => s.serviceType === 'photo' && s.ngayGio) 
+                    : [];
+
+                if (photoTasks.length > 0) {
+                    photoTasks.forEach(task => {
                         if (isSameDay(dayDate, task.ngayGio)) {
                             const time = getTimeFromDate(task.ngayGio);
+                            const svcDesc = task.serviceName || task.tenDichVu || defaultPkgName || '';
                             events.push({
                                 id: `ev-chup-${hd._id}-${task.id || task._id}`,
                                 category: 'chup',
                                 type: 'chupHinh',
+                                isLegacy: false,
                                 contract: hd,
-                                title: task.serviceName || 'Chụp ảnh',
+                                title: svcDesc || 'Chụp ảnh',
                                 time: time,
-                                label: `${time ? time + ' ' : ''}📸 [Chụp] ${hd.khachHang1?.tenKhachHang || ''} (${task.nhanVien || 'Chưa gán'})`,
+                                label: `${time ? time + ' ' : ''}📸 [Chụp] ${custName}${svcDesc ? ` - ${svcDesc}` : ''}`,
                                 staff: task.nhanVien || hd.nguoiPhucVu?.thoChupHinh,
                                 color: '#0284c7'
                             });
                         }
                     });
-                } else if (hd.cacNgay?.ngayChup && isSameDay(dayDate, hd.cacNgay.ngayChup)) {
-                    const time = getTimeFromDate(hd.cacNgay?.ngayChup) || hd.cacNgay?.gioChup || '';
-                    events.push({
-                        id: `ev-chup-${hd._id}`,
-                        category: 'chup',
-                        type: 'chupHinh',
-                        contract: hd,
-                        title: 'Chụp ảnh',
-                        time: time,
-                        label: `${time ? time + ' ' : ''}📸 [Chụp] ${hd.khachHang1?.tenKhachHang || ''}`,
-                        staff: hd.nguoiPhucVu?.thoChupHinh,
-                        color: '#0284c7'
-                    });
+                } else {
+                    // Dữ liệu cũ (lichChup hoặc cacNgay.ngayChup) -> Đánh dấu màu vàng để phân biệt
+                    if (Array.isArray(hd.lichChup) && hd.lichChup.length > 0) {
+                        hd.lichChup.forEach((lc, idx) => {
+                            const dateVal = lc.ngayGio || lc.ngayChup;
+                            if (dateVal && isSameDay(dayDate, dateVal)) {
+                                const time = getTimeFromDate(dateVal) || lc.gioChup || '';
+                                const svcDesc = lc.tenDichVu || defaultPkgName || '';
+                                events.push({
+                                    id: `ev-chup-legacy-${hd._id}-${lc.id || lc._id || idx}`,
+                                    category: 'chup',
+                                    type: 'chupHinh_legacy',
+                                    isLegacy: true,
+                                    contract: hd,
+                                    title: svcDesc || 'Chụp ảnh',
+                                    time: time,
+                                    label: `${time ? time + ' ' : ''}⚠️ 📸 [Chụp - Cũ] ${custName}${svcDesc ? ` - ${svcDesc}` : ''}`,
+                                    staff: lc.thoChupHinh || hd.nguoiPhucVu?.thoChupHinh,
+                                    color: '#f59e0b',
+                                    bg: '#fef3c7',
+                                    textColor: '#b45309'
+                                });
+                            }
+                        });
+                    } else if (hd.cacNgay?.ngayChup && isSameDay(dayDate, hd.cacNgay.ngayChup)) {
+                        const time = getTimeFromDate(hd.cacNgay?.ngayChup) || hd.cacNgay?.gioChup || '';
+                        const svcDesc = defaultPkgName || '';
+                        events.push({
+                            id: `ev-chup-legacy-${hd._id}`,
+                            category: 'chup',
+                            type: 'chupHinh_legacy',
+                            isLegacy: true,
+                            contract: hd,
+                            title: svcDesc || 'Chụp ảnh',
+                            time: time,
+                            label: `${time ? time + ' ' : ''}⚠️ 📸 [Chụp - Cũ] ${custName}${svcDesc ? ` - ${svcDesc}` : ''}`,
+                            staff: hd.nguoiPhucVu?.thoChupHinh,
+                            color: '#f59e0b',
+                            bg: '#fef3c7',
+                            textColor: '#b45309'
+                        });
+                    }
                 }
             }
 
             // 2. Makeup
             if (activeTab === 'makeUp' || activeTab === 'tongHop') {
-                if (Array.isArray(hd.serviceSchedules) && hd.serviceSchedules.length > 0) {
-                    hd.serviceSchedules.filter(s => s.serviceType === 'makeup' && s.ngayGio).forEach(task => {
+                const makeupTasks = Array.isArray(hd.serviceSchedules) 
+                    ? hd.serviceSchedules.filter(s => s.serviceType === 'makeup' && s.ngayGio) 
+                    : [];
+
+                if (makeupTasks.length > 0) {
+                    makeupTasks.forEach(task => {
                         if (isSameDay(dayDate, task.ngayGio)) {
                             const time = getTimeFromDate(task.ngayGio);
+                            const svcDesc = task.serviceName || task.tenDichVu || defaultPkgName || '';
                             events.push({
                                 id: `ev-make-${hd._id}-${task.id || task._id}`,
                                 category: 'makeup',
                                 type: 'makeup',
+                                isLegacy: false,
                                 contract: hd,
-                                title: task.serviceName || 'Trang điểm',
+                                title: svcDesc || 'Trang điểm',
                                 time: time,
-                                label: `${time ? time + ' ' : ''}💄 [Make] ${hd.khachHang1?.tenKhachHang || ''} (${task.nhanVien || 'Chưa gán'})`,
+                                label: `${time ? time + ' ' : ''}💄 [Trang điểm] ${custName}${svcDesc ? ` - ${svcDesc}` : ''}`,
                                 staff: task.nhanVien || hd.nguoiPhucVu?.thoMakeUp,
                                 color: '#db2777'
                             });
                         }
                     });
-                } else if (hd.cacNgay?.ngayTrangDiem && isSameDay(dayDate, hd.cacNgay.ngayTrangDiem)) {
-                    const time = getTimeFromDate(hd.cacNgay?.ngayTrangDiem) || hd.cacNgay?.gioTrangDiem || '';
-                    events.push({
-                        id: `ev-make-${hd._id}`,
-                        category: 'makeup',
-                        type: 'makeup',
-                        contract: hd,
-                        title: 'Trang điểm',
-                        time: time,
-                        label: `${time ? time + ' ' : ''}💄 [Make] ${hd.khachHang1?.tenKhachHang || ''}`,
-                        staff: hd.nguoiPhucVu?.thoMakeUp,
-                        color: '#db2777'
-                    });
+                } else {
+                    // Dữ liệu cũ (lichTrangDiem hoặc cacNgay.ngayTrangDiem) -> Đánh dấu màu vàng để phân biệt
+                    if (Array.isArray(hd.lichTrangDiem) && hd.lichTrangDiem.length > 0) {
+                        hd.lichTrangDiem.forEach((mk, idx) => {
+                            const dateVal = mk.ngayTrangDiem || mk.ngayGio || mk.ngay;
+                            if (dateVal && isSameDay(dayDate, dateVal)) {
+                                const time = getTimeFromDate(dateVal) || mk.gioTrangDiem || '';
+                                const svcDesc = mk.tenDichVu || defaultPkgName || '';
+                                events.push({
+                                    id: `ev-make-legacy-${hd._id}-${mk.id || mk._id || idx}`,
+                                    category: 'makeup',
+                                    type: 'makeup_legacy',
+                                    isLegacy: true,
+                                    contract: hd,
+                                    title: svcDesc || 'Trang điểm',
+                                    time: time,
+                                    label: `${time ? time + ' ' : ''}⚠️ 💄 [Trang điểm - Cũ] ${custName}${svcDesc ? ` - ${svcDesc}` : ''}`,
+                                    staff: mk.thoMakeUp || hd.nguoiPhucVu?.thoMakeUp,
+                                    color: '#f59e0b',
+                                    bg: '#fef3c7',
+                                    textColor: '#b45309'
+                                });
+                            }
+                        });
+                    } else if (hd.cacNgay?.ngayTrangDiem && isSameDay(dayDate, hd.cacNgay.ngayTrangDiem)) {
+                        const time = getTimeFromDate(hd.cacNgay?.ngayTrangDiem) || hd.cacNgay?.gioTrangDiem || '';
+                        const svcDesc = defaultPkgName || '';
+                        events.push({
+                            id: `ev-make-legacy-${hd._id}`,
+                            category: 'makeup',
+                            type: 'makeup_legacy',
+                            isLegacy: true,
+                            contract: hd,
+                            title: svcDesc || 'Trang điểm',
+                            time: time,
+                            label: `${time ? time + ' ' : ''}⚠️ 💄 [Trang điểm - Cũ] ${custName}${svcDesc ? ` - ${svcDesc}` : ''}`,
+                            staff: hd.nguoiPhucVu?.thoMakeUp,
+                            color: '#f59e0b',
+                            bg: '#fef3c7',
+                            textColor: '#b45309'
+                        });
+                    }
                 }
             }
 
-            // 3. Hậu kỳ (Photoshop)
-            if (activeTab === 'hauKy' || activeTab === 'tongHop') {
+            // 2.5 Quay phim
+            if (activeTab === 'quayPhim' || activeTab === 'chupHinh' || activeTab === 'tongHop') {
+                const videoTasks = Array.isArray(hd.serviceSchedules) 
+                    ? hd.serviceSchedules.filter(s => s.serviceType === 'video' && s.ngayGio) 
+                    : [];
+
+                if (videoTasks.length > 0) {
+                    videoTasks.forEach(task => {
+                        if (isSameDay(dayDate, task.ngayGio)) {
+                            const time = getTimeFromDate(task.ngayGio);
+                            const svcDesc = task.serviceName || task.tenDichVu || defaultPkgName || '';
+                            events.push({
+                                id: `ev-video-${hd._id}-${task.id || task._id}`,
+                                category: 'video',
+                                type: 'video',
+                                isLegacy: false,
+                                contract: hd,
+                                title: svcDesc || 'Quay phim',
+                                time: time,
+                                label: `${time ? time + ' ' : ''}🎥 [Quay] ${custName}${svcDesc ? ` - ${svcDesc}` : ''}`,
+                                staff: task.nhanVien || hd.nguoiPhucVu?.thoQuayPhim,
+                                color: '#7c3aed'
+                            });
+                        }
+                    });
+                } else {
+                    // Dữ liệu cũ (lichQuayPhim hoặc cacNgay.ngayQuayPhim) -> Đánh dấu màu vàng để phân biệt
+                    if (Array.isArray(hd.lichQuayPhim) && hd.lichQuayPhim.length > 0) {
+                        hd.lichQuayPhim.forEach((vq, idx) => {
+                            const dateVal = vq.ngayGio || vq.ngayQuayPhim || vq.ngay;
+                            if (dateVal && isSameDay(dayDate, dateVal)) {
+                                const time = getTimeFromDate(dateVal) || vq.gioQuayPhim || '';
+                                const svcDesc = vq.tenDichVu || defaultPkgName || '';
+                                events.push({
+                                    id: `ev-video-legacy-${hd._id}-${vq.id || vq._id || idx}`,
+                                    category: 'video',
+                                    type: 'video_legacy',
+                                    isLegacy: true,
+                                    contract: hd,
+                                    title: svcDesc || 'Quay phim',
+                                    time: time,
+                                    label: `${time ? time + ' ' : ''}⚠️ 🎥 [Quay - Cũ] ${custName}${svcDesc ? ` - ${svcDesc}` : ''}`,
+                                    staff: vq.thoQuayPhim || hd.nguoiPhucVu?.thoQuayPhim,
+                                    color: '#f59e0b',
+                                    bg: '#fef3c7',
+                                    textColor: '#b45309'
+                                });
+                            }
+                        });
+                    } else if (hd.cacNgay?.ngayQuayPhim && isSameDay(dayDate, hd.cacNgay.ngayQuayPhim)) {
+                        const time = getTimeFromDate(hd.cacNgay?.ngayQuayPhim) || hd.cacNgay?.gioQuayPhim || '';
+                        const svcDesc = defaultPkgName || '';
+                        events.push({
+                            id: `ev-video-legacy-${hd._id}`,
+                            category: 'video',
+                            type: 'video_legacy',
+                            isLegacy: true,
+                            contract: hd,
+                            title: svcDesc || 'Quay phim',
+                            time: time,
+                            label: `${time ? time + ' ' : ''}⚠️ 🎥 [Quay - Cũ] ${custName}${svcDesc ? ` - ${svcDesc}` : ''}`,
+                            staff: hd.nguoiPhucVu?.thoQuayPhim,
+                            color: '#f59e0b',
+                            bg: '#fef3c7',
+                            textColor: '#b45309'
+                        });
+                    }
+                }
+            }
+
+            // 2.8 Nhiệm vụ khác (BTS, CSKH, Hỗ trợ) từ serviceSchedules
+            if (activeTab === 'tongHop') {
+                const otherTasks = Array.isArray(hd.serviceSchedules) 
+                    ? hd.serviceSchedules.filter(s => ['bts', 'cskh', 'support'].includes(s.serviceType) && s.ngayGio) 
+                    : [];
+                otherTasks.forEach(task => {
+                    if (isSameDay(dayDate, task.ngayGio)) {
+                        const time = getTimeFromDate(task.ngayGio);
+                        const icons = { bts: '🎬', cskh: '📞', support: '🤝' };
+                        const names = { bts: 'Hậu trường', cskh: 'CSKH', support: 'Hỗ trợ' };
+                        const colors = { bts: '#ea580c', cskh: '#059669', support: '#d97706' };
+                        const svcDesc = task.serviceName || names[task.serviceType];
+                        events.push({
+                            id: `ev-other-${hd._id}-${task.id || task._id}`,
+                            category: task.serviceType,
+                            type: task.serviceType,
+                            isLegacy: false,
+                            contract: hd,
+                            title: svcDesc,
+                            time: time,
+                            label: `${time ? time + ' ' : ''}${icons[task.serviceType]} [${names[task.serviceType]}] ${custName}${svcDesc ? ` - ${svcDesc}` : ''}`,
+                            staff: task.nhanVien,
+                            color: colors[task.serviceType]
+                        });
+                    }
+                });
+            }
+
+            // 3. Hậu kỳ (Photoshop) - CHỈ hiển thị khi chọn tab Lịch Hậu Kỳ (activeTab === 'hauKy')
+            if (activeTab === 'hauKy') {
                 if (isSameDay(dayDate, hd.cacNgay?.ngayChinhAnh)) {
                     events.push({
                         id: `ev-pts-${hd._id}`,
@@ -1424,11 +1657,20 @@ function LichCuaHang() {
     };
 
     const getEventBackground = (type) => {
+        if (type && type.endsWith('_legacy')) return '#fef3c7';
         switch (type) {
             case 'chupHinh':
                 return '#e0f2fe';
             case 'makeup':
                 return '#fce7f3';
+            case 'video':
+                return '#f3e8ff';
+            case 'bts':
+                return '#ffedd5';
+            case 'cskh':
+                return '#ecfdf5';
+            case 'support':
+                return '#fefce8';
             case 'hauKy_chinh':
                 return '#ede9fe';
             case 'hauKy_tra':
@@ -1447,11 +1689,20 @@ function LichCuaHang() {
     };
 
     const getEventTextColor = (type) => {
+        if (type && type.endsWith('_legacy')) return '#b45309';
         switch (type) {
             case 'chupHinh':
                 return '#0284c7';
             case 'makeup':
                 return '#be185d';
+            case 'video':
+                return '#7c3aed';
+            case 'bts':
+                return '#c2410c';
+            case 'cskh':
+                return '#047857';
+            case 'support':
+                return '#a16207';
             case 'hauKy_chinh':
                 return '#7c3aed';
             case 'hauKy_tra':
@@ -1464,10 +1715,6 @@ function LichCuaHang() {
                 return '#16a34a';
             case 'soanDo':
                 return '#0f766e';
-            case 'anHoi':
-                return '#dc2626';
-            case 'cuoi':
-                return '#16a34a';
             default:
                 return '#3c4043';
         }
@@ -1559,11 +1806,25 @@ function LichCuaHang() {
                             <IconButton 
                                 onClick={handleNextMonth}
                                 size="small"
-                                sx={{ border: '1px solid #e2e8f0', '&:hover': { bgcolor: '#f1f5f9' } }}
+                                sx={{ border: '1px solid #e2e8f0', mr: 0.5, '&:hover': { bgcolor: '#f1f5f9' } }}
                                 title="Tháng sau"
                             >
                                 <i className="fa-solid fa-chevron-right" style={{ fontSize: '0.85rem' }}></i>
                             </IconButton>
+                            <Tooltip title="Làm mới dữ liệu lịch">
+                                <IconButton 
+                                    onClick={handleReloadData}
+                                    size="small"
+                                    disabled={refreshing}
+                                    sx={{ 
+                                        border: '1px solid #e2e8f0', 
+                                        color: '#0284c7', 
+                                        '&:hover': { bgcolor: '#f0f9ff', borderColor: '#0284c7' } 
+                                    }}
+                                >
+                                    <i className={`fa-solid fa-rotate-right ${refreshing ? 'fa-spin' : ''}`} style={{ fontSize: '0.85rem' }}></i>
+                                </IconButton>
+                            </Tooltip>
                         </Box>
                         <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', ml: 1, letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 1 }}>
                             Tháng {currentMonth + 1}, {currentYear}
@@ -1730,9 +1991,11 @@ function LichCuaHang() {
                                                 handleCalendarEventClick(evt);
                                             }}
                                             style={{
-                                                backgroundColor: getEventBackground(evt.type),
-                                                color: getEventTextColor(evt.type),
+                                                backgroundColor: evt.bg || getEventBackground(evt.type),
+                                                color: evt.textColor || getEventTextColor(evt.type),
                                                 borderLeft: `3.5px solid ${evt.color || '#0284c7'}`,
+                                                border: evt.isLegacy ? '1px solid #fde68a' : undefined,
+                                                borderLeftWidth: '3.5px',
                                                 padding: '3px 6px',
                                                 borderRadius: '4px',
                                                 fontSize: '0.72rem',
@@ -1743,7 +2006,7 @@ function LichCuaHang() {
                                                 textOverflow: 'ellipsis',
                                                 lineHeight: 1.3
                                             }}
-                                            className="calendar-event-badge"
+                                            className={`calendar-event-badge ${evt.isLegacy ? 'event-legacy-amber' : ''}`}
                                             title={evt.label}
                                         >
                                             {evt.label}
@@ -1921,6 +2184,17 @@ function LichCuaHang() {
                     LỊCH CHỤP HÌNH
                 </button>
                 <button
+                    className={`schedule-tab-btn ${activeTab === 'quayPhim' ? 'active' : ''}`}
+                    onClick={() => {
+                        setActiveTab('quayPhim');
+                        setViewMode('list');
+                        setSendData({});
+                    }}
+                >
+                    <i className="fa-solid fa-video"></i>
+                    LỊCH QUAY PHIM
+                </button>
+                <button
                     className={`schedule-tab-btn ${activeTab === 'hauKy' ? 'active' : ''}`}
                     onClick={() => {
                         setActiveTab('hauKy');
@@ -2007,8 +2281,8 @@ function LichCuaHang() {
                             {[
                                 { id: 'all', label: 'Tất cả', color: '#1e293b', bg: '#f1f5f9' },
                                 { id: 'chup', label: '📸 Chụp ảnh', color: '#0369a1', bg: '#e0f2fe' },
-                                { id: 'makeup', label: '💄 Makeup', color: '#be185d', bg: '#fce7f3' },
-                                { id: 'photoshop', label: '🪄 Hậu kỳ', color: '#7c3aed', bg: '#ede9fe' },
+                                { id: 'makeup', label: '💄 Trang điểm', color: '#be185d', bg: '#fce7f3' },
+                                { id: 'video', label: '🎥 Quay phim', color: '#7c3aed', bg: '#f3e8ff' },
                                 { id: 'inanh', label: '🖨️ In ảnh', color: '#ea580c', bg: '#ffedd5' },
                                 { id: 'cuoihoi', label: '💍 Cưới & Hỏi', color: '#dc2626', bg: '#fee2e2' },
                                 { id: 'soando', label: '👗 Soạn đồ', color: '#0d9488', bg: '#ccfbf1' },
@@ -2056,6 +2330,29 @@ function LichCuaHang() {
                 </div>
 
                 <div className="toolbar-right">
+                    <Button
+                        variant="outlined"
+                        onClick={handleReloadData}
+                        size="small"
+                        disabled={refreshing}
+                        startIcon={<i className={`fa-solid fa-rotate-right ${refreshing ? 'fa-spin' : ''}`}></i>}
+                        sx={{ 
+                            height: 40, 
+                            textTransform: 'none', 
+                            fontWeight: 700, 
+                            fontSize: '0.85rem', 
+                            borderRadius: '10px', 
+                            px: 1.8, 
+                            whiteSpace: 'nowrap',
+                            color: '#0284c7', 
+                            borderColor: '#cbd5e1', 
+                            bgcolor: '#ffffff',
+                            '&:hover': { bgcolor: '#f0f9ff', borderColor: '#0284c7' }
+                        }}
+                    >
+                        Làm mới
+                    </Button>
+
                     <ToggleButtonGroup
                         value={viewMode}
                         exclusive
@@ -2117,7 +2414,17 @@ function LichCuaHang() {
                             <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
                                 <Stack spacing={2}>
                                 {filteredHopDong.map((hd, index) => {
-                                    const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'makeUp' ? (hd.cacNgay?.ngayTrangDiem || hd.lichTrangDiem?.[0]?.ngayTrangDiem) : activeTab === 'hauKy' ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null)) : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
+                                    const targetDate = activeTab === 'chupHinh'
+                                        ? (hd.serviceSchedules?.find(s => s.serviceType === 'photo' && s.ngayGio)?.ngayGio || hd.cacNgay?.ngayChup || hd.lichChup?.[0]?.ngayChup)
+                                        : activeTab === 'makeUp'
+                                        ? (hd.serviceSchedules?.find(s => s.serviceType === 'makeup' && s.ngayGio)?.ngayGio || hd.cacNgay?.ngayTrangDiem || hd.lichTrangDiem?.[0]?.ngayTrangDiem)
+                                        : activeTab === 'quayPhim'
+                                        ? (hd.serviceSchedules?.find(s => s.serviceType === 'video' && s.ngayGio)?.ngayGio || hd.cacNgay?.ngayQuayPhim || hd.lichQuayPhim?.[0]?.ngayQuayPhim)
+                                        : activeTab === 'hauKy'
+                                        ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null))
+                                        : activeTab === 'inAnh'
+                                        ? hd.cacNgay?.ngayTraAnh
+                                        : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
                                     const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab, hd.subGiaiDoan);
                 
                                     return (
@@ -2238,6 +2545,38 @@ function LichCuaHang() {
                                                             </Grid>
                                                         </>
                                                     )}
+                                                    {activeTab === 'quayPhim' && (
+                                                        <>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Ngày quay:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" fontWeight="bold" color={isOverdue ? '#dc2626' : '#7c3aed'}>
+                                                                    {(() => {
+                                                                        const vTasks = (hd.serviceSchedules || []).filter(s => s.serviceType === 'video' && s.ngayGio);
+                                                                        const vDate = vTasks.length > 0 ? vTasks[0].ngayGio : (hd.cacNgay?.ngayQuayPhim || (hd.lichQuayPhim && hd.lichQuayPhim[0]?.ngayGio));
+                                                                        return vDate ? formatDateTime(vDate) : 'Chưa cập nhật';
+                                                                    })()}
+                                                                </Typography>
+                                                            </Grid>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Địa điểm:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2">
+                                                                    {(() => {
+                                                                        const vTasks = (hd.serviceSchedules || []).filter(s => s.serviceType === 'video');
+                                                                        return vTasks[0]?.diaDiem || hd.cacNgay?.diaDiemQuayPhim || 'Tại Studio';
+                                                                    })()}
+                                                                </Typography>
+                                                            </Grid>
+                                                            <Grid item xs={4}><Typography variant="body2" color="textSecondary">Thợ quay:</Typography></Grid>
+                                                            <Grid item xs={8}>
+                                                                <Typography variant="body2" fontWeight="600" color="#7c3aed">
+                                                                    {(() => {
+                                                                        const vTasks = (hd.serviceSchedules || []).filter(s => s.serviceType === 'video');
+                                                                        return vTasks[0]?.nhanVien || hd.nguoiPhucVu?.thoQuayPhim || 'Chưa phân công';
+                                                                    })()}
+                                                                </Typography>
+                                                            </Grid>
+                                                        </>
+                                                    )}
                 
                                                     {activeTab === 'hauKy' && (
                                                         <>
@@ -2328,6 +2667,18 @@ function LichCuaHang() {
                                         <TableCell align='center' style={{ width: 150 }}>EKIP</TableCell>
                                         <TableCell align='center' style={{ width: 130 }}>CHỐT LỊCH</TableCell>
                                     </TableRow>
+                                ) : activeTab === 'quayPhim' ? (
+                                    <TableRow>
+                                        <TableCell align='center' style={{ width: 60 }}>STT</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>NGÀY QUAY</TableCell>
+                                        <TableCell align='center' style={{ width: 105 }}>MÃ SỐ HĐ</TableCell>
+                                        <TableCell align='left' style={{ width: 160 }}>TÊN KHÁCH HÀNG</TableCell>
+                                        <TableCell align='left' style={{ width: 120 }}>LIÊN HỆ</TableCell>
+                                        <TableCell align='center' style={{ width: 120 }}>DỊCH VỤ / GÓI QUAY</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>ĐỊA ĐIỂM QUAY</TableCell>
+                                        <TableCell align='center' style={{ width: 140 }}>THỢ QUAY PHIM</TableCell>
+                                        <TableCell align='center' style={{ width: 110 }}>THAO TÁC</TableCell>
+                                    </TableRow>
                                 ) : activeTab === 'makeUp' ? (
                                     <TableRow>
                                         <TableCell align='center' style={{ width: 60 }}>STT</TableCell>
@@ -2381,7 +2732,17 @@ function LichCuaHang() {
                             <TableBody>
                                 {filteredHopDong && filteredHopDong.length > 0 ? (
                                     filteredHopDong.map((hd, index) => {
-                                        const targetDate = activeTab === 'chupHinh' ? hd.cacNgay?.ngayChup : activeTab === 'hauKy' ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null)) : activeTab === 'inAnh' ? hd.cacNgay?.ngayTraAnh : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
+                                        const targetDate = activeTab === 'chupHinh'
+                                            ? (hd.serviceSchedules?.find(s => s.serviceType === 'photo' && s.ngayGio)?.ngayGio || hd.cacNgay?.ngayChup || hd.lichChup?.[0]?.ngayChup)
+                                            : activeTab === 'makeUp'
+                                            ? (hd.serviceSchedules?.find(s => s.serviceType === 'makeup' && s.ngayGio)?.ngayGio || hd.cacNgay?.ngayTrangDiem || hd.lichTrangDiem?.[0]?.ngayTrangDiem)
+                                            : activeTab === 'quayPhim'
+                                            ? (hd.serviceSchedules?.find(s => s.serviceType === 'video' && s.ngayGio)?.ngayGio || hd.cacNgay?.ngayQuayPhim || hd.lichQuayPhim?.[0]?.ngayQuayPhim)
+                                            : activeTab === 'hauKy'
+                                            ? (hd.cacNgay?.ngayTraAnh || (hd.cacNgay?.ngayChinhAnh ? new Date(new Date(hd.cacNgay.ngayChinhAnh).getTime() + 3*24*60*60*1000).toISOString() : null))
+                                            : activeTab === 'inAnh'
+                                            ? hd.cacNgay?.ngayTraAnh
+                                            : (hd.cacNgay?.ngayCuoi || hd.cacNgay?.ngayAnHoi);
                                         const isOverdue = isPastToday(targetDate, hd.giaiDoan, activeTab, hd.subGiaiDoan);
          
                                         return (
@@ -2397,14 +2758,16 @@ function LichCuaHang() {
                                                 {activeTab === 'makeUp' && (
                                                     <TableCell align='center'>
                                                         {(() => {
-                                                            const mkDate = hd.cacNgay?.ngayTrangDiem || (hd.lichTrangDiem && hd.lichTrangDiem[0]?.ngayTrangDiem);
+                                                            const mkTasks = (hd.serviceSchedules || []).filter(s => s.serviceType === 'makeup' && s.ngayGio);
+                                                            const mkDate = mkTasks.length > 0 ? mkTasks[0].ngayGio : (hd.cacNgay?.ngayTrangDiem || (hd.lichTrangDiem && hd.lichTrangDiem[0]?.ngayTrangDiem));
+                                                            const isLegacy = mkTasks.length === 0 && Boolean(mkDate);
                                                             return mkDate ? (
                                                                 <>
-                                                                    <div style={{ fontWeight: 700, color: isOverdue ? '#dc2626' : '#be185d' }}>
+                                                                    <div style={{ fontWeight: 700, color: isLegacy ? '#b45309' : (isOverdue ? '#dc2626' : '#be185d') }}>
                                                                         💄 {formatDateTime(mkDate)}
                                                                     </div>
-                                                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                                                                        (Âm: {formatLunarDateShort(mkDate)})
+                                                                    <div style={{ fontSize: '0.72rem', color: isLegacy ? '#b45309' : '#94a3b8', marginTop: '2px' }}>
+                                                                        {isLegacy ? '⚠️ (Dữ liệu cũ)' : `(Âm: ${formatLunarDateShort(mkDate)})`}
                                                                     </div>
                                                                 </>
                                                             ) : (
@@ -2420,18 +2783,49 @@ function LichCuaHang() {
                                                 )}
                                                 {activeTab === 'chupHinh' && (
                                                     <TableCell align='center'>
-                                                        {hd.cacNgay?.ngayChup ? (
-                                                            <>
-                                                                <div style={{ fontWeight: 700, color: isOverdue ? '#dc2626' : '#0f172a' }}>
-                                                                    {formatDateTime(hd.cacNgay.ngayChup)}
-                                                                </div>
-                                                                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                                                                    (Âm: {formatLunarDateShort(hd.cacNgay.ngayChup)})
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '0.8rem' }}>⚠️ Chưa cập nhật</span>
+                                                        {(() => {
+                                                            const photoTasks = (hd.serviceSchedules || []).filter(s => s.serviceType === 'photo' && s.ngayGio);
+                                                            const chDate = photoTasks.length > 0 ? photoTasks[0].ngayGio : (hd.cacNgay?.ngayChup || (hd.lichChup && hd.lichChup[0]?.ngayGio));
+                                                            const isLegacy = photoTasks.length === 0 && Boolean(chDate);
+                                                            return chDate ? (
+                                                                <>
+                                                                    <div style={{ fontWeight: 700, color: isLegacy ? '#b45309' : (isOverdue ? '#dc2626' : '#0f172a') }}>
+                                                                        {formatDateTime(chDate)}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.72rem', color: isLegacy ? '#b45309' : '#94a3b8', marginTop: '2px' }}>
+                                                                        {isLegacy ? '⚠️ (Dữ liệu cũ)' : `(Âm: ${formatLunarDateShort(chDate)})`}
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '0.8rem' }}>⚠️ Chưa cập nhật</span>
+                                                            );
+                                                        })()}
+                                                        {isOverdue && (
+                                                            <span style={{ display: 'inline-block', fontSize: '0.72rem', color: '#dc2626', fontWeight: 800, marginTop: '2px' }}>
+                                                                (Trễ lịch)
+                                                            </span>
                                                         )}
+                                                    </TableCell>
+                                                )}
+                                                {activeTab === 'quayPhim' && (
+                                                    <TableCell align='center'>
+                                                        {(() => {
+                                                            const vTasks = (hd.serviceSchedules || []).filter(s => s.serviceType === 'video' && s.ngayGio);
+                                                            const vDate = vTasks.length > 0 ? vTasks[0].ngayGio : (hd.cacNgay?.ngayQuayPhim || (hd.lichQuayPhim && hd.lichQuayPhim[0]?.ngayGio));
+                                                            const isLegacy = vTasks.length === 0 && Boolean(vDate);
+                                                            return vDate ? (
+                                                                <>
+                                                                    <div style={{ fontWeight: 700, color: isLegacy ? '#b45309' : (isOverdue ? '#dc2626' : '#7c3aed') }}>
+                                                                        🎥 {formatDateTime(vDate)}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.72rem', color: isLegacy ? '#b45309' : '#94a3b8', marginTop: '2px' }}>
+                                                                        {isLegacy ? '⚠️ (Dữ liệu cũ)' : `(Âm: ${formatLunarDateShort(vDate)})`}
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <span style={{ color: '#e11d48', fontWeight: 600, fontSize: '0.8rem' }}>⚠️ Chưa xếp lịch</span>
+                                                            );
+                                                        })()}
                                                         {isOverdue && (
                                                             <span style={{ display: 'inline-block', fontSize: '0.72rem', color: '#dc2626', fontWeight: 800, marginTop: '2px' }}>
                                                                 (Trễ lịch)
@@ -2596,6 +2990,57 @@ function LichCuaHang() {
                                                                 }}
                                                             >
                                                                 Phân công
+                                                            </Button>
+                                                        </TableCell>
+                                                    </>
+                                                )}
+                                                {activeTab === 'quayPhim' && (
+                                                    <>
+                                                        <TableCell align='center'>
+                                                            <span className="badge-service-tag" style={{ background: '#f3e8ff', color: '#7c3aed' }}>
+                                                                {getDichVuChinhLabel(hd.dichVuChinh) || 'Gói Quay'}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell align='center' style={{ fontSize: '0.85rem' }}>
+                                                            {(() => {
+                                                                const vTasks = (hd.serviceSchedules || []).filter(s => s.serviceType === 'video');
+                                                                return vTasks[0]?.diaDiem || hd.cacNgay?.diaDiemQuayPhim || hd.cacNgay?.diaDiemChup || "Tại Studio";
+                                                            })()}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            {(() => {
+                                                                const vTasks = (hd.serviceSchedules || []).filter(s => s.serviceType === 'video');
+                                                                const staff = vTasks[0]?.nhanVien || hd.nguoiPhucVu?.thoQuayPhim;
+                                                                return staff ? (
+                                                                    <span className="badge-ekip" style={{ background: '#faf5ff', color: '#7c3aed', borderColor: '#e9d5ff' }}>
+                                                                        🎥 {staff}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span style={{ color: '#e11d48', fontSize: '0.82rem', fontWeight: 600 }}>Chưa giao</span>
+                                                                );
+                                                            })()}
+                                                        </TableCell>
+                                                        <TableCell align='center'>
+                                                            <Button
+                                                                size="small"
+                                                                variant="outlined"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleRowClick(hd);
+                                                                }}
+                                                                sx={{
+                                                                    textTransform: 'none',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 700,
+                                                                    borderRadius: '6px',
+                                                                    color: '#7c3aed',
+                                                                    borderColor: '#c084fc',
+                                                                    py: 0.2,
+                                                                    px: 1,
+                                                                    '&:hover': { bgcolor: '#f3e8ff', borderColor: '#7c3aed' }
+                                                                }}
+                                                            >
+                                                                Chi tiết
                                                             </Button>
                                                         </TableCell>
                                                     </>
@@ -4542,13 +4987,13 @@ function LichCuaHang() {
                                                 sx={{ 
                                                     p: 2, 
                                                     borderRadius: '12px', 
-                                                    border: '1px solid #e2e8f0',
-                                                    borderLeft: `5px solid ${evt.color || '#0284c7'}`,
-                                                    bgcolor: '#ffffff',
+                                                    border: evt.isLegacy ? '1.5px solid #fde68a' : '1px solid #e2e8f0',
+                                                    borderLeft: `5px solid ${evt.isLegacy ? '#f59e0b' : (evt.color || '#0284c7')}`,
+                                                    bgcolor: evt.isLegacy ? '#fffbeb' : '#ffffff',
                                                     transition: 'all 0.2s',
                                                     '&:hover': {
                                                         boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-                                                        borderColor: evt.color || '#0284c7'
+                                                        borderColor: evt.isLegacy ? '#f59e0b' : (evt.color || '#0284c7')
                                                     }
                                                 }}
                                             >
@@ -4560,12 +5005,19 @@ function LichCuaHang() {
                                                                 borderRadius: '6px',
                                                                 fontSize: '0.78rem',
                                                                 fontWeight: 700,
-                                                                backgroundColor: getEventBackground(evt.type),
-                                                                color: getEventTextColor(evt.type)
+                                                                backgroundColor: evt.bg || getEventBackground(evt.type),
+                                                                color: evt.textColor || getEventTextColor(evt.type)
                                                             }}
                                                         >
                                                             {evt.title || 'Sự kiện'}
                                                         </span>
+                                                        {evt.isLegacy && (
+                                                            <Chip 
+                                                                label="⚠️ Dữ liệu cũ" 
+                                                                size="small" 
+                                                                sx={{ bgcolor: '#fef3c7', color: '#b45309', fontWeight: 700, height: 22, fontSize: '0.7rem' }}
+                                                            />
+                                                        )}
                                                         {evt.time && (
                                                             <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>
                                                                 ⏰ {evt.time}
@@ -4584,6 +5036,11 @@ function LichCuaHang() {
                                                         <strong>Khách hàng:</strong> {evt.contract?.khachHang1?.tenKhachHang || evt.contract?.hoTen || 'Khách hàng'}
                                                         {evt.contract?.khachHang1?.soDienThoai && ` (${evt.contract.khachHang1.soDienThoai})`}
                                                     </div>
+                                                    {evt.title && (
+                                                        <div>
+                                                            <strong>Nhiệm vụ / Dịch vụ:</strong> <span style={{ color: '#0f172a', fontWeight: 600 }}>{evt.title}</span>
+                                                        </div>
+                                                    )}
                                                     {evt.staff && (
                                                         <div>
                                                             <strong>Nhân sự phụ trách:</strong> <span style={{ color: '#0284c7', fontWeight: 600 }}>{evt.staff}</span>

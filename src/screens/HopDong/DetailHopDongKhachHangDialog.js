@@ -25,6 +25,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import { formatDate } from '../utils/convertDate';
 import { formatLunarDateFull } from '../../utils/lunarDateUtils';
+import { checkContractCompletionEligibility } from '../../utils/contractStatusHelper';
 import { isMakeupItem, formatTimestampToDateTimeInput } from '../../utils/makeupHelper';
 import {
     isMakeupService,
@@ -245,6 +246,14 @@ function DetailHopDongKhachHangDialog(props) {
     const [historyActiveTab, setHistoryActiveTab] = useState('audit'); // 'audit' | 'stage'
     const [historySearchKeyword, setHistorySearchKeyword] = useState('');
 
+    // Context menu cho dòng giỏ hàng dịch vụ & Highlight lịch vừa tạo
+    const [serviceContextMenu, setServiceContextMenu] = useState(null);
+    const [highlightedScheduleId, setHighlightedScheduleId] = useState(null);
+
+    // State cho các đường dẫn Drive bổ sung
+    const [extraDriveLinks, setExtraDriveLinks] = useState([]);
+    const [isSavingDriveLinks, setIsSavingDriveLinks] = useState(false);
+
     // Chiều cao giỏ hàng có thể điều chỉnh
     const [cartHeight, setCartHeight] = useState(() => {
         const saved = localStorage.getItem('hd_cart_table_height');
@@ -281,7 +290,12 @@ function DetailHopDongKhachHangDialog(props) {
     };
 
     const isPreWContract = Number(dichVuChinh) === 1 || 
-        (getDichVuChinhLabel ? getDichVuChinhLabel(dichVuChinh) : '').toLowerCase().includes('pre-wedding');
+        (getDichVuChinhLabel ? getDichVuChinhLabel(dichVuChinh) : '').toLowerCase().includes('pre-wedding') ||
+        (getDichVuChinhLabel ? getDichVuChinhLabel(dichVuChinh) : '').toLowerCase().includes('pre wedding') ||
+        Boolean(ngayAnHoi) || 
+        Boolean(ngayCuoi) ||
+        Boolean(data?.cacNgay?.ngayAnHoi) ||
+        Boolean(data?.cacNgay?.ngayCuoi);
 
     const isOldService = (productId) => {
         return data?.gioHang?.some(orig => {
@@ -526,6 +540,36 @@ function DetailHopDongKhachHangDialog(props) {
                 });
             }
 
+            if (Array.isArray(data.lichQuayPhim) && data.lichQuayPhim.length > 0) {
+                data.lichQuayPhim.forEach((lq, idx) => {
+                    loadedSchedules.push({
+                        id: lq.id || `sch-vid-${idx}-${Date.now()}`,
+                        serviceId: lq.dichVuId || 'LEGACY_VIDEO',
+                        serviceName: lq.tenDichVu || 'Lịch Quay Phim',
+                        serviceType: 'video',
+                        luot: idx + 1,
+                        totalLuot: data.lichQuayPhim.length,
+                        ngayGio: formatDateTimeInput(lq.ngayGio || lq.ngayQuay),
+                        diaDiem: lq.diaDiem || data.cacNgay?.diaDiemQuayPhim || 'Tại Studio',
+                        nhanVien: lq.nhanVien || lq.thoQuayPhim || data.nguoiPhucVu?.thoQuayPhim || '',
+                        ghiChu: lq.ghiChu || ''
+                    });
+                });
+            } else if (data.cacNgay?.ngayQuayPhim || data.nguoiPhucVu?.thoQuayPhim) {
+                loadedSchedules.push({
+                    id: `sch-vid-legacy-${Date.now()}`,
+                    serviceId: 'LEGACY_VIDEO',
+                    serviceName: 'Lịch Quay Phim (Hợp Đồng)',
+                    serviceType: 'video',
+                    luot: 1,
+                    totalLuot: 1,
+                    ngayGio: formatDateTimeInput(data.cacNgay?.ngayQuayPhim),
+                    diaDiem: data.cacNgay?.diaDiemQuayPhim || 'Tại Studio',
+                    nhanVien: data.nguoiPhucVu?.thoQuayPhim || '',
+                    ghiChu: ''
+                });
+            }
+
             if (Array.isArray(data.serviceSchedules)) {
                 setServiceSchedules(data.serviceSchedules);
             } else {
@@ -587,6 +631,7 @@ function DetailHopDongKhachHangDialog(props) {
             setTrangPhucGiu(data.trangPhucGiu || []);
             setLinkAnhGoc(data.linkAnhGoc || "");
             setLinkAnhChinhSua(data.linkAnhChinhSua || "");
+            setExtraDriveLinks(Array.isArray(data.extraDriveLinks) ? data.extraDriveLinks : []);
             setAuditLog(data.auditLog || []);
 
             const baseSchedules = (Array.isArray(data.serviceSchedules) && data.serviceSchedules.length > 0)
@@ -620,6 +665,7 @@ function DetailHopDongKhachHangDialog(props) {
                 voucherCode: data.thanhToan?.voucherCode || "",
                 linkAnhGoc: (data.linkAnhGoc || "").trim(),
                 linkAnhChinhSua: (data.linkAnhChinhSua || "").trim(),
+                extraDriveLinks: JSON.stringify(data.extraDriveLinks || []),
                 serviceSchedules: JSON.stringify((baseSchedules || []).map(sch => ({
                     id: sch.id,
                     serviceName: sch.serviceName || sch.name || '',
@@ -662,6 +708,7 @@ function DetailHopDongKhachHangDialog(props) {
             setTrangPhucGiu([]);
             setLinkAnhGoc("");
             setLinkAnhChinhSua("");
+            setExtraDriveLinks([]);
             setAuditLog([]);
             setInitialSnapshot(null);
             setPendingChanges([]);
@@ -1122,6 +1169,134 @@ function DetailHopDongKhachHangDialog(props) {
         toast.success(`Đã thêm nhiệm vụ: ${defaultName}`);
     };
 
+    // Chuột phải vào dòng giỏ hàng dịch vụ
+    const handleCartRowContextMenu = (e, item) => {
+        e.preventDefault();
+        setServiceContextMenu({
+            mouseX: e.clientX,
+            mouseY: e.clientY,
+            item: item
+        });
+    };
+
+    // Thêm lịch phân công nhiệm vụ gắn với gói dịch vụ cụ thể
+    const handleAddScheduleFromItem = (item, type = 'photo') => {
+        setServiceContextMenu(null);
+        if (!item) return;
+
+        const typeLabels = {
+            photo: 'Chụp ảnh',
+            makeup: 'Trang điểm',
+            video: 'Quay phim',
+            bts: 'Hậu trường',
+            cskh: 'Chăm sóc KH',
+            support: 'Hỗ trợ'
+        };
+
+        const defaultLocations = {
+            photo: 'Tại Studio',
+            makeup: 'Tại Studio',
+            video: 'Tại Studio',
+            bts: 'Tại Studio',
+            cskh: 'Tại Studio',
+            support: 'Tại Studio'
+        };
+
+        const existingSameType = (serviceSchedules || []).filter(s => s.serviceType === type);
+        const newTurn = existingSameType.length + 1;
+        const itemName = item.tenDichVuSnapshot || item.tenDichVu || 'Dịch vụ';
+        const sId = item.dichVu?._id || item.dichVu || item._id || item.maDichVu || `ITEM_${Date.now()}`;
+        const newScheduleId = `sch-${type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        const newSchedule = {
+            id: newScheduleId,
+            serviceId: sId,
+            serviceName: `${itemName} - ${typeLabels[type] || type}${newTurn > 1 ? ` (Lượt ${newTurn})` : ''}`,
+            serviceType: type,
+            luot: newTurn,
+            totalLuot: newTurn,
+            ngayGio: '',
+            diaDiem: defaultLocations[type] || 'Tại Studio',
+            nhanVien: '',
+            ghiChu: `Gắn với: ${itemName}`
+        };
+
+        setServiceSchedules(prev => [...(prev || []), newSchedule]);
+        setHighlightedScheduleId(newScheduleId);
+        toast.success(`Đã thêm lịch phân công "${typeLabels[type]}" cho gói "${itemName}"!`);
+
+        // Cuộn mượt đến thẻ Lịch & Phân Công Nhiệm Vụ và highlight nhiệm vụ mới
+        setTimeout(() => {
+            const cardEl = document.getElementById('hd-card-schedules');
+            if (cardEl) {
+                cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            const itemEl = document.getElementById(`schedule-card-${newScheduleId}`);
+            if (itemEl) {
+                itemEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 150);
+
+        // Tự động tắt viền highlight sau 3.5 giây
+        setTimeout(() => {
+            setHighlightedScheduleId(null);
+        }, 3600);
+    };
+
+    // Đóng context menu khi click ra ngoài hoặc cuộn chuột
+    useEffect(() => {
+        const handleOutsideClick = (e) => {
+            if (serviceContextMenu && !e.target.closest('.hd-context-menu')) {
+                setServiceContextMenu(null);
+            }
+        };
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && serviceContextMenu) {
+                setServiceContextMenu(null);
+            }
+        };
+        window.addEventListener('click', handleOutsideClick);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('click', handleOutsideClick);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [serviceContextMenu]);
+
+    // Lưu nhanh các đường dẫn Drive bổ sung
+    const handleSaveDriveLinksQuick = async () => {
+        if (!data || !data.maHopDong) {
+            toast.error("Không tìm thấy thông tin hợp đồng để lưu!");
+            return;
+        }
+        try {
+            setIsSavingDriveLinks(true);
+            const res = await otherService.UPDATE_HOPDONG({
+                _id: data._id,
+                maHopDong: data.maHopDong,
+                linkAnhGoc,
+                linkAnhChinhSua,
+                extraDriveLinks
+            });
+            if (res && res.success === false) {
+                toast.error(res.message || "Lỗi lưu đường dẫn Drive");
+                return;
+            }
+            toast.success("Đã lưu các đường dẫn Drive thành công!");
+            setInitialSnapshot(prev => prev ? {
+                ...prev,
+                linkAnhGoc: (linkAnhGoc || "").trim(),
+                linkAnhChinhSua: (linkAnhChinhSua || "").trim(),
+                extraDriveLinks: JSON.stringify(extraDriveLinks || [])
+            } : prev);
+        } catch (err) {
+            console.error("Lỗi lưu đường dẫn Drive:", err);
+            toast.error("Không thể lưu đường dẫn Drive: " + (err.response?.data?.message || err.message));
+        } finally {
+            setIsSavingDriveLinks(false);
+        }
+    };
+
     const handleScheduleFieldChange = (scheduleId, fieldName, value) => {
         if (fieldName === 'nhanVien' && !canAssignCrew) {
             toast.error("Bạn chưa được cấp quyền phân công hoặc thay đổi thợ!");
@@ -1474,6 +1649,20 @@ function DetailHopDongKhachHangDialog(props) {
             diff.push({ field: "Link ảnh chỉnh sửa", icon: "✨", oldVal: initialSnapshot.linkAnhChinhSua || "Chưa có", newVal: linkAnhChinhSua || "Chưa có" });
         }
 
+        // 17.5. Đường dẫn Drive bổ sung
+        try {
+            const baseExtra = JSON.parse(initialSnapshot.extraDriveLinks || "[]");
+            const curExtra = extraDriveLinks || [];
+            if (JSON.stringify(curExtra) !== JSON.stringify(baseExtra)) {
+                diff.push({
+                    field: "Đường dẫn Drive bổ sung",
+                    icon: "🔗",
+                    oldVal: `${baseExtra.length} đường dẫn`,
+                    newVal: `${curExtra.length} đường dẫn`
+                });
+            }
+        } catch (err) {}
+
         // 18. Giỏ hàng
         try {
             const baseCart = JSON.parse(initialSnapshot.gioHang || "[]");
@@ -1668,6 +1857,7 @@ function DetailHopDongKhachHangDialog(props) {
         methodPayment,
         linkAnhGoc,
         linkAnhChinhSua,
+        extraDriveLinks,
         gioHang,
         serviceSchedules,
         phuLucPhatSinh,
@@ -1763,11 +1953,37 @@ function DetailHopDongKhachHangDialog(props) {
             };
         });
 
+        const videoSchedules = (serviceSchedules || []).filter(s => s.serviceType === 'video').map((sch, idx) => {
+            let ngayIso = null;
+            let gioStr = '';
+            if (sch.ngayGio) {
+                const dt = new Date(sch.ngayGio);
+                if (!isNaN(dt.getTime())) {
+                    ngayIso = dt.toISOString();
+                    gioStr = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+                }
+            }
+            return {
+                id: sch.id || `video-up-${data._id}-${idx}`,
+                dichVuId: sch.serviceId,
+                tenDichVu: sch.serviceName || 'Quay phim',
+                luot: sch.luot || idx + 1,
+                ngayGio: ngayIso,
+                ngayQuay: ngayIso,
+                gioQuay: gioStr,
+                diaDiem: sch.diaDiem || '',
+                thoQuayPhim: sch.nhanVien || '',
+                ghiChu: sch.ghiChu || ''
+            };
+        });
+
         const allPhotoSchedules = (serviceSchedules || []).filter(s => s.serviceType === 'photo');
         const allMakeupSchedules = (serviceSchedules || []).filter(s => s.serviceType === 'makeup');
+        const allVideoSchedules = (serviceSchedules || []).filter(s => s.serviceType === 'video');
 
         const firstPhoto = photoSchedules[0] || null;
         const firstMakeup = makeupSchedules[0] || null;
+        const firstVideo = videoSchedules[0] || null;
         const hasDefinedSchedules = Array.isArray(serviceSchedules);
 
         // Khi người dùng quản lý lịch qua serviceSchedules:
@@ -1783,8 +1999,19 @@ function DetailHopDongKhachHangDialog(props) {
         const newDiaDiemTrangDiem = firstMakeup ? (firstMakeup.diaDiem || "") : (allMakeupSchedules.length > 0 ? (allMakeupSchedules[0].diaDiem || "") : (hasDefinedSchedules ? "" : (data?.cacNgay?.diaDiemTrangDiem || "")));
         const newThoMakeUp = firstMakeup ? (firstMakeup.thoMakeUp || "") : (allMakeupSchedules.length > 0 ? (allMakeupSchedules[0].nhanVien || "") : (hasDefinedSchedules ? "" : thoMakeUp));
 
+        // Tương tự cho lịch quay phim
+        const newNgayQuayPhim = firstVideo ? firstVideo.ngayGio : (hasDefinedSchedules ? null : (data?.cacNgay?.ngayQuayPhim || null));
+        const newGioQuayPhim = firstVideo ? (firstVideo.gioQuay || "") : (hasDefinedSchedules ? "" : (data?.cacNgay?.gioQuayPhim || ""));
+        const newDiaDiemQuayPhim = firstVideo ? (firstVideo.diaDiem || "") : (allVideoSchedules.length > 0 ? (allVideoSchedules[0].diaDiem || "") : (hasDefinedSchedules ? "" : (data?.cacNgay?.diaDiemQuayPhim || "")));
+        const newThoQuayPhim = firstVideo ? (firstVideo.thoQuayPhim || "") : (allVideoSchedules.length > 0 ? (allVideoSchedules[0].nhanVien || "") : (hasDefinedSchedules ? "" : (data?.nguoiPhucVu?.thoQuayPhim || "")));
+
         const isPreWContract = Number(dichVuChinh) === 1 || 
-            (getDichVuChinhLabel ? getDichVuChinhLabel(dichVuChinh) : '').toLowerCase().includes('pre-wedding');
+            (getDichVuChinhLabel ? getDichVuChinhLabel(dichVuChinh) : '').toLowerCase().includes('pre-wedding') ||
+            (getDichVuChinhLabel ? getDichVuChinhLabel(dichVuChinh) : '').toLowerCase().includes('pre wedding') ||
+            Boolean(ngayAnHoi) || 
+            Boolean(ngayCuoi) ||
+            Boolean(data?.cacNgay?.ngayAnHoi) ||
+            Boolean(data?.cacNgay?.ngayCuoi);
 
         showLoading("Đang cập nhật hợp đồng...");
         otherService.UPDATE_HOPDONG({
@@ -1796,6 +2023,7 @@ function DetailHopDongKhachHangDialog(props) {
             gioHang: processedGioHang,
             lichTrangDiem: makeupSchedules,
             lichChup: photoSchedules,
+            lichQuayPhim: videoSchedules,
             serviceSchedules: canAssignCrew ? serviceSchedules : (serviceSchedules || []).map(sch => {
                 const orig = (data?.serviceSchedules || []).find(os => (os.id && os.id === sch.id) || (os._id && os._id === sch.id));
                 return { ...sch, nhanVien: orig ? (orig.nhanVien || "") : "" };
@@ -1823,8 +2051,8 @@ function DetailHopDongKhachHangDialog(props) {
             })(),
             cacNgay: {
                 ngayChup: newNgayChup,
-                ngayAnHoi: isPreWContract ? convertDateToISOString(ngayAnHoi) : null,
-                ngayCuoi: isPreWContract ? convertDateToISOString(ngayCuoi) : null,
+                ngayAnHoi: (isPreWContract || Boolean(ngayAnHoi)) ? (ngayAnHoi ? convertDateToISOString(ngayAnHoi) : null) : null,
+                ngayCuoi: (isPreWContract || Boolean(ngayCuoi)) ? (ngayCuoi ? convertDateToISOString(ngayCuoi) : null) : null,
                 ngayChinhAnh: convertDateToISOString(ngayChinhAnh),
                 ngayTraAnh: convertDateToISOString(ngayTraAnh),
                 gioChup: newGioChup,
@@ -1848,6 +2076,7 @@ function DetailHopDongKhachHangDialog(props) {
             khachThanhToanTruoc: khachThanhToanTruoc,
             linkAnhGoc: linkAnhGoc,
             linkAnhChinhSua: linkAnhChinhSua,
+            extraDriveLinks: extraDriveLinks,
             newAuditEntry: (() => {
                 const changesToLog = confirmedChanges.length > 0 ? confirmedChanges : currentDiff;
                 return {
@@ -1924,6 +2153,27 @@ function DetailHopDongKhachHangDialog(props) {
     };
 
     const submitProgressUpdate = (stageNum, subStageVal, progressData = {}) => {
+        if (Number(stageNum) === 4) {
+            const currentContractObj = {
+                ...data,
+                thanhToan: (typeof thanhToan === 'object' && thanhToan !== null) ? thanhToan : data?.thanhToan,
+                serviceSchedules: serviceSchedules || data?.serviceSchedules,
+                lichChup: data?.lichChup || [],
+                lichQuayPhim: data?.lichQuayPhim || [],
+                lichTrangDiem: data?.lichTrangDiem || [],
+                cacNgay: {
+                    ...(data?.cacNgay || {}),
+                    ngayChup: ngayChup || data?.cacNgay?.ngayChup,
+                    ngayAnHoi: ngayAnHoi || data?.cacNgay?.ngayAnHoi,
+                    ngayCuoi: ngayCuoi || data?.cacNgay?.ngayCuoi
+                }
+            };
+            const check = checkContractCompletionEligibility(currentContractObj);
+            if (!check.eligible) {
+                toast.error(check.message);
+                return;
+            }
+        }
         if (!data || !data._id) return;
 
         showLoading("Đang cập nhật tiến trình...");
@@ -2474,7 +2724,7 @@ function DetailHopDongKhachHangDialog(props) {
                                 </div>
 
                                 {/* Card 2: Lịch & Phân Công Nhiệm Vụ */}
-                                <div className="hd-card">
+                                <div className="hd-card" id="hd-card-schedules">
                                     <div className="hd-card-head">
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <h3 className="hd-card-title">
@@ -2487,6 +2737,98 @@ function DetailHopDongKhachHangDialog(props) {
                                     </div>
 
                                     <div className="hd-card-body">
+                                        {/* Trạng thái chốt lịch & Thợ chỉnh ảnh */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                                            <div className="hd-floating-field" style={{ marginBottom: 0 }}>
+                                                <label>
+                                                    🎨 Thợ chỉnh ảnh
+                                                    {!canAssignCrew && <span style={{ fontSize: '0.72rem', color: '#ef4444', marginLeft: '4px', fontWeight: 600 }}>(🔒 Khóa)</span>}
+                                                </label>
+                                                <select 
+                                                    value={thoChinhAnh} 
+                                                    disabled={!canAssignCrew}
+                                                    style={!canAssignCrew ? { backgroundColor: '#f1f5f9', cursor: 'not-allowed', opacity: 0.8 } : {}}
+                                                    onChange={(e) => {
+                                                        if (!canAssignCrew) {
+                                                            toast.error("Bạn chưa được cấp quyền phân công hoặc thay đổi thợ!");
+                                                            return;
+                                                        }
+                                                        setThoChinhAnh(e.target.value);
+                                                    }}
+                                                >
+                                                    <option value="">Chưa phân công</option>
+                                                    {listStaff.filter(s => s.positon === 'Thợ chỉnh ảnh').map(s => {
+                                                        const name = s.fullname || s.username;
+                                                        return <option key={s.username || s._id || name} value={name}>{name}</option>;
+                                                    })}
+                                                </select>
+                                            </div>
+                                            <div className="hd-floating-field" style={{ marginBottom: 0 }}>
+                                                <label>📞 Trạng thái chốt lịch</label>
+                                                <select value={chotLich} onChange={(e) => setChotLich(e.target.value)}>
+                                                    <option value="Chưa gọi điện">Chưa gọi điện</option>
+                                                    <option value="Đã gọi điện xác nhận">Đã gọi điện xác nhận</option>
+                                                    <option value="Đã chốt lịch">Đã chốt lịch</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Nếu hợp đồng là Pre-Wedding (hoặc có ngày ăn hỏi / ngày cưới) thì có thêm ô nhập Ngày Ăn Hỏi và Ngày Cưới */}
+                                        {isPreWContract && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
+                                                <div className="hd-floating-field" style={{ marginBottom: 0 }}>
+                                                    <label>💍 Ngày ăn hỏi</label>
+                                                    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+                                                        <LunarDateTimePicker
+                                                            value={ngayAnHoi ? dayjs(ngayAnHoi) : null}
+                                                            onChange={(newValue) => setNgayAnHoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
+                                                            slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                                                            format="DD/MM/YYYY HH:mm"
+                                                        />
+                                                    </LocalizationProvider>
+                                                    {ngayAnHoi && (
+                                                        <div className="hd-lunar-tag">
+                                                            🌙 Âm lịch: {formatLunarDateFull(ngayAnHoi)}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="hd-floating-field" style={{ marginBottom: 0 }}>
+                                                    <label>💒 Ngày cưới</label>
+                                                    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="vi">
+                                                        <LunarDateTimePicker
+                                                            value={ngayCuoi ? dayjs(ngayCuoi) : null}
+                                                            onChange={(newValue) => setNgayCuoi(newValue ? newValue.format('YYYY-MM-DDTHH:mm') : '')}
+                                                            slotProps={{ textField: { fullWidth: true, size: 'small' } }}
+                                                            format="DD/MM/YYYY HH:mm"
+                                                        />
+                                                    </LocalizationProvider>
+                                                    {ngayCuoi && (
+                                                        <div className="hd-lunar-tag">
+                                                            🌙 Âm lịch: {formatLunarDateFull(ngayCuoi)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Ngày trả ảnh */}
+                                        <div className="hd-floating-field" style={{ marginBottom: '10px' }}>
+                                            <label>📦 Ngày trả ảnh</label>
+                                            <input 
+                                                type="date" 
+                                                value={ngayTraAnh} 
+                                                onChange={(e) => setNgayTraAnh(e.target.value)} 
+                                            />
+                                            {ngayTraAnh && (
+                                                <div className="hd-lunar-tag">
+                                                    🌙 Âm lịch: {formatLunarDateFull(ngayTraAnh)}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '12px 0 10px 0' }} />
+
                                         {/* Nút thêm lịch phân công thủ công */}
                                         <div className="hd-schedule-add-bar">
                                             <div className="hd-schedule-add-title">➕ Thêm lịch phân công nhiệm vụ:</div>
@@ -2583,7 +2925,11 @@ function DetailHopDongKhachHangDialog(props) {
                                                 }
 
                                                 return (
-                                                    <div key={sch.id || schIdx} className={`hd-schedule-card ${cardTypeClass}`}>
+                                                    <div 
+                                                        key={sch.id || schIdx} 
+                                                        id={`schedule-card-${sch.id}`}
+                                                        className={`hd-schedule-card ${cardTypeClass} ${highlightedScheduleId === sch.id ? 'schedule-pulse-highlight' : ''}`}
+                                                    >
                                                         <div className="hd-schedule-card-header">
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, flexWrap: 'wrap' }}>
                                                                 <select
@@ -2613,6 +2959,42 @@ function DetailHopDongKhachHangDialog(props) {
                                                         </div>
 
                                                         <div className="hd-schedule-fields-grid">
+                                                            {/* Dịch vụ liên kết trong giỏ hàng */}
+                                                            <div className="hd-floating-field">
+                                                                <label>🔗 Dịch vụ / Gói liên kết trong giỏ hàng</label>
+                                                                <select
+                                                                    value={sch.serviceId || ''}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        const targetItem = (gioHang || []).find(item => {
+                                                                            const sId = item.dichVu?._id || item.dichVu || item._id || item.maDichVu;
+                                                                            return sId === val;
+                                                                        });
+                                                                        handleScheduleFieldChange(sch.id, 'serviceId', val);
+                                                                        if (targetItem) {
+                                                                            const itemName = targetItem.tenDichVuSnapshot || targetItem.tenDichVu;
+                                                                            if (!sch.serviceName || sch.serviceName === 'Chụp ảnh' || sch.serviceName === 'Quay phim' || sch.serviceName === 'Trang điểm') {
+                                                                                handleScheduleFieldChange(sch.id, 'serviceName', `${itemName} - ${currentType}`);
+                                                                            }
+                                                                            if (!sch.ghiChu || sch.ghiChu.startsWith('Gắn với:')) {
+                                                                                handleScheduleFieldChange(sch.id, 'ghiChu', `Gắn với: ${itemName}`);
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <option value="">-- Tự do / Không gắn gói cụ thể --</option>
+                                                                    {(gioHang || []).map((cartItem, cIdx) => {
+                                                                        const cId = cartItem.dichVu?._id || cartItem.dichVu || cartItem._id || cartItem.maDichVu || `ITEM_${cIdx}`;
+                                                                        const cName = cartItem.tenDichVuSnapshot || cartItem.tenDichVu || `Gói #${cIdx + 1}`;
+                                                                        return (
+                                                                            <option key={cId || cIdx} value={cId}>
+                                                                                📦 {cName} {cartItem.maDichVu ? `(${cartItem.maDichVu})` : ''}
+                                                                            </option>
+                                                                        );
+                                                                    })}
+                                                                </select>
+                                                            </div>
+
                                                             {/* Tên / Nội dung nhiệm vụ */}
                                                             <div className="hd-floating-field">
                                                                 <label>📌 Nội dung nhiệm vụ phân công *</label>
@@ -2886,12 +3268,76 @@ function DetailHopDongKhachHangDialog(props) {
                                                         const canDelete = !isOnlyItem && (daThanhToan <= 0 || calculateTotalWithCart(cartAfterDelete) >= daThanhToan);
 
                                                         return (
-                                                            <tr key={productId || index}>
+                                                            <tr 
+                                                                key={productId || index}
+                                                                onContextMenu={(e) => handleCartRowContextMenu(e, item)}
+                                                                className={serviceContextMenu?.item === item ? "hd-cart-row-context" : ""}
+                                                                title="Nhấp chuột phải để thêm lịch phân công nhiệm vụ cho gói này"
+                                                                style={{ cursor: 'context-menu' }}
+                                                            >
                                                                 <td style={{ fontWeight: 600, color: '#0f172a' }}>
                                                                     {item.tenDichVuSnapshot || item.tenDichVu}
                                                                     {item.maDichVu && (
                                                                         <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{item.maDichVu}</div>
                                                                     )}
+                                                                    {/* Huy hiệu các lịch phân công gắn với gói này */}
+                                                                    {(() => {
+                                                                        const itemIdentifier = item.dichVu?._id || item.dichVu || item._id || item.maDichVu;
+                                                                        const itemName = item.tenDichVuSnapshot || item.tenDichVu || '';
+                                                                        const linkedSchedules = (serviceSchedules || []).filter(sch => 
+                                                                            (sch.serviceId && (sch.serviceId === itemIdentifier || sch.serviceId === item._id || sch.serviceId === item.maDichVu)) ||
+                                                                            (itemName && sch.serviceName && sch.serviceName.includes(itemName)) ||
+                                                                            (itemName && sch.ghiChu && sch.ghiChu.includes(itemName))
+                                                                        );
+
+                                                                        if (linkedSchedules.length === 0) return null;
+
+                                                                        const typeIcons = {
+                                                                            photo: '📸',
+                                                                            makeup: '💄',
+                                                                            video: '🎥',
+                                                                            bts: '🎬',
+                                                                            cskh: '📞',
+                                                                            support: '🤝'
+                                                                        };
+                                                                        const typeNames = {
+                                                                            photo: 'Chụp',
+                                                                            makeup: 'Make',
+                                                                            video: 'Quay',
+                                                                            bts: 'Hậu trường',
+                                                                            cskh: 'CSKH',
+                                                                            support: 'Hỗ trợ'
+                                                                        };
+
+                                                                        return (
+                                                                            <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                                                {linkedSchedules.map(sch => {
+                                                                                    const icon = typeIcons[sch.serviceType] || '📅';
+                                                                                    const typeName = typeNames[sch.serviceType] || sch.serviceType;
+                                                                                    const badgeClass = `badge-${sch.serviceType || 'photo'}`;
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={sch.id}
+                                                                                            type="button"
+                                                                                            className={`hd-cart-linked-schedule-badge ${badgeClass}`}
+                                                                                            title={`Nhấp để chuyển đến: ${sch.serviceName || typeName}`}
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                const el = document.getElementById(`schedule-card-${sch.id}`);
+                                                                                                if (el) {
+                                                                                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                                                    setHighlightedScheduleId(sch.id);
+                                                                                                    setTimeout(() => setHighlightedScheduleId(null), 2500);
+                                                                                                }
+                                                                                            }}
+                                                                                        >
+                                                                                            {icon} {typeName} L{sch.luot || 1}{sch.nhanVien ? `: ${sch.nhanVien}` : ''}
+                                                                                        </button>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        );
+                                                                    })()}
                                                                     {isWeddingCardService(item) && (
                                                                         <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                             <span style={{ fontSize: '0.72rem', color: '#d97706', fontWeight: 'bold' }}>💌 Mã loại thiệp:</span>
@@ -3280,6 +3726,24 @@ function DetailHopDongKhachHangDialog(props) {
                                         <h3 className="hd-card-title">
                                             <span>🔗</span> Đường dẫn Drive & Đồng bộ hình ảnh (Hỗ trợ cả khi HĐ Hoàn thành)
                                         </h3>
+                                        <Button
+                                            variant="contained"
+                                            size="small"
+                                            onClick={handleSaveDriveLinksQuick}
+                                            disabled={isSavingDriveLinks}
+                                            sx={{
+                                                backgroundColor: '#0284c7',
+                                                color: '#fff',
+                                                textTransform: 'none',
+                                                fontSize: '0.74rem',
+                                                fontWeight: 700,
+                                                height: '28px',
+                                                whiteSpace: 'nowrap',
+                                                '&:hover': { backgroundColor: '#0369a1' }
+                                            }}
+                                        >
+                                            {isSavingDriveLinks ? "Đang lưu..." : "💾 Lưu đường dẫn"}
+                                        </Button>
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -3345,6 +3809,111 @@ function DetailHopDongKhachHangDialog(props) {
                                                     {isSyncingAlbumChinhSua ? "Đang đồng bộ..." : "Đồng bộ ảnh C.Sửa"}
                                                 </Button>
                                             </div>
+                                        </div>
+
+                                        {/* Đường dẫn Drive bổ sung do người dùng tự đặt tên */}
+                                        <div className="hd-extra-drive-section">
+                                            <div className="hd-extra-drive-header-bar">
+                                                <div className="hd-extra-drive-header-title">
+                                                    <span>📁</span> Đường dẫn bổ sung ({(extraDriveLinks || []).length})
+                                                </div>
+                                            </div>
+
+                                            {(extraDriveLinks || []).map((linkItem, lIdx) => (
+                                                <div key={linkItem.id || lIdx} className="hd-extra-drive-item">
+                                                    <div className="hd-extra-drive-top-row">
+                                                        <input
+                                                            className="hd-extra-drive-name-input"
+                                                            value={linkItem.name || ""}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                setExtraDriveLinks(prev => (prev || []).map((item, idx) => idx === lIdx ? { ...item, name: val } : item));
+                                                            }}
+                                                            placeholder="Tên đường dẫn (VD: Ảnh phóng 60x90, Video cưới...)"
+                                                        />
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => {
+                                                                setExtraDriveLinks(prev => (prev || []).filter((_, idx) => idx !== lIdx));
+                                                            }}
+                                                            title="Xóa đường dẫn này"
+                                                            sx={{ color: '#ef4444', p: 0.5 }}
+                                                        >
+                                                            <span style={{ fontSize: '0.85rem' }}>🗑️</span>
+                                                        </IconButton>
+                                                    </div>
+
+                                                    <div className="hd-extra-drive-url-row">
+                                                        <input
+                                                            className="hd-input-text"
+                                                            value={linkItem.url || ""}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                setExtraDriveLinks(prev => (prev || []).map((item, idx) => idx === lIdx ? { ...item, url: val } : item));
+                                                            }}
+                                                            placeholder="https://drive.google.com/drive/folders/..."
+                                                            style={{ flex: 1, fontSize: '0.78rem' }}
+                                                        />
+                                                        {linkItem.url && (
+                                                            <Button
+                                                                variant="outlined"
+                                                                size="small"
+                                                                onClick={() => window.open(linkItem.url, '_blank')}
+                                                                sx={{
+                                                                    textTransform: 'none',
+                                                                    fontSize: '0.74rem',
+                                                                    fontWeight: 600,
+                                                                    minWidth: 'auto',
+                                                                    px: 1.2,
+                                                                    height: '32px'
+                                                                }}
+                                                                title="Mở trong tab mới"
+                                                            >
+                                                                🔗 Mở
+                                                            </Button>
+                                                        )}
+                                                        {linkItem.url && (
+                                                            <Button
+                                                                variant="outlined"
+                                                                size="small"
+                                                                onClick={() => {
+                                                                    navigator.clipboard.writeText(linkItem.url);
+                                                                    toast.success(`Đã sao chép: ${linkItem.name || 'Đường dẫn'}`);
+                                                                }}
+                                                                sx={{
+                                                                    textTransform: 'none',
+                                                                    fontSize: '0.74rem',
+                                                                    fontWeight: 600,
+                                                                    minWidth: 'auto',
+                                                                    px: 1.2,
+                                                                    height: '32px'
+                                                                }}
+                                                                title="Sao chép đường dẫn"
+                                                            >
+                                                                📋 Copy
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            <button
+                                                type="button"
+                                                className="hd-btn-add-drive-link"
+                                                onClick={() => {
+                                                    setExtraDriveLinks(prev => [
+                                                        ...(prev || []),
+                                                        {
+                                                            id: `drive-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                                                            name: `Đường dẫn ${(extraDriveLinks || []).length + 1}`,
+                                                            url: '',
+                                                            createdAt: new Date().toISOString()
+                                                        }
+                                                    ]);
+                                                }}
+                                            >
+                                                <span>➕</span> Thêm đường dẫn mới
+                                            </button>
                                         </div>
 
                                         <div style={{ marginTop: '10px', padding: '6px 10px', background: '#f0f9ff', borderRadius: '6px', border: '1px solid #bae6fd', fontSize: '0.76rem', color: '#0369a1', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -4973,6 +5542,67 @@ function DetailHopDongKhachHangDialog(props) {
                     </div>
                 </div>
             </Dialog>
+
+            {/* Context Menu khi chuột phải vào dòng dịch vụ trong giỏ hàng */}
+            {serviceContextMenu && (
+                <div
+                    className="hd-context-menu"
+                    style={{
+                        left: Math.max(10, Math.min(serviceContextMenu.mouseX, window.innerWidth - 260)),
+                        top: Math.max(10, Math.min(serviceContextMenu.mouseY, window.innerHeight - 260))
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="hd-context-header" title={serviceContextMenu.item?.tenDichVuSnapshot || serviceContextMenu.item?.tenDichVu}>
+                        📦 {serviceContextMenu.item?.tenDichVuSnapshot || serviceContextMenu.item?.tenDichVu || 'Dịch vụ'}
+                    </div>
+                    <div className="hd-context-item hd-context-parent">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>📅</span>
+                            <span>Thêm lịch phân công</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>▶</span>
+                        <div className={`hd-context-submenu ${serviceContextMenu.mouseX > window.innerWidth - 460 ? 'open-left' : ''}`}>
+                            <div
+                                className="hd-context-subitem"
+                                onClick={() => handleAddScheduleFromItem(serviceContextMenu.item, 'photo')}
+                            >
+                                <span>📸</span> Chụp ảnh
+                            </div>
+                            <div
+                                className="hd-context-subitem"
+                                onClick={() => handleAddScheduleFromItem(serviceContextMenu.item, 'makeup')}
+                            >
+                                <span>💄</span> Trang điểm
+                            </div>
+                            <div
+                                className="hd-context-subitem"
+                                onClick={() => handleAddScheduleFromItem(serviceContextMenu.item, 'video')}
+                            >
+                                <span>🎥</span> Quay phim
+                            </div>
+                            <div
+                                className="hd-context-subitem"
+                                onClick={() => handleAddScheduleFromItem(serviceContextMenu.item, 'bts')}
+                            >
+                                <span>🎬</span> Hậu trường
+                            </div>
+                            <div
+                                className="hd-context-subitem"
+                                onClick={() => handleAddScheduleFromItem(serviceContextMenu.item, 'cskh')}
+                            >
+                                <span>📞</span> Chăm sóc KH
+                            </div>
+                            <div
+                                className="hd-context-subitem"
+                                onClick={() => handleAddScheduleFromItem(serviceContextMenu.item, 'support')}
+                            >
+                                <span>🤝</span> Hỗ trợ ekip
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </Fragment>
     );

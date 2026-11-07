@@ -16,9 +16,9 @@ export const CONTRACT_STAGES = [
         name: 'Chụp hình',
         shortName: 'Chụp hình',
         icon: '📸',
-        color: '#d97706',       // Amber
-        bgColor: '#fef3c7',
-        borderColor: '#fde68a',
+        color: '#475569',       // Slate / Neutral khi đã có lịch chụp
+        bgColor: '#ffffff',
+        borderColor: '#cbd5e1',
         description: 'Chụp ảnh tại phim trường / ngoại cảnh'
     },
     {
@@ -27,9 +27,9 @@ export const CONTRACT_STAGES = [
         name: 'Hậu kỳ & In ấn',
         shortName: 'Hậu kỳ',
         icon: '🎨',
-        color: '#2563eb',       // Blue
-        bgColor: '#dbeafe',
-        borderColor: '#bfdbfe',
+        color: '#0284c7',       // Xanh da trời
+        bgColor: '#e0f2fe',
+        borderColor: '#bae6fd',
         description: 'Chọn ảnh, retouch, dàn layout album & theo dõi xưởng in'
     },
     {
@@ -38,7 +38,7 @@ export const CONTRACT_STAGES = [
         name: 'In ảnh',
         shortName: 'In ảnh',
         icon: '🖼️',
-        color: '#7c3aed',       // Purple
+        color: '#7c3aed',       // Tím (Purple)
         bgColor: '#ede9fe',
         borderColor: '#ddd6fe',
         description: 'Gia công in ảnh phóng, in album & đóng khung'
@@ -49,9 +49,9 @@ export const CONTRACT_STAGES = [
         name: 'Hoàn thành',
         shortName: 'Hoàn thành',
         icon: '🏁',
-        color: '#059669',       // Emerald
+        color: '#059669',       // Xanh lá cây (Emerald / Green)
         bgColor: '#d1fae5',
-        borderColor: '#a7f3d0',
+        borderColor: '#86efac',
         description: 'Bàn giao sản phẩm & hoàn tất hợp đồng'
     }
 ];
@@ -219,10 +219,10 @@ export const HAU_KY_SUB_STAGES = [
         name: '1. Chờ chỉnh',
         shortName: 'Chờ chỉnh',
         icon: '⏳',
-        color: '#ea580c',
-        bg: '#fff7ed',
-        border: '#fed7aa',
-        badgeBg: 'rgba(234, 88, 12, 0.1)',
+        color: '#0369a1',       // Xanh da trời đậm
+        bg: '#e0f2fe',
+        border: '#7dd3fc',
+        badgeBg: '#0284c7',
         desc: 'Đang chờ thợ nhận việc / chuẩn bị chỉnh sửa'
     },
     {
@@ -230,10 +230,10 @@ export const HAU_KY_SUB_STAGES = [
         name: '2. Đang chỉnh',
         shortName: 'Đang chỉnh',
         icon: '🎨',
-        color: '#2563eb',
-        bg: '#eff6ff',
-        border: '#bfdbfe',
-        badgeBg: 'rgba(37, 99, 235, 0.1)',
+        color: '#0284c7',       // Xanh da trời trung bình
+        bg: '#e8f4fd',
+        border: '#93c5fd',
+        badgeBg: '#0ea5e9',
         desc: 'Thợ Photoshop đang blend màu, nhặt da & làm layout'
     },
     {
@@ -241,10 +241,10 @@ export const HAU_KY_SUB_STAGES = [
         name: '3. Khách duyệt',
         shortName: 'Khách duyệt',
         icon: '💬',
-        color: '#7c3aed',
-        bg: '#f5f3ff',
-        border: '#ddd6fe',
-        badgeBg: 'rgba(124, 58, 237, 0.1)',
+        color: '#0ea5e9',       // Xanh da trời nhạt hơn
+        bg: '#f0f9ff',
+        border: '#bae6fd',
+        badgeBg: '#38bdf8',
         desc: 'Đã gửi bản chỉnh/layout cho dâu rể xem và duyệt'
     },
     {
@@ -252,10 +252,10 @@ export const HAU_KY_SUB_STAGES = [
         name: '4. Hoàn thành',
         shortName: 'Hoàn thành',
         icon: '✅',
-        color: '#0d9488',
-        bg: '#f0fdfa',
-        border: '#99f6e4',
-        badgeBg: 'rgba(13, 148, 136, 0.1)',
+        color: '#0284c7',       // Xanh da trời nhạt nhất
+        bg: '#f8fcff',
+        border: '#e0f2fe',
+        badgeBg: '#e0f2fe',
         desc: 'Khách đã duyệt ưng ý & hoàn tất giai đoạn hậu kỳ'
     }
 ];
@@ -269,14 +269,24 @@ export const isUnscheduledShooting = (hd) => {
     if (stageNum === 4) return false;
     if (hd.subGiaiDoan === 'bao_luu' || hd.subGiaiDoan === 'huy') return false;
     if (hd.contractType === 'SINGLE_SERVICE') return false; // Dịch vụ nhanh không bắt buộc lịch chụp
-    return !hd.cacNgay?.ngayChup;
+
+    // Kiểm tra cacNgay.ngayChup hoặc bất kỳ lịch chụp/quay nào trong serviceSchedules hoặc lichChup/lichQuayPhim
+    if (hd.cacNgay?.ngayChup) return false;
+    if (Array.isArray(hd.lichChup) && hd.lichChup.some(l => l.ngayChup || l.ngayGio)) return false;
+    if (Array.isArray(hd.lichQuayPhim) && hd.lichQuayPhim.some(l => l.ngayQuay || l.ngayGio)) return false;
+    if (Array.isArray(hd.serviceSchedules) && hd.serviceSchedules.some(s => (s.serviceType === 'photo' || s.serviceType === 'video' || s.serviceType === 'shoot') && s.ngayGio)) return false;
+
+    return true;
 };
 
 /**
  * Lấy đầy đủ thông tin hiển thị trạng thái hợp đồng
  * Quy chuẩn:
- * - Giai đoạn 1 (Chụp hình), 3 (In ảnh), 4 (Hoàn thành): Chỉ có 1 trạng thái chính duy nhất
- * - Giai đoạn 2 (Hậu kỳ): Có 4 trạng thái phụ (Chờ làm, Đang chỉnh, Chờ khách duyệt, Hoàn thành)
+ * - Chưa xếp lịch: Màu vàng
+ * - Đã có lịch chụp và chờ chụp ảnh: Màu trắng
+ * - Hậu kỳ: Màu xanh da trời (Chờ chỉnh màu xanh đậm, các bước sau nhạt dần)
+ * - In ảnh: Màu tím
+ * - Hoàn thành: Màu xanh lá cây
  */
 export const getContractStatusInfo = (hd) => {
     if (!hd) {
@@ -287,10 +297,10 @@ export const getContractStatusInfo = (hd) => {
             subStageConfig: SUB_STAGES.dang_thuc_hien,
             label: 'Chụp hình',
             badgeText: '📸 Chụp hình',
-            color: '#d97706',
-            bgColor: '#fef3c7',
-            rowBgColor: '#fffbeb',
-            borderColor: '#fde68a',
+            color: '#475569',
+            bgColor: '#ffffff',
+            rowBgColor: '#ffffff',
+            borderColor: '#e2e8f0',
             isComplete: false
         };
     }
@@ -327,18 +337,19 @@ export const getContractStatusInfo = (hd) => {
         };
     }
 
+    // 1. Chưa xếp lịch: Màu vàng
     if (isUnscheduledShooting(hd)) {
         return {
             stage: 1,
             stageConfig: CONTRACT_STAGES[0],
             subStage: hd.subGiaiDoan || 'dang_thuc_hien',
             subStageConfig: SUB_STAGES[hd.subGiaiDoan] || SUB_STAGES.dang_thuc_hien,
-            label: 'Chưa xếp lịch chụp',
+            label: 'Chưa xếp lịch',
             badgeText: '⚠️ Chưa xếp lịch',
-            color: '#dc2626',
-            bgColor: '#fee2e2',
-            rowBgColor: '#fef2f2',
-            borderColor: '#fca5a5',
+            color: '#854d0e',       // Chữ vàng sẫm đậm nét
+            bgColor: '#fef08a',     // Nền vàng
+            rowBgColor: '#fefce8',  // Dòng bảng màu vàng nhạt
+            borderColor: '#fde047', // Viền vàng
             isUnscheduled: true,
             isComplete: false
         };
@@ -359,71 +370,71 @@ export const getContractStatusInfo = (hd) => {
     let badgeText = `${stageConfig.icon} ${stageConfig.shortName}`;
     let color = stageConfig.color;
     let bgColor = stageConfig.bgColor;
-    let rowBgColor = '#fffbeb';
+    let rowBgColor = '#ffffff';
     let borderColor = stageConfig.borderColor;
 
     if (rawStage === 1) {
-        // Giai đoạn 1: Chỉ có 1 trạng thái chính "Chụp hình"
+        // Giai đoạn 1: Đã có lịch chụp và chờ chụp ảnh -> Màu trắng
         label = 'Chụp hình';
         badgeText = '📸 Chụp hình';
-        color = '#d97706';
-        bgColor = '#fef3c7';
-        rowBgColor = '#fffbeb';
-        borderColor = '#fde68a';
+        color = '#475569';
+        bgColor = '#ffffff';
+        rowBgColor = '#ffffff';
+        borderColor = '#e2e8f0';
     } else if (rawStage === 2) {
-        // Giai đoạn 2 (Hậu kỳ): Có 4 trạng thái phụ (Chờ chỉnh, Đang chỉnh, Khách duyệt, Hoàn thành)
+        // Giai đoạn 2 (Hậu kỳ): Những màu xanh da trời (chờ chỉnh xanh đậm, các bước sau sẽ nhạt dần)
         if (['cho_chinh', 'da_giao_file_goc', 'khach_da_chon_anh'].includes(sub)) {
             sub = 'cho_chinh';
             subConfig = SUB_STAGES.cho_chinh;
             label = 'Hậu kỳ (Chờ chỉnh)';
             badgeText = '🎨 Hậu kỳ • Chờ chỉnh';
-            color = '#ea580c';
-            bgColor = '#ffedd5';
-            rowBgColor = '#fff7ed';
-            borderColor = '#fed7aa';
+            color = '#0369a1';       // Xanh da trời đậm
+            bgColor = '#e0f2fe';
+            rowBgColor = '#e0f2fe';  // Nền dòng xanh da trời đậm nhất trong hậu kỳ
+            borderColor = '#7dd3fc';
         } else if (['cho_khach_duyet', 'khach_duyet_anh', 'cho_khach_duyet_layout', 'khach_da_duyet_layout'].includes(sub)) {
             sub = 'cho_khach_duyet';
             subConfig = SUB_STAGES.cho_khach_duyet;
             label = 'Hậu kỳ (Khách duyệt)';
             badgeText = '🎨 Hậu kỳ • Khách duyệt';
-            color = '#7c3aed';
-            bgColor = '#ede9fe';
-            rowBgColor = '#f5f3ff';
-            borderColor = '#ddd6fe';
+            color = '#0ea5e9';       // Xanh da trời nhạt hơn
+            bgColor = '#f0f9ff';
+            rowBgColor = '#f2f8fe';  // Nền dòng xanh da trời nhạt
+            borderColor = '#bae6fd';
         } else if (sub === 'hoan_thanh') {
             subConfig = SUB_STAGES.hoan_thanh;
             label = 'Hậu kỳ (Hoàn thành)';
             badgeText = '🎨 Hậu kỳ • Hoàn thành';
-            color = '#0d9488';
-            bgColor = '#ccfbf1';
-            rowBgColor = '#f0fdfa';
-            borderColor = '#99f6e4';
+            color = '#0284c7';       // Xanh da trời nhạt nhất
+            bgColor = '#f8fafc';
+            rowBgColor = '#f8fcff';  // Nền dòng xanh da trời nhạt nhất
+            borderColor = '#e0f2fe';
         } else {
             sub = 'dang_chinh';
             subConfig = SUB_STAGES.dang_chinh;
             label = 'Hậu kỳ (Đang chỉnh)';
             badgeText = '🎨 Hậu kỳ • Đang chỉnh';
-            color = '#2563eb';
-            bgColor = '#dbeafe';
-            rowBgColor = '#eff6ff';
-            borderColor = '#bfdbfe';
+            color = '#0284c7';       // Xanh da trời trung bình
+            bgColor = '#e8f4fd';
+            rowBgColor = '#eaf5fe';  // Nền dòng xanh da trời vừa
+            borderColor = '#93c5fd';
         }
     } else if (rawStage === 3) {
-        // Giai đoạn 3: Chỉ có 1 trạng thái chính "In ảnh"
+        // Giai đoạn 3: In ảnh -> Màu tím
         label = 'In ảnh';
         badgeText = '🖼️ In ảnh';
-        color = '#9333ea';
-        bgColor = '#f3e8ff';
+        color = '#7c3aed';       // Màu tím
+        bgColor = '#ede9fe';
         rowBgColor = '#faf5ff';
-        borderColor = '#e9d5ff';
+        borderColor = '#ddd6fe';
     } else if (rawStage === 4) {
-        // Giai đoạn 4: Chỉ có 1 trạng thái chính "Hoàn thành"
+        // Giai đoạn 4: Hoàn thành -> Màu xanh lá cây
         label = 'Đã hoàn tất hợp đồng';
         badgeText = '✅ Hoàn thành';
-        color = '#059669';
+        color = '#059669';       // Màu xanh lá cây
         bgColor = '#d1fae5';
-        rowBgColor = '#ecfdf5';
-        borderColor = '#a7f3d0';
+        rowBgColor = '#f0fdf4';
+        borderColor = '#86efac';
     }
 
     return {
@@ -446,16 +457,16 @@ export const getContractStatusInfo = (hd) => {
  */
 export const CONTRACT_ROW_COLOR_LEGEND = [
     { id: 'all', label: 'Tất cả', color: '#334155', bg: '#f8fafc', border: '#cbd5e1' },
-    { id: 'no_schedule', label: 'Chưa xếp lịch', color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
-    { id: '1', label: '1. Chụp hình', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-    { id: '2_cho_chinh', label: '2. Hậu kỳ: Chờ chỉnh', color: '#ea580c', bg: '#fff7ed', border: '#fed7aa' },
-    { id: '2_dang_chinh', label: '2. Hậu kỳ: Đang chỉnh', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-    { id: '2_cho_khach_duyet', label: '2. Hậu kỳ: Khách duyệt', color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
-    { id: '2_hoan_thanh', label: '2. Hậu kỳ: Hoàn thành', color: '#0d9488', bg: '#f0fdfa', border: '#99f6e4' },
-    { id: '3', label: '3. In ảnh', color: '#9333ea', bg: '#faf5ff', border: '#e9d5ff' },
-    { id: '4', label: '4. Hoàn thành', color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+    { id: 'no_schedule', label: 'Chưa xếp lịch', color: '#854d0e', bg: '#fef08a', border: '#facc15' },
+    { id: '1', label: '1. Chụp hình', color: '#475569', bg: '#ffffff', border: '#cbd5e1' },
+    { id: '2_cho_chinh', label: '2. Hậu kỳ: Chờ chỉnh', color: '#0369a1', bg: '#e0f2fe', border: '#7dd3fc' },
+    { id: '2_dang_chinh', label: '2. Hậu kỳ: Đang chỉnh', color: '#0284c7', bg: '#eaf5fe', border: '#93c5fd' },
+    { id: '2_cho_khach_duyet', label: '2. Hậu kỳ: Khách duyệt', color: '#0ea5e9', bg: '#f2f8fe', border: '#bae6fd' },
+    { id: '2_hoan_thanh', label: '2. Hậu kỳ: Hoàn thành', color: '#0284c7', bg: '#f8fcff', border: '#e0f2fe' },
+    { id: '3', label: '3. In ảnh', color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' },
+    { id: '4', label: '4. Hoàn thành', color: '#059669', bg: '#f0fdf4', border: '#86efac' },
     { id: 'bao_luu', label: 'Bảo lưu', color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' },
-    { id: 'huy', label: 'Đã hủy', color: '#e11d48', bg: '#fff1f2', border: '#fda4af' }
+    { id: 'huy', label: 'Đã hủy', color: '#ef4444', bg: '#fff1f2', border: '#fda4af' }
 ];
 
 /**
@@ -463,17 +474,195 @@ export const CONTRACT_ROW_COLOR_LEGEND = [
  */
 export const QUICK_STATUS_OPTIONS = [
     { id: 'all', label: 'Tất cả trạng thái' },
-    { id: 'no_schedule', label: '🔴 Chưa xếp lịch chụp' },
-    { id: '1', label: '📸 1. Chụp hình' },
-    { id: '2_cho_chinh', label: '⏳ 2. Hậu kỳ: Chờ chỉnh' },
-    { id: '2_dang_chinh', label: '🎨 2. Hậu kỳ: Đang chỉnh' },
-    { id: '2_cho_khach_duyet', label: '💬 2. Hậu kỳ: Khách duyệt' },
-    { id: '2_hoan_thanh', label: '✅ 2. Hậu kỳ: Hoàn thành' },
-    { id: '3', label: '🖼️ 3. In ảnh' },
-    { id: '4', label: '✅ 4. Hoàn thành' },
+    { id: 'no_schedule', label: '🟡 Chưa xếp lịch (Màu vàng)' },
+    { id: '1', label: '⚪ 1. Chụp hình (Màu trắng)' },
+    { id: '2_cho_chinh', label: '🔵 2. Hậu kỳ: Chờ chỉnh (Xanh đậm)' },
+    { id: '2_dang_chinh', label: '🔷 2. Hậu kỳ: Đang chỉnh' },
+    { id: '2_cho_khach_duyet', label: '🔹 2. Hậu kỳ: Khách duyệt' },
+    { id: '2_hoan_thanh', label: '💠 2. Hậu kỳ: Hoàn thành' },
+    { id: '3', label: '🟣 3. In ảnh (Màu tím)' },
+    { id: '4', label: '🟢 4. Hoàn thành (Màu xanh lá)' },
     { id: 'bao_luu', label: '⏸️ Đang bảo lưu' },
     { id: 'huy', label: '❌ Đã hủy' }
 ];
+
+/**
+ * Lấy lịch chụp hoặc quay phim gần nhất khi trong hợp đồng có nhiều ngày chụp hoặc quay.
+ * Trả về thông tin ngày giờ lịch gần nhất, số ngày còn lại (đếm ngược), và danh sách toàn bộ các ca chụp/quay.
+ */
+export const getNearestShootOrRecordSchedule = (hd) => {
+    if (!hd) return null;
+
+    const schedules = [];
+    const seenTimestamps = new Set();
+
+    const addSchedule = (dateVal, type, label, staff = '', location = '') => {
+        if (!dateVal) return;
+        const d = new Date(dateVal);
+        if (isNaN(d.getTime())) return;
+
+        const key = `${type}_${d.toISOString().slice(0, 16)}`;
+        if (seenTimestamps.has(key)) return;
+        seenTimestamps.add(key);
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const targetDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const diffDays = Math.round((targetDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        schedules.push({
+            date: d,
+            rawDate: dateVal,
+            diffDays,
+            type, // 'photo' | 'video'
+            label,
+            staff,
+            location
+        });
+    };
+
+    // 1. Thu thập từ serviceSchedules
+    if (Array.isArray(hd.serviceSchedules)) {
+        hd.serviceSchedules.forEach(s => {
+            const sType = String(s.serviceType || '').toLowerCase();
+            const sName = String(s.serviceName || '').toLowerCase();
+            const isShoot = sType === 'photo' || sType === 'shoot' || sName.includes('chụp') || sName.includes('photo');
+            const isVideo = sType === 'video' || sName.includes('quay') || sName.includes('video') || sName.includes('phim');
+
+            if (isShoot && s.ngayGio) {
+                addSchedule(s.ngayGio, 'photo', s.serviceName || 'Chụp hình', s.nhanVien, s.diaDiem);
+            } else if (isVideo && s.ngayGio) {
+                addSchedule(s.ngayGio, 'video', s.serviceName || 'Quay phim', s.nhanVien, s.diaDiem);
+            }
+        });
+    }
+
+    // 2. Thu thập từ lichChup
+    if (Array.isArray(hd.lichChup)) {
+        hd.lichChup.forEach(l => {
+            addSchedule(l.ngayGio || l.ngayChup, 'photo', l.tenDichVu || 'Lịch chụp hình', l.nhanVien || l.thoChupHinh, l.diaDiem);
+        });
+    }
+
+    // 3. Thu thập từ lichQuayPhim
+    if (Array.isArray(hd.lichQuayPhim)) {
+        hd.lichQuayPhim.forEach(l => {
+            addSchedule(l.ngayGio || l.ngayQuay, 'video', l.tenDichVu || 'Lịch quay phim', l.nhanVien || l.thoQuayPhim, l.diaDiem);
+        });
+    }
+
+    // 4. Thu thập từ cacNgay.ngayChup & ngayQuayPhim
+    if (hd.cacNgay?.ngayChup) {
+        addSchedule(hd.cacNgay.ngayChup, 'photo', 'Lịch chụp ảnh', hd.nguoiPhucVu?.thoChupHinh, hd.cacNgay?.diaDiemChup);
+    }
+    if (hd.cacNgay?.ngayQuayPhim) {
+        addSchedule(hd.cacNgay.ngayQuayPhim, 'video', 'Lịch quay phim', hd.nguoiPhucVu?.thoQuayPhim, hd.cacNgay?.diaDiemQuayPhim);
+    }
+
+    if (schedules.length === 0) return null;
+
+    // Sắp xếp: ưu tiên lịch sắp tới gần nhất (diffDays >= 0), nếu tất cả đã qua thì lấy lịch gần nhất trong quá khứ
+    const upcoming = schedules.filter(s => s.diffDays >= 0).sort((a, b) => a.date.getTime() - b.date.getTime());
+    const past = schedules.filter(s => s.diffDays < 0).sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    const nearest = upcoming.length > 0 ? upcoming[0] : past[0];
+    const allSorted = [...schedules].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    return {
+        nearest,
+        allSchedules: allSorted,
+        totalCount: schedules.length,
+        hasMultiple: schedules.length > 1
+    };
+};
+
+/**
+ * Kiểm tra điều kiện hoàn thành hợp đồng (Giai đoạn 4):
+ * 1. Hợp đồng phải thanh toán đủ 100% tiền (công nợ conLai <= 0).
+ * 2. Trong hợp đồng không còn lịch phân công nào chưa đến ngày (các ngày hẹn trong tương lai).
+ */
+export const checkContractCompletionEligibility = (hd) => {
+    if (!hd) return { eligible: true };
+
+    // 1. Kiểm tra thanh toán đủ
+    const conLai = Number(hd.thanhToan?.conLai || 0);
+    const tongTien = Number(hd.thanhToan?.tongGiaTriSauGiam || hd.thanhToan?.tongGiaTri || 0);
+    const daThanhToan = Number(hd.thanhToan?.khachHangDaThanhToan || 0);
+
+    const isPaidFull = conLai <= 0 && (tongTien === 0 || daThanhToan >= tongTien);
+    if (!isPaidFull) {
+        return {
+            eligible: false,
+            reason: 'unpaid',
+            conLai,
+            message: `Không thể hoàn thành đơn: Hợp đồng chưa thanh toán đủ số tiền còn lại (${conLai.toLocaleString('vi-VN')} đ). Vui lòng tất toán công nợ đủ 100% trước khi xác nhận hoàn thành đơn!`
+        };
+    }
+
+    // 2. Kiểm tra còn lịch phân công chưa đến ngày
+    const allAssignedTasks = [];
+    const seenKeys = new Set();
+
+    const addTask = (dateVal, name) => {
+        if (!dateVal) return;
+        const d = new Date(dateVal);
+        if (isNaN(d.getTime())) return;
+        const k = `${name}_${d.toISOString()}`;
+        if (seenKeys.has(k)) return;
+        seenKeys.add(k);
+        allAssignedTasks.push({ date: d, name });
+    };
+
+    // a. serviceSchedules
+    if (Array.isArray(hd.serviceSchedules)) {
+        hd.serviceSchedules.forEach(s => {
+            if (s.ngayGio) addTask(s.ngayGio, s.serviceName || s.serviceType || 'Lịch phân công');
+        });
+    }
+
+    // b. lichChup, lichQuayPhim, lichTrangDiem
+    if (Array.isArray(hd.lichChup)) {
+        hd.lichChup.forEach(s => addTask(s.ngayGio || s.ngayChup, s.tenDichVu || 'Lịch chụp hình'));
+    }
+    if (Array.isArray(hd.lichQuayPhim)) {
+        hd.lichQuayPhim.forEach(s => addTask(s.ngayGio || s.ngayQuay, s.tenDichVu || 'Lịch quay phim'));
+    }
+    if (Array.isArray(hd.lichTrangDiem)) {
+        hd.lichTrangDiem.forEach(s => addTask(s.ngayGio || s.ngayTrangDiem, s.tenDichVu || 'Lịch trang điểm'));
+    }
+
+    // c. cacNgay
+    const cn = hd.cacNgay || {};
+    if (cn.ngayChup) addTask(cn.ngayChup, 'Lịch chụp ảnh');
+    if (cn.ngayQuayPhim) addTask(cn.ngayQuayPhim, 'Lịch quay phim');
+    if (cn.ngayTrangDiem) addTask(cn.ngayTrangDiem, 'Lịch trang điểm');
+    if (cn.ngayAnHoi) addTask(cn.ngayAnHoi, 'Lịch ăn hỏi');
+    if (cn.ngayCuoi) addTask(cn.ngayCuoi, 'Lịch ngày cưới');
+
+    const now = new Date();
+    // Cuối ngày hôm nay: 23:59:59.999
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const futureTasks = allAssignedTasks.filter(t => t.date.getTime() > endOfToday.getTime());
+
+    if (futureTasks.length > 0) {
+        const formatDateSimple = (d) => {
+            const day = String(d.getDate()).padStart(2, '0');
+            const mon = String(d.getMonth() + 1).padStart(2, '0');
+            const yr = d.getFullYear();
+            return `${day}/${mon}/${yr}`;
+        };
+        const taskListDesc = futureTasks.map(t => `${t.name} (${formatDateSimple(t.date)})`).join(', ');
+
+        return {
+            eligible: false,
+            reason: 'future_schedules',
+            futureTasks,
+            message: `Không thể hoàn thành đơn: Trong hợp đồng vẫn còn lịch phân công chưa đến ngày thực hiện: [${taskListDesc}]. Không được hoàn thành đơn khi chưa qua ngày phục vụ!`
+        };
+    }
+
+    return { eligible: true };
+};
 
 /**
  * SLA tiêu chuẩn số ngày tối đa cho từng công đoạn
@@ -750,6 +939,7 @@ export const getStageSlaInfo = (hd) => {
         text,
         shortText,
         issue: issueReason,
+        shortIssue: shortIssueReason,
         detailedDesc,
         tooltip,
         badgeColor,

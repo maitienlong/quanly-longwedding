@@ -8,6 +8,19 @@ export const isMakeupService = (item) => {
 };
 
 /**
+ * Kiểm tra xem một item có phải dịch vụ quay phim hay không
+ */
+export const isVideoService = (item) => {
+    if (!item) return false;
+    const code = String(item.maDichVu || '').toUpperCase();
+    if (code.startsWith('VIDEO_') || code.startsWith('FILM_') || code.startsWith('QUAY_')) {
+        return true;
+    }
+    const name = String(item.tenDichVuSnapshot || item.tenDichVu || '').toLowerCase();
+    return name.includes('quay phim') || name.includes('video') || name.includes('phóng sự cưới') || name.includes('quay clip') || name.includes('highlight');
+};
+
+/**
  * Kiểm tra xem một item có phải trang phục (váy, vest, áo dài...) hay không
  */
 export const isClothingService = (item) => {
@@ -152,16 +165,17 @@ export const requiresSchedule = (item) => {
     if (isWeddingCardService(item)) return false;
     if (isPhotoLabService(item)) return false;
 
-    if (Number(item.soLuongLichChup) > 0 || Number(item.soLuongLichMake) > 0) return true;
+    if (Number(item.soLuongLichChup) > 0 || Number(item.soLuongLichMake) > 0 || Number(item.soLuongLichQuay) > 0) return true;
 
-    return isMakeupService(item) || isPhotoShootService(item);
+    return isMakeupService(item) || isVideoService(item) || isPhotoShootService(item);
 };
 
 /**
- * Lấy loại lịch: 'makeup' | 'photo' | 'other'
+ * Lấy loại lịch: 'makeup' | 'photo' | 'video' | 'other'
  */
 export const getScheduleType = (item) => {
     if (isMakeupService(item)) return 'makeup';
+    if (isVideoService(item)) return 'video';
     if (isPhotoShootService(item)) return 'photo';
     return 'other';
 };
@@ -236,15 +250,25 @@ export const syncSchedulesWithCart = (existingSchedules = [], cart = []) => {
             makeCount = 1;
         }
 
-        // Fallback an toàn nếu cả 2 đều bằng 0 nhưng dịch vụ yêu cầu lịch
-        if (shootCount === 0 && makeCount === 0) {
+        // Xác định số lượng lịch quay phim (soLuongLichQuay)
+        let videoCount = 0;
+        if (sp.soLuongLichQuay !== undefined && sp.soLuongLichQuay !== null) {
+            videoCount = Math.max(0, Number(sp.soLuongLichQuay));
+        } else if (isVideoService(sp)) {
+            videoCount = 1;
+        }
+
+        // Fallback an toàn nếu cả 3 đều bằng 0 nhưng dịch vụ yêu cầu lịch
+        if (shootCount === 0 && makeCount === 0 && videoCount === 0) {
             if (isMakeupService(sp)) makeCount = 1;
+            else if (isVideoService(sp)) videoCount = 1;
             else if (isPhotoShootService(sp)) shootCount = 1;
         }
 
         const currentForService = schedulesByService[sId] || [];
         const existingPhotoSchedules = currentForService.filter(s => s.serviceType === 'photo');
         const existingMakeSchedules = currentForService.filter(s => s.serviceType === 'makeup');
+        const existingVideoSchedules = currentForService.filter(s => s.serviceType === 'video');
 
         // 1. Tạo hoặc cập nhật các lịch chụp hình
         for (let t = 0; t < shootCount; t++) {
@@ -301,11 +325,39 @@ export const syncSchedulesWithCart = (existingSchedules = [], cart = []) => {
                 });
             }
         }
+
+        // 3. Tạo hoặc cập nhật các lịch quay phim
+        for (let v = 0; v < videoCount; v++) {
+            const schName = videoCount > 1 ? `${baseName} (Quay phim lượt ${v + 1})` : `${baseName} (Quay phim)`;
+            if (existingVideoSchedules[v]) {
+                resultSchedules.push({
+                    ...existingVideoSchedules[v],
+                    serviceId: sId,
+                    serviceName: schName,
+                    serviceType: 'video',
+                    luot: v + 1,
+                    totalLuot: videoCount
+                });
+            } else {
+                resultSchedules.push({
+                    id: `sch-vid-${sId}-${v}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                    serviceId: sId,
+                    serviceName: schName,
+                    serviceType: 'video',
+                    luot: v + 1,
+                    totalLuot: videoCount,
+                    ngayGio: '',
+                    diaDiem: 'Tại Studio',
+                    nhanVien: '',
+                    ghiChu: ''
+                });
+            }
+        }
     });
 
     // Giữ lại các lịch thủ công hoặc lịch legacy (nếu không gắn với dịch vụ nào trong giỏ hàng)
     schedules.forEach(sch => {
-        if (sch.serviceId === 'LEGACY_SHOOT' || sch.serviceId === 'MANUAL_SHOOT' || sch.serviceId === 'MANUAL_MAKEUP' || String(sch.serviceId || '').startsWith('MANUAL_') || sch.serviceType === 'video' || sch.serviceType === 'bts' || sch.serviceType === 'cskh' || sch.serviceType === 'support') {
+        if (!validServiceIds.has(sch.serviceId)) {
             resultSchedules.push(sch);
         }
     });

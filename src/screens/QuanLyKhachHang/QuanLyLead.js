@@ -56,6 +56,7 @@ export default function QuanLyLead() {
     const [loading, setLoading] = useState(false);
     const [searchKeyword, setSearchKeyword] = useState('');
     const [filterStatus, setFilterStatus] = useState('ALL');
+    const [isConverting, setIsConverting] = useState(false);
 
     // Dialog Chi tiết & Thêm nhật ký tư vấn
     const [selectedLead, setSelectedLead] = useState(null);
@@ -147,12 +148,15 @@ export default function QuanLyLead() {
     };
 
     const handleConvertToContract = async (lead) => {
+        if (!lead || isConverting) return;
         if (!window.confirm(`Chuyển đổi Lead [${lead.hoTen}] thành Hợp đồng chính thức?`)) return;
 
+        setIsConverting(true);
         try {
             const res = await otherService.convertLeadToContract({
                 leadId: lead._id,
                 contractType: 'FULL_WEDDING',
+                dichVuChinh: Number(lead.dichVuChinh) || 1,
                 khachHangData: {
                     tenKhachHang: lead.hoTen,
                     soDienThoai: lead.soDienThoai || '',
@@ -160,15 +164,20 @@ export default function QuanLyLead() {
                 }
             });
 
-            if (res.data?.success) {
-                toast.success(`Chuyển đổi thành công sang Hợp đồng ${res.data.data.hopDong?.maHopDong}!`);
+            if (res.data?.status === 'success' || res.data?.success) {
+                if (res.data.data?.isAlreadyConverted) {
+                    toast.info(`Lead này đã được chuyển đổi sang Hợp đồng ${res.data.data.hopDong?.maHopDong} trước đó!`);
+                } else {
+                    toast.success(`Chuyển đổi thành công sang Hợp đồng ${res.data.data.hopDong?.maHopDong}!`);
+                }
                 loadLeads();
                 setSelectedLead(null);
-                // Điều hướng sang trang Hợp đồng
                 navigate('/hopdong');
             }
         } catch (err) {
-            toast.error("Lỗi chuyển đổi: " + err.message);
+            toast.error(err.response?.data?.message || err.message || "Lỗi chuyển đổi");
+        } finally {
+            setIsConverting(false);
         }
     };
 
@@ -324,10 +333,11 @@ export default function QuanLyLead() {
                                                     variant="contained"
                                                     color="success"
                                                     startIcon={<HowToRegIcon />}
+                                                    disabled={isConverting}
                                                     onClick={() => handleConvertToContract(lead)}
                                                     sx={{ borderRadius: 2 }}
                                                 >
-                                                    Chốt Cọc HĐ
+                                                    {isConverting ? 'Đang tạo...' : 'Chốt Cọc HĐ'}
                                                 </Button>
                                             ) : (
                                                 <Chip 
@@ -419,9 +429,10 @@ export default function QuanLyLead() {
                                     color="success" 
                                     variant="outlined"
                                     startIcon={<HowToRegIcon />}
+                                    disabled={isConverting}
                                     onClick={() => handleConvertToContract(selectedLead)}
                                 >
-                                    Chốt Thành Hợp Đồng
+                                    {isConverting ? 'Đang tạo HĐ...' : 'Chốt Thành Hợp Đồng'}
                                 </Button>
                             )}
                             <Button 

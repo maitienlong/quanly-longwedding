@@ -59,9 +59,16 @@ const appService = {
    listAlbums: (params) => axiosClient.get(ENDPOINTS.ALBUM.LIST, { params }),
    getAlbumDetail: (maHopDong) => axiosClient.get(`${ENDPOINTS.ALBUM.DETAIL}/${maHopDong}`),
    updateAlbumSettings: (maHopDong, params) => axiosClient.put(`${ENDPOINTS.ALBUM.SETTINGS}/${maHopDong}/settings`, params),
-   getPortalInfo: (maHopDong) => axiosClient.get(`${ENDPOINTS.ALBUM.PORTAL}/${maHopDong}`),
-   portalPhotoAction: (maHopDong, params) => axiosClient.post(`${ENDPOINTS.ALBUM.PORTAL}/${maHopDong}/photo-action`, params),
-   portalCompleteSelection: (maHopDong, params) => axiosClient.post(`${ENDPOINTS.ALBUM.PORTAL}/${maHopDong}/complete`, params),
+   getPortalInfo: (maHopDong, token) => axiosClient.get(`${ENDPOINTS.ALBUM.PORTAL}/${maHopDong}`, {
+       headers: token ? { 'x-portal-token': token } : {}
+   }),
+   portalPhotoAction: (maHopDong, params, token) => axiosClient.post(`${ENDPOINTS.ALBUM.PORTAL}/${maHopDong}/photo-action`, params, {
+       headers: token ? { 'x-portal-token': token } : {}
+   }),
+   portalCompleteSelection: (maHopDong, params, token) => axiosClient.post(`${ENDPOINTS.ALBUM.PORTAL}/${maHopDong}/complete`, params, {
+       headers: token ? { 'x-portal-token': token } : {}
+   }),
+   generatePortalToken: (maHopDong) => axiosClient.get(`/api/album/portal-token/${maHopDong}`),
    findAllLoaiDichVu: (params) => axiosClient.post(ENDPOINTS.LOAI_DICHVU.LIST, params),
    createLoaiDichVu: (params) => axiosClient.post(ENDPOINTS.LOAI_DICHVU.CREATE, params),
    updateLoaiDichVu: (params) => axiosClient.post(ENDPOINTS.LOAI_DICHVU.UPDATE, params),
@@ -100,7 +107,62 @@ const appService = {
    validateVoucher: (params) => axiosClient.post(ENDPOINTS.VOUCHER.VALIDATE, params),
    generateBatchCodes: (id, params) => axiosClient.post(`${ENDPOINTS.VOUCHER.GENERATE_CODES}/${id}`, params),
    getGeneratedCodes: (id, params) => axiosClient.get(`${ENDPOINTS.VOUCHER.CODES}/${id}`, { params }),
-   deleteGeneratedCode: (id, codeId) => axiosClient.delete(`${ENDPOINTS.VOUCHER.CODES}/${id}/${codeId}`)
+   deleteGeneratedCode: (id, codeId) => axiosClient.delete(`${ENDPOINTS.VOUCHER.CODES}/${id}/${codeId}`),
+   // BOOKING & RESOURCE AVAILABILITY (MOD-04, LW2-031)
+   getBookingAvailability: (params) => axiosClient.get('/api/v2/bookings/availability', { params }),
+   checkContractScheduleConflicts: (payload) => axiosClient.post('/api/v2/bookings/check-contract-conflicts', payload),
+   listBookings: (params) => axiosClient.get('/api/v2/bookings', { params }),
+   getBookingDetail: (id) => axiosClient.get(`/api/v2/bookings/${id}`),
+   createBooking: (data) => axiosClient.post('/api/v2/bookings', data),
+   updateBooking: (id, data) => axiosClient.patch(`/api/v2/bookings/${id}`, data),
+   confirmBooking: (id, payload) => axiosClient.post(`/api/v2/bookings/${id}/confirm`, payload),
+   cancelBooking: (id, payload) => axiosClient.post(`/api/v2/bookings/${id}/cancel`, payload),
+   // WARDROBE RESERVATION & CHECK-IN/OUT (MOD-05, LW2-032)
+   getWardrobeConflicts: (params) => axiosClient.get('/api/v2/wardrobe/conflicts', { params }),
+   listWardrobeReservations: (params) => axiosClient.get('/api/v2/wardrobe/reservations', { params }),
+   createWardrobeReservation: (data) => axiosClient.post('/api/v2/wardrobe/reservations', data),
+   checkOutWardrobe: (id, payload) => axiosClient.post(`/api/v2/wardrobe/reservations/${id}/check-out`, payload),
+   checkInWardrobe: (id, payload) => axiosClient.post(`/api/v2/wardrobe/reservations/${id}/check-in`, payload),
+   cancelWardrobeReservation: (id, payload) => axiosClient.post(`/api/v2/wardrobe/reservations/${id}/cancel`, payload),
+   recordWardrobeMaintenance: (itemId, payload) => axiosClient.post(`/api/v2/wardrobe/${itemId}/maintenance`, payload),
+   // WORKFLOW TASKS & OUTBOX NOTIFICATIONS (MOD-09, LW2-040)
+   listTasks: (params) => axiosClient.get('/api/v2/tasks', { params }),
+   updateTask: (id, payload) => axiosClient.patch(`/api/v2/tasks/${id}`, payload),
+   instantiateContractWorkflow: (contractId) => axiosClient.post(`/api/v2/tasks/contracts/${contractId}/workflow/instantiate`),
+   listNotifications: () => axiosClient.get('/api/v2/notifications/notifications'),
+   processNotificationOutbox: (payload) => axiosClient.post('/api/v2/notifications/notifications/outbox/process', payload),
+   // PHOTO PROOFING, VERSIONING & RETOUCH PINS (MOD-06, LW2-041)
+   addRetouchPin: (albumIdOrMaHopDong, payload, token) => axiosClient.post(`/api/v2/albums/${albumIdOrMaHopDong}/retouch-notes`, payload, {
+       headers: token ? { 'x-portal-token': token } : {}
+   }),
+   approveAlbumReview: (albumIdOrMaHopDong, payload, token) => axiosClient.post(`/api/v2/albums/${albumIdOrMaHopDong}/approve`, payload, {
+       headers: token ? { 'x-portal-token': token } : {}
+   }),
+   uploadAlbumReviewVersion: (albumIdOrMaHopDong, payload) => axiosClient.post(`/api/v2/albums/${albumIdOrMaHopDong}/versions`, payload),
+   getAlbumReviewVersions: (albumIdOrMaHopDong, token) => axiosClient.get(`/api/v2/albums/${albumIdOrMaHopDong}/versions`, {
+       headers: token ? { 'x-portal-token': token } : {}
+   }),
+   updatePhotoSelections: (albumIdOrMaHopDong, payload, token) => axiosClient.put(`/api/v2/albums/${albumIdOrMaHopDong}/selections`, payload, {
+       headers: token ? { 'x-portal-token': token } : {}
+   }),
+   // PRINT DELIVERABLES, FACTORY TRACKING & QC (MOD-07, LW2-050)
+   listPrintDeliverables: (params) => axiosClient.get('/api/v2/print-deliverables', { params }),
+   getPrintDeliverableDetail: (id) => axiosClient.get(`/api/v2/print-deliverables/${id}`),
+   createPrintDeliverable: (payload) => axiosClient.post('/api/v2/print-deliverables', payload),
+   updatePrintDeliverable: (id, payload) => axiosClient.put(`/api/v2/print-deliverables/${id}`, payload),
+   sendDeliverableToFactory: (id, payload) => axiosClient.post(`/api/v2/print-deliverables/${id}/send-to-factory`, payload),
+   receiveDeliverableFromFactory: (id, payload) => axiosClient.post(`/api/v2/print-deliverables/${id}/receive`, payload),
+   inspectDeliverableQC: (id, payload) => axiosClient.post(`/api/v2/print-deliverables/${id}/qc-inspect`, payload),
+   overrideDeliverableQC: (id, payload) => axiosClient.post(`/api/v2/print-deliverables/${id}/qc-override`, payload),
+   handoverDeliverableToClient: (id, payload) => axiosClient.post(`/api/v2/print-deliverables/${id}/handover`, payload),
+   syncContractDeliverables: (contractId) => axiosClient.post(`/api/v2/print-deliverables/contracts/${contractId}/sync`),
+   // DOUBLE-ENTRY FINANCIAL LEDGER & RECONCILIATION (MOD-08, T-LEDGER01, T-REPORT01)
+   listFinancialLedger: (params) => axiosClient.get('/api/v2/finance/ledger', { params }),
+   getContractFinancialLedger: (maHopDong) => axiosClient.get(`/api/v2/finance/ledger/contract/${maHopDong}`),
+   runFinancialReconciliation: (payload) => axiosClient.post('/api/v2/finance/reconcile', payload),
+   listReconciliationRuns: (params) => axiosClient.get('/api/v2/finance/reconciliation-runs', { params }),
+   getReconciliationRunDetail: (id) => axiosClient.get(`/api/v2/finance/reconciliation-runs/${id}`),
+   getUnifiedFinancialSummary: (params) => axiosClient.get('/api/v2/finance/unified-summary', { params })
 };
 
 export default appService;

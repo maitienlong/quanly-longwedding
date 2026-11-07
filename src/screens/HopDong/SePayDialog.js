@@ -222,6 +222,7 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
             if (!paymentSocket.connected) {
                 paymentSocket.connect();
             }
+            paymentSocket.emit('join_contract', { maHopDong: activeMaHopDong });
             paymentSocket.on('payment_success', handleSocketPayment);
 
             pollingTimerRef.current = setInterval(() => {
@@ -234,6 +235,7 @@ export default function SePayDialog({ open, onClose, data, maHopDong, defaultAmo
         }
 
         return () => {
+            paymentSocket.emit('leave_contract', { maHopDong: activeMaHopDong });
             paymentSocket.off('payment_success', handleSocketPayment);
             if (paymentSocket.connected) {
                 paymentSocket.disconnect();

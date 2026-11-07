@@ -7,6 +7,10 @@ let socketInstance = null;
 export const getPaymentSocket = () => {
     if (!socketInstance) {
         socketInstance = io(API_URL, {
+            auth: (cb) => {
+                const token = localStorage.getItem("access_token");
+                cb({ token });
+            },
             transports: ['websocket', 'polling'],
             autoConnect: false, // Kết nối khi bắt đầu thanh toán
             reconnection: true,
